@@ -6,8 +6,14 @@ let currentFlightId = null;
 
 /* ---------- THEME ---------- */
 
+const SUN_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><line x1="12" y1="1.5" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22.5"/><line x1="1.5" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22.5" y2="12"/><line x1="4.5" y1="4.5" x2="6.2" y2="6.2"/><line x1="17.8" y1="17.8" x2="19.5" y2="19.5"/><line x1="4.5" y1="19.5" x2="6.2" y2="17.8"/><line x1="17.8" y1="6.2" x2="19.5" y2="4.5"/></svg>';
+const MOON_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.8 6.8 0 0 0 10.5 10.5Z"/></svg>';
+
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light');
+  const btn = document.getElementById('theme-toggle');
+  // in modalità chiara mostriamo l'icona sole, in scura la luna
+  btn.innerHTML = theme === 'dark' ? MOON_ICON : SUN_ICON;
 }
 
 function initTheme() {
@@ -38,6 +44,7 @@ function showHome() {
   document.getElementById('view-dashboard').style.display = 'none';
   document.getElementById('topbar-title').textContent = 'My Flights';
   document.querySelector('.bottombar').style.display = 'none';
+  document.body.classList.remove('in-flight');
   renderFlightsList();
 }
 
@@ -46,6 +53,7 @@ function showDashboard(id) {
   document.getElementById('view-home').style.display = 'none';
   document.getElementById('view-dashboard').style.display = 'block';
   document.querySelector('.bottombar').style.display = 'flex';
+  document.body.classList.add('in-flight');
 
   if (!flight) {
     document.getElementById('topbar-title').textContent = 'Volo non trovato';
@@ -130,103 +138,126 @@ async function handleRefresh() {
 
 /* ---------- DASHBOARD ---------- */
 
-function renderDashboard(flight) {
-  const data = flight.raw;
-  const state = flight.state || {};
-
-  document.getElementById('fi-callsign').textContent = extractCallsign(data);
-  document.getElementById('fi-badge').textContent = state.accepted ? 'Accepted' : 'On time';
-  document.getElementById('fi-orig').textContent = data.origin ? data.origin.icao_code : '—';
-  document.getElementById('fi-dest').textContent = data.destination ? data.destination.icao_code : '—';
-  document.getElementById('fi-rwy-orig').textContent = (data.origin && data.origin.plan_rwy) || '—';
-  document.getElementById('fi-rwy-dest').textContent = (data.destination && data.destination.plan_rwy) || '—';
-
-  const times = data.times || {};
-  document.getElementById('fi-std').textContent = unixToHHMM(times.sched_out);
-  document.getElementById('fi-etd').textContent = unixToHHMM(times.est_out || times.sched_out);
-  document.getElementById('fi-sta').textContent = unixToHHMM(times.sched_in);
-  document.getElementById('fi-eta').textContent = unixToHHMM(times.est_in || times.sched_in);
-
-  document.getElementById('cl-status').textContent = state.accepted ? 'Accepted' : 'Not accepted';
-  document.getElementById('cl-fuel').textContent = state.fuelOrdered ? 'Ordered' : 'Not ordered';
-
-  const acceptBtn = document.getElementById('accept-flight-btn');
-  acceptBtn.textContent = state.accepted ? 'Flight Accepted ✓' : 'Accept Flight';
-  acceptBtn.disabled = !!state.accepted;
-
-  const fuelBtn = document.getElementById('order-fuel-btn');
-  fuelBtn.textContent = state.fuelOrdered ? 'Fuel Ordered ✓' : 'Order Fuel';
-  fuelBtn.disabled = !!state.fuelOrdered;
-
-  // Route: lista waypoint dal navlog
-  const routeList = document.getElementById('route-list');
-  routeList.innerHTML = '';
-  const fixes = (data.navlog && data.navlog.fix) || [];
-  if (fixes.length === 0) {
-    routeList.innerHTML = '<li>Nessun waypoint trovato nel navlog</li>';
-  } else {
-    fixes.forEach((fix) => {
-      const li = document.createElement('li');
-      li.textContent = `${fix.ident || '?'} ${fix.via_airway && fix.via_airway !== 'DCT' ? 'via ' + fix.via_airway : ''} — FL${Math.round((fix.altitude_feet || 0) / 100)}`;
-      routeList.appendChild(li);
-    });
-  }
-
-  // Weather
-  renderWeather(data, 'origin');
-  document.querySelectorAll('.wx-tab').forEach((tab) => {
-    tab.classList.toggle('active', tab.dataset.wx === 'origin');
-    tab.onclick = () => {
-      document.querySelectorAll('.wx-tab').forEach((t) => t.classList.remove('active'));
-      tab.classList.add('active');
-      renderWeather(data, tab.dataset.wx);
-    };
-  });
-
-  // Weight & Fuel
-  const w = data.weights || {};
-  document.getElementById('w-zfw').textContent = w.est_zfw || '—';
-  document.getElementById('w-zfw-max').textContent = w.max_zfw || '—';
-  document.getElementById('w-tow').textContent = w.est_tow || '—';
-  document.getElementById('w-tow-max').textContent = w.max_tow || '—';
-  document.getElementById('w-lw').textContent = w.est_ldw || '—';
-  document.getElementById('w-lw-max').textContent = w.max_ldw || '—';
-
-  const f = data.fuel || {};
-  document.getElementById('f-trip').textContent = f.plan_takeoff || f.trip || '—';
-  document.getElementById('f-block').textContent = f.plan_ramp || '—';
-  document.getElementById('f-landing').textContent = f.plan_landing || '—';
-
-  // Debug raw JSON, utile finché verifichiamo i nomi esatti dei campi
-  document.getElementById('debug-json').textContent = JSON.stringify(data, null, 2);
+function formatHHMM(totalSeconds) {
+  if (!totalSeconds && totalSeconds !== 0) return '—';
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.round((totalSeconds % 3600) / 60);
+  return `${String(h).padStart(2, '0')}h${String(m).padStart(2, '0')}m`;
 }
 
-function renderWeather(data, which) {
-  const airport = which === 'origin' ? data.origin : data.destination;
-  document.getElementById('wx-airport-name').textContent = airport ? `${airport.icao_code || ''} — ${airport.name || ''}` : '—';
-  document.getElementById('wx-metar').textContent = (airport && airport.metar) || 'METAR non disponibile';
-  document.getElementById('wx-taf').textContent = (airport && airport.taf) || 'TAF non disponibile';
+function formatDateFromUnix(unixSeconds) {
+  if (!unixSeconds) return '—';
+  const d = new Date(Number(unixSeconds) * 1000);
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${days[d.getUTCDay()]} ${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+function renderDashboard(flight) {
+  try {
+    const data = flight.raw;
+    const general = data.general || {};
+    const origin = data.origin || {};
+    const destination = data.destination || {};
+    const alternate = data.alternate || {};
+    const times = data.times || {};
+
+    document.getElementById('fi-orig').textContent = origin.icao_code || '—';
+    document.getElementById('fi-dest').textContent = destination.icao_code || '—';
+    document.getElementById('fi-altn').textContent = alternate.icao_code ? `(${alternate.icao_code})` : '';
+
+    document.getElementById('fi-flighttime').textContent = formatHHMM(times.est_time_enroute || times.sched_time_enroute);
+    document.getElementById('fi-blocktime').textContent = formatHHMM(times.est_block || times.sched_block);
+
+    document.getElementById('fi-rwy-dep').textContent = origin.plan_rwy || '—';
+    document.getElementById('fi-sid').textContent = general.sid_ident || '—';
+    document.getElementById('fi-date').textContent = formatDateFromUnix(times.sched_out);
+    document.getElementById('fi-std').textContent = unixToHHMM(times.sched_out);
+    document.getElementById('fi-etd').textContent = unixToHHMM(times.est_out || times.sched_out);
+
+    document.getElementById('fi-rwy-arr').textContent = destination.plan_rwy || '—';
+    document.getElementById('fi-star').textContent = general.star_ident || '—';
+    document.getElementById('fi-sta').textContent = unixToHHMM(times.sched_in);
+    document.getElementById('fi-eta').textContent = unixToHHMM(times.est_in || times.sched_in);
+
+    const deltaEl = document.getElementById('fi-eta-delta');
+    if (times.sched_in && times.est_in) {
+      const diffMin = Math.round((Number(times.est_in) - Number(times.sched_in)) / 60);
+      if (diffMin === 0) {
+        deltaEl.textContent = '';
+      } else if (diffMin < 0) {
+        deltaEl.textContent = `-${String(Math.abs(diffMin)).padStart(2, '0')}m`;
+        deltaEl.className = 'delta-early';
+      } else {
+        deltaEl.textContent = `+${String(diffMin).padStart(2, '0')}m`;
+        deltaEl.className = 'delta-late';
+      }
+    } else {
+      deltaEl.textContent = '';
+    }
+
+    // Route, Checklist, Weight, Fuel, Weather: per ora solo i contenitori/titoli,
+    // li popoliamo nel prossimo passo.
+
+    // Debug raw JSON, utile finché verifichiamo i nomi esatti dei campi
+    document.getElementById('debug-json').textContent = JSON.stringify(data, null, 2);
+  } catch (err) {
+    console.error('Errore nel rendering della Dashboard:', err);
+    document.getElementById('debug-json').textContent = 'ERRORE: ' + err.message + '\n\n' + JSON.stringify(flight.raw, null, 2);
+  }
 }
 
 /* ---------- INTERAZIONI ---------- */
 
+function openDrawer() {
+  document.getElementById('side-drawer').classList.add('open');
+  document.getElementById('drawer-overlay').classList.add('open');
+}
+
+function closeDrawer() {
+  document.getElementById('side-drawer').classList.remove('open');
+  document.getElementById('drawer-overlay').classList.remove('open');
+}
+
 function initInteractions() {
-  document.getElementById('sb-refresh').addEventListener('click', handleRefresh);
+  // precompila il campo con l'ultimo username/id usato
+  const lastId = localStorage.getItem('mbriefing_sb_id');
+  if (lastId) document.getElementById('sb-username').value = lastId;
+
+  document.getElementById('menu-toggle').addEventListener('click', openDrawer);
+  document.getElementById('drawer-close').addEventListener('click', closeDrawer);
+  document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
+
+  document.getElementById('sb-refresh').addEventListener('click', async () => {
+    await handleRefresh();
+    localStorage.setItem('mbriefing_sb_id', document.getElementById('sb-username').value.trim());
+  });
+
+  // tasto refresh nella pagina My Flights: riusa l'ultimo username/id salvato,
+  // così puoi importare più voli senza riaprire il menu ogni volta
+  document.getElementById('content-refresh-btn').addEventListener('click', async () => {
+    const saved = localStorage.getItem('mbriefing_sb_id');
+    if (!saved) {
+      openDrawer();
+      return;
+    }
+    document.getElementById('sb-username').value = saved;
+    await handleRefresh();
+  });
 
   document.getElementById('dashboard-back').addEventListener('click', () => {
     window.location.hash = '#/home';
   });
 
-  document.getElementById('accept-flight-btn').addEventListener('click', () => {
-    if (!currentFlightId) return;
-    updateFlightState(currentFlightId, { accepted: true });
-    showDashboard(currentFlightId);
-  });
-
-  document.getElementById('order-fuel-btn').addEventListener('click', () => {
-    if (!currentFlightId) return;
-    updateFlightState(currentFlightId, { fuelOrdered: true });
-    showDashboard(currentFlightId);
+  // Pager colonna destra: Weight/Fuel <-> Weather
+  document.querySelectorAll('.pager-dot').forEach((dot) => {
+    dot.addEventListener('click', () => {
+      const page = dot.dataset.page;
+      document.querySelectorAll('.pager-dot').forEach((d) => d.classList.toggle('active', d === dot));
+      document.querySelectorAll('.pager-page').forEach((p) => {
+        p.hidden = p.dataset.page !== page;
+      });
+    });
   });
 
   document.querySelectorAll('.tab-btn').forEach((btn) => {

@@ -10,125 +10,130 @@
 
   <!-- TOP BAR -->
   <header class="topbar">
-    <div class="topbar-left" id="topbar-left">
-      <span class="topbar-title" id="topbar-title">My Flights</span>
-    </div>
-    <div class="topbar-right">
-      <button class="icon-btn" id="theme-toggle" title="Cambia tema">🌓</button>
-    </div>
+    <button class="icon-btn" id="menu-toggle" title="Menu">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <span class="topbar-title" id="topbar-title">My Flights</span>
+    <button class="icon-btn" id="theme-toggle" title="Cambia tema"></button>
   </header>
+
+  <!-- SIDE DRAWER: CONNESSIONE SIMBRIEF -->
+  <div class="drawer-overlay" id="drawer-overlay"></div>
+  <aside class="side-drawer" id="side-drawer">
+    <div class="drawer-header">
+      <span>SimBrief</span>
+      <button class="icon-btn" id="drawer-close" title="Chiudi">✕</button>
+    </div>
+    <div class="drawer-body">
+      <label class="drawer-label" for="sb-username">Username o Pilot ID</label>
+      <input type="text" id="sb-username" placeholder="es. lupo05">
+      <button class="btn-primary btn-block" id="sb-refresh">Refresh da SimBrief</button>
+      <p class="hint" id="sb-status"></p>
+    </div>
+  </aside>
 
   <!-- HOME VIEW: MY FLIGHTS -->
   <main id="view-home" class="view">
 
-    <section class="sb-connect widget">
-      <div class="widget-row">
-        <input type="text" id="sb-username" placeholder="Username o Pilot ID SimBrief (es. lupo05)">
-        <button class="btn-primary" id="sb-refresh">Refresh da SimBrief</button>
-      </div>
-      <p class="hint" id="sb-status"></p>
-    </section>
+    <div class="content-toolbar">
+      <button class="icon-btn" id="content-refresh-btn" title="Importa ultimo volo SimBrief">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><polyline points="21 3 21 9 15 9"/></svg>
+      </button>
+    </div>
 
     <section id="flights-list" class="flights-grid">
       <!-- le card dei voli vengono generate da js/app.js -->
     </section>
 
-    <p class="empty-state" id="empty-state">Nessun volo importato. Inserisci il tuo username SimBrief e premi "Refresh da SimBrief".</p>
+    <p class="empty-state" id="empty-state">Nessun volo importato. Apri il menu, inserisci il tuo username SimBrief e premi "Refresh da SimBrief".</p>
 
   </main>
 
   <!-- DASHBOARD VIEW (per volo) -->
-  <main id="view-dashboard" class="view" style="display:none;">
+  <main id="view-dashboard" class="view view-flight" style="display:none;">
 
     <button class="back-btn" id="dashboard-back">‹ My Flights</button>
 
-    <section class="widgets-row">
+    <div class="dashboard-grid">
 
-      <div class="widget flight-info-widget">
-        <div class="widget-body">
-          <div class="fi-callsign" id="fi-callsign">—</div>
-          <div class="fi-badge" id="fi-badge">—</div>
-          <div class="fi-route">
-            <span id="fi-orig">—</span>
-            <span class="fi-arrow">→</span>
-            <span id="fi-dest">—</span>
-          </div>
-          <div class="fi-rwy-row">
-            <div>
-              <span class="fi-label">RWY</span>
-              <span id="fi-rwy-orig">—</span>
-            </div>
-            <div>
-              <span class="fi-label">RWY</span>
-              <span id="fi-rwy-dest">—</span>
-            </div>
-          </div>
-          <div class="fi-times-row">
-            <div>
-              <span class="fi-label">STD</span> <span id="fi-std">—</span><br>
-              <span class="fi-label">ETD</span> <span id="fi-etd">—</span>
-            </div>
-            <div>
-              <span class="fi-label">STA</span> <span id="fi-sta">—</span><br>
-              <span class="fi-label">ETA</span> <span id="fi-eta">—</span>
-            </div>
-          </div>
-          <button class="btn-primary btn-block" id="accept-flight-btn">Accept Flight</button>
-          <p class="hint" id="accept-status"></p>
+      <!-- COLONNA SINISTRA -->
+      <div class="dash-col">
 
-          <div class="checklist" id="flight-checklist">
-            <div class="checklist-row"><span>Status:</span><span id="cl-status">—</span></div>
-            <div class="checklist-row"><span>Fuel:</span><span id="cl-fuel">Not ordered</span></div>
-            <div class="checklist-row"><span>NavLog:</span><span>Pending</span></div>
-            <div class="checklist-row"><span>Journey Log:</span><span>Pending</span></div>
+        <div class="widget flight-info-widget">
+          <div class="widget-body">
+            <div class="fi-route-row">
+              <span id="fi-orig">—</span>
+              <span class="fi-arrow">→</span>
+              <span id="fi-dest">—</span>
+              <span class="fi-altn" id="fi-altn"></span>
+            </div>
           </div>
-          <button class="btn-secondary btn-block" id="order-fuel-btn">Order Fuel</button>
+          <div class="fi-strip">
+            <span><span class="fi-strip-label">Flight Time</span> <span id="fi-flighttime">—</span></span>
+            <span><span class="fi-strip-label">Block Time</span> <span id="fi-blocktime">—</span></span>
+          </div>
+          <div class="widget-body fi-details-row">
+            <div class="fi-details-col">
+              <div><span class="fi-label">RWY</span> <span id="fi-rwy-dep">—</span></div>
+              <div><span class="fi-label">SID</span> <span id="fi-sid">—</span></div>
+              <div class="fi-date" id="fi-date">—</div>
+              <div><span class="fi-label">STD</span> <span id="fi-std">—</span></div>
+              <div><span class="fi-label">ETD</span> <span id="fi-etd">—</span></div>
+            </div>
+            <div class="fi-details-col">
+              <div><span class="fi-label">RWY</span> <span id="fi-rwy-arr">—</span></div>
+              <div><span class="fi-label">STAR</span> <span id="fi-star">—</span></div>
+              <div><span class="fi-label">STA</span> <span id="fi-sta">—</span></div>
+              <div><span class="fi-label">ETA</span> <span id="fi-eta">—</span> <span id="fi-eta-delta"></span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="widget checklist-widget">
+          <div class="widget-header">Flight Checklist</div>
+          <div class="widget-body"></div>
+        </div>
+
+      </div>
+
+      <!-- COLONNA CENTRALE -->
+      <div class="dash-col">
+        <div class="widget route-widget route-widget-tall">
+          <div class="widget-header">Route</div>
+          <div class="widget-body"></div>
         </div>
       </div>
 
-      <div class="widget route-widget">
-        <div class="widget-header">Route</div>
-        <div class="widget-body">
-          <ol class="route-list" id="route-list">
-            <li>—</li>
-          </ol>
-        </div>
-      </div>
+      <!-- COLONNA DESTRA: pager Weight/Fuel <-> Weather -->
+      <div class="dash-col">
+        <div class="pager" id="right-pager">
 
-      <div class="widget weather-widget">
-        <div class="widget-header">Weather</div>
-        <div class="widget-body">
-          <div class="wx-tabs">
-            <button class="wx-tab active" data-wx="origin">ORIG</button>
-            <button class="wx-tab" data-wx="dest">DEST</button>
+          <div class="pager-page" data-page="0">
+            <div class="widget weight-widget">
+              <div class="widget-header">Weight</div>
+              <div class="widget-body"></div>
+            </div>
+            <div class="widget fuel-widget">
+              <div class="widget-header">Fuel</div>
+              <div class="widget-body"></div>
+            </div>
           </div>
-          <div class="wx-block">
-            <div class="wx-airport" id="wx-airport-name">—</div>
-            <pre class="wx-metar" id="wx-metar">—</pre>
-            <pre class="wx-taf" id="wx-taf">—</pre>
+
+          <div class="pager-page" data-page="1" hidden>
+            <div class="widget weather-widget">
+              <div class="widget-header">Weather</div>
+              <div class="widget-body"></div>
+            </div>
           </div>
+
+        </div>
+        <div class="pager-dots" id="pager-dots">
+          <button class="pager-dot active" data-page="0"></button>
+          <button class="pager-dot" data-page="1"></button>
         </div>
       </div>
 
-      <div class="widget weight-widget">
-        <div class="widget-header">Weight &amp; Fuel</div>
-        <div class="widget-body">
-          <table class="weight-table">
-            <tr><th></th><th>EST/ACT(kg)</th><th>Limit(kg)</th></tr>
-            <tr><td>ZFW</td><td id="w-zfw">—</td><td id="w-zfw-max">—</td></tr>
-            <tr><td>TOW</td><td id="w-tow">—</td><td id="w-tow-max">—</td></tr>
-            <tr><td>LW</td><td id="w-lw">—</td><td id="w-lw-max">—</td></tr>
-          </table>
-          <table class="weight-table">
-            <tr><th></th><th>Fuel(kg)</th></tr>
-            <tr><td>Trip</td><td id="f-trip">—</td></tr>
-            <tr><td>Block Fuel</td><td id="f-block">—</td></tr>
-            <tr><td>Est. Landing Fuel</td><td id="f-landing">—</td></tr>
-          </table>
-        </div>
-      </div>
-
-    </section>
+    </div>
 
     <details class="debug-raw">
       <summary>Debug: dati grezzi SimBrief (per verificare i nomi dei campi)</summary>
