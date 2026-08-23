@@ -365,50 +365,66 @@ function renderRouteSummary(data, origin, destination, general) {
   const el = document.getElementById('route-summary');
   let route = general.route || '';
   let initialAltStr = '';
-  let currentFL = 0;
 
-  // 1. Estrae il livello iniziale sicuro (indipendentemente dal formato)
-  if (general.initial_altitude) {
-    let val = String(general.initial_altitude).match(/\d+/);
-    if (val) {
-      currentFL = parseInt(val[0], 10);
-      // Trasforma piedi in FL se necessario
-      if (currentFL >= 1000) currentFL = Math.round(currentFL / 100);
-      initialAltStr = 'F' + currentFL;
-    }
+  // Funzione super-sicura per estrarre il livello (es. da "0240", "24000" o "FL240" a "F240")
+  function parseFL(val) {
+    if (!val) return '';
+    const match = String(val).match(/\d+/);
+    if (!match) return '';
+    let n = parseInt(match[0], 10);
+    if (n === 0) return '';
+    if (n >= 1000) n = Math.round(n / 100);
+    return 'F' + n;
   }
 
-  let routeArray = route.split(' ');
+  // Prende il livello base da initial_alt o initial_altitude (SimBrief varia a seconda della versione)
+  const baseAlt = general.initial_alt || general.initial_altitude || '';
+  if (baseAlt) {
+    initialAltStr = parseFL(baseAlt);
+  }
 
-  // 2. L'idea dell'utente: passiamo attraverso il navlog!
-  if (data.navlog && data.navlog.fix) {
-    // Normalizza: assicura che sia sempre un array
-    let fixes = Array.isArray(data.navlog.fix) ? data.navlog.fix : [data.navlog.fix];
-    let activeFL = currentFL;
+  // Usa la stepclimb_string fornita da SimBrief
+  if (general.stepclimb_string) {
+    // Separa i vari step (es. "LGMK/0240", "KEA/0380")
+    const steps = general.stepclimb_string.split(',').map(s => s.trim()).filter(Boolean);
+    
+    // Dividiamo la rotta in array di parole per fare una sostituzione esatta e sicura
+    let routeArray = route.split(' ').map(w => w.trim()).filter(Boolean);
 
-    fixes.forEach(fix => {
-      if (fix.ident && fix.altitude_feet) {
-        let fixFL = Math.round(parseInt(fix.altitude_feet, 10) / 100);
-        
-        // Se c'è un salto di altitudine...
-        if (fixFL > 0 && fixFL !== activeFL) {
-          // ...verifichiamo se questo waypoint fa parte della rotta scritta
-          // (per scartare i punti di SID/STAR e i vari TOC/TOD intermedi invisibili)
-          for (let i = 0; i < routeArray.length; i++) {
-            if (routeArray[i] === fix.ident) {
-              // Bingo! Trovata una step climb legittima lungo la rotta
-              routeArray[i] = `${fix.ident}/F${fixFL}`;
-              activeFL = fixFL; // Aggiorna per cercare il prossimo step
-              break;
+    steps.forEach((step, index) => {
+      const parts = step.split('/');
+      if (parts.length === 2) {
+        const wpt = parts[0].trim();
+        const flStr = parseFL(parts[1]);
+
+        if (flStr) {
+          // Il primo step (o origine/TOC) definisce l'altitudine iniziale
+          if (index === 0 || wpt === origin.icao_code || wpt === 'TOC') {
+            initialAltStr = flStr;
+          } else {
+            // Scorre l'array della rotta, cerca l'esatto waypoint e ci appiccica il livello
+            for (let i = 0; i < routeArray.length; i++) {
+              if (routeArray[i] === wpt) {
+                routeArray[i] = `${wpt}/${flStr}`;
+                break; // Sostituisce solo la prima occorrenza e si ferma
+              }
             }
           }
         }
       }
     });
+
+    // Riunisce l'array modificato in una singola stringa testuale
+    route = routeArray.join(' ');
   }
 
-  // 3. Ricostruisce la stringa con gli step climbs incastrati
-  route = routeArray.join(' ');
+  // Fallback estremo se mancasse initial_alt e il primo elemento dello step non lo definisse
+  if (!initialAltStr && data.navlog && data.navlog.fix) {
+    const firstFix = Array.isArray(data.navlog.fix) ? data.navlog.fix[0] : data.navlog.fix;
+    if (firstFix && (firstFix.altitude_feet || firstFix.altitude)) {
+      initialAltStr = parseFL(firstFix.altitude_feet || firstFix.altitude);
+    }
+  }
 
   el.innerHTML = `<strong>${origin.icao_code || '----'}</strong>/${origin.plan_rwy || '--'} ${initialAltStr} ${route} <strong>${destination.icao_code || '----'}</strong>/${destination.plan_rwy || '--'}`;
 }
