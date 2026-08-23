@@ -197,6 +197,8 @@ body {
   padding: 16px;
   flex: 1;
   min-height: 0;
+  display: flex;             /* AGGIUNTO: forza la view a comportarsi da contenitore flex */
+  flex-direction: column;    /* AGGIUNTO */
   overflow-y: auto;
 }
 
