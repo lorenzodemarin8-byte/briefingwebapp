@@ -1,0 +1,934 @@
+/* =========================================================
+   VARIABILI TEMA
+   ========================================================= */
+:root {
+  --bar-bg: #e9e9ec;
+  --bar-border: #c7c7cc;
+  --bg: #ffffff;
+  --widget-bg: #ffffff;
+  --widget-border: #d4d4d8;
+  --text: #1c1c1e;
+  --text-secondary: #6e6e73;
+  --accent: #1f3a63;
+  --accent-text: #ffffff;
+  --green-bg: #d7f3dc;
+  --green-text: #1f8a3b;
+  --orange-text: #c0781f;
+  --input-bg: #f2f2f5;
+  --input-border: #d4d4d8;
+
+  /* grigi dedicati alla pagina di dettaglio volo */
+  --dash-bg: #f4f5f7;
+  --dash-widget-border: #e6e9eb;
+  --dash-band-bg: #e6e9eb;
+  --dash-bar: #c3c6cb;
+}
+
+[data-theme="dark"] {
+  --bar-bg: #1c1c1e;
+  --bar-border: #38383a;
+  --bg: #000000;
+  --widget-bg: #1c1c1e;
+  --widget-border: #38383a;
+  --text: #f2f2f7;
+  --text-secondary: #98989d;
+  --accent: #4a7fd6;
+  --accent-text: #ffffff;
+  --green-bg: #163a1f;
+  --green-text: #4ad66d;
+  --orange-text: #e0a352;
+  --input-bg: #2c2c2e;
+  --input-border: #48484a;
+
+  --dash-bg: #0c0c0e;
+  --dash-widget-border: #333336;
+  --dash-band-bg: #262628;
+  --dash-bar: #2a2a2c;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* =========================================================
+   TOP BAR / BOTTOM BAR
+   ========================================================= */
+.topbar {
+  display: flex;
+  flex-direction: column;
+  background: var(--bar-bg);
+  border-bottom: 1px solid var(--bar-border);
+  flex: 0 0 auto;
+  z-index: 10;
+}
+
+.topbar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 16px;
+  height: 34px;
+  width: 100%;
+}
+
+.topbar-title {
+  flex: 1;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.topbar-right-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bottombar {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: var(--bar-bg);
+  border-top: 1px solid var(--bar-border);
+  height: 38px;
+  padding: 0 8px;
+  flex: 0 0 auto;
+  z-index: 10;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* =========================================================
+   BARRA INFO VOLO (dentro la topbar)
+   ========================================================= */
+.flight-info-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  background: var(--dash-band-bg);
+  border-radius: 6px;
+  margin: 4px 16px 0 16px;
+  padding: 4px 12px;
+  font-size: 11px;
+}
+
+.info-chip {
+  color: var(--text);
+  padding: 0 10px;
+  white-space: nowrap;
+  position: relative;
+  font-weight: 500;
+}
+
+#fib-ofpdate, #fib-route {
+  font-weight: 400;
+}
+
+#fib-route strong {
+  font-weight: 500;
+}
+
+.info-chip:not(:last-of-type)::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 15%;
+  bottom: 15%;
+  width: 1px;
+  background: #c7c7cc;
+}
+
+.status-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+  white-space: nowrap;
+  background: transparent;
+  margin-left: 6px;
+}
+
+.status-badge.not-accepted { color: var(--orange-text); border: 1px solid var(--orange-text); }
+.status-badge.accepted { color: var(--green-text); border: 1px solid var(--green-text); }
+
+/* =========================================================
+   LAYOUT GENERALE / VIEW
+   ========================================================= */
+.view {
+  padding: 16px;
+  flex: 1;
+  min-height: 0;
+  display: flex;             /* AGGIUNTO: forza la view a comportarsi da contenitore flex */
+  flex-direction: column;    /* AGGIUNTO */
+  overflow-y: auto;
+}
+
+#view-home {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.widget {
+  background: var(--widget-bg);
+  border: 1px solid var(--widget-border);
+  border-radius: 10px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.widget-header {
+  padding: 10px 14px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--widget-border);
+  background: var(--bg);
+}
+
+.widget-body {
+  padding: 14px;
+  flex: 1;
+}
+
+/* =========================================================
+   SIDE DRAWER (connessione SimBrief)
+   ========================================================= */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
+  z-index: 20;
+}
+
+.drawer-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.side-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 280px;
+  max-width: 82vw;
+  background: var(--widget-bg);
+  border-right: 1px solid var(--widget-border);
+  transform: translateX(-100%);
+  transition: transform .22s ease;
+  z-index: 21;
+  display: flex;
+  flex-direction: column;
+}
+
+.side-drawer.open {
+  transform: translateX(0);
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--widget-border);
+  font-weight: 600;
+}
+
+.drawer-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drawer-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+#sb-username {
+  padding: 10px 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  background: var(--input-bg);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-text);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-block { width: 100%; margin-top: 10px; }
+
+.hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* =========================================================
+   MY FLIGHTS
+   ========================================================= */
+.content-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.content-toolbar .icon-btn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--widget-border);
+  border-radius: 8px;
+  color: var(--text);
+}
+
+.flights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.flight-card {
+  background: var(--widget-bg);
+  border: 1px solid var(--widget-border);
+  border-radius: 10px;
+  padding: 14px;
+  cursor: pointer;
+}
+
+.flight-card:hover { border-color: var(--accent); }
+.flight-card .fc-callsign { font-weight: 700; font-size: 16px; }
+.flight-card .fc-route { font-size: 22px; font-weight: 700; margin: 6px 0; }
+.flight-card .fc-meta { font-size: 13px; color: var(--text-secondary); }
+
+.empty-state {
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 40px;
+}
+
+/* =========================================================
+   DASHBOARD (pagina di dettaglio volo)
+   ========================================================= */
+body.in-flight .topbar, body.in-flight .bottombar {
+  background: var(--dash-bar);
+}
+
+#view-dashboard {
+  background: var(--dash-bg);
+  padding: 12px 20px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;             /* AGGIUNTO: obbliga la pagina a prendere tutta l'altezza tra le due barre */
+}
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 18px;
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  align-items: stretch;
+  flex: 1;                  /* MANTIENI QUESTO */
+  min-height: 0;
+  height: 100%;             /* AGGIUNTO: obbliga la griglia a stirarsi dentro la view */
+}
+
+.dash-col {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.checklist-widget {
+  flex: 1;
+}
+
+.checklist-widget .widget-body { flex: 1; overflow-y: auto; }
+
+#view-dashboard .widget {
+  background: var(--widget-bg);
+  border-top: none;
+  border-bottom: 4px solid var(--dash-widget-border);
+  border-left: 5px solid var(--dash-widget-border);
+  border-right: 5px solid var(--dash-widget-border);
+  border-radius: 8px;
+  margin-bottom: 0;
+}
+
+#view-dashboard .flight-info-widget {
+  border-bottom: none;
+  flex: 1; /* AGGIUNTO: fa espandere il widget */
+}
+
+#view-dashboard .widget-header {
+  background: var(--dash-band-bg);
+  border-bottom: none;
+  color: var(--text);
+  padding: 6px 14px;
+  text-align: center;
+  font-size: 15px;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---------- FLIGHT INFO WIDGET ---------- */
+.fi-row {
+  display: flex;
+  align-items: flex-start;
+}
+
+.fi-side { flex: 1; min-width: 0; }
+.fi-mid {
+  flex: 0 0 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.fi-widget-header {
+  justify-content: space-between !important;
+  gap: 8px;
+}
+
+.fi-header-side {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.fi-header-side:first-child { text-align: left; }
+.fi-header-side:last-child { text-align: right; }
+
+.fi-header-title {
+  flex: 0 0 auto;
+  font-weight: 600; 
+  font-size: 15px;
+  color: var(--text);
+}
+
+.fi-header-row { padding: 14px 14px 10px; }
+.fi-icao {
+  font-size: 19px;
+  font-weight: 600; 
+  text-align: center;
+}
+
+.fi-arrow { color: var(--text-secondary); font-size: 18px; margin-top: 2px; }
+.fi-altn {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+.fi-strip {
+  background: var(--dash-band-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  padding: 6px 14px;
+  min-height: 38px;
+  font-size: 13px;
+}
+
+.fi-strip-label { color: var(--text-secondary); margin-right: 4px; font-weight: 400; }
+.fi-strip-value { font-weight: 600; } 
+
+.fi-details-row { padding: 12px 0 14px; }
+.fi-side-dep { text-align: right; padding-right: 14px; }
+.fi-side-arr { text-align: left; padding-left: 14px; }
+
+.fi-detail-combo, .fi-time-line {
+  font-size: 13px;
+  padding: 3px 0;
+}
+
+.fi-label {
+  color: var(--text);
+  font-weight: 400;
+  font-size: 12.5px;
+}
+
+.fi-value {
+  color: var(--text);
+  font-weight: 600; 
+}
+
+.fi-detail-combo .fi-label { margin-right: 4px; }
+.fi-detail-combo .fi-value:not(:last-child) { margin-right: 10px; }
+.fi-time-line .fi-value, .fi-time-line .fi-label { margin: 0 3px; }
+.fi-delta { font-size: 12px; margin-left: 4px; }
+.fi-date {
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 3px 0;
+}
+
+.delta-early { color: var(--green-text); font-weight: 600; }
+.delta-late { color: var(--orange-text); font-weight: 600; }
+
+.fi-details-row .fi-mid {
+  align-self: stretch;
+  position: relative;
+  flex: 0 0 2px;
+}
+
+.fi-details-row .fi-mid::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 50%;
+  width: 1px;
+  background: var(--dash-widget-border);
+}
+
+.fi-actions {
+  display: flex;
+  align-items: center; 
+  gap: 12px;
+  padding: 6px 14px;
+  background: var(--dash-band-bg);
+  min-height: 38px;
+  margin-top: auto; /* MODIFICATO: spinge la barra dei tasti sul fondo del widget */
+}
+
+.fi-actions .btn-primary, 
+.fi-actions .btn-secondary {
+  flex: 1;
+  margin-top: 0;
+  border-radius: 4px;
+  padding: 6px 12px; 
+  font-size: 14.5px;
+  font-weight: 600;
+  border: none;
+}
+
+.fi-actions .btn-primary {
+  background: #254069;
+  color: #ffffff;
+}
+
+.fi-actions .btn-primary.btn-accepted {
+  background: var(--green-bg);
+  color: var(--green-text);
+  border: 1px solid var(--green-text);
+}
+
+.fi-actions .btn-secondary {
+  background: #fdfdfd;
+  color: #a3a3a3;
+  border: 1px solid #e0e0e0;
+}
+
+.fi-actions .btn-secondary:disabled {
+  opacity: .6;
+  cursor: default;
+}
+
+/* ---------- ROUTE (colonna centrale, altezza piena) ---------- */
+.route-widget-tall {
+  flex: 1;
+}
+
+.route-widget-tall .widget-body { flex: 1; overflow-y: auto; }
+
+/* ---------- PAGER (colonna destra: Weight/Fuel <-> Weather, swipe) ---------- */
+.pager-scroll {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 8px;
+  flex: 1;
+  min-height: 0;
+}
+
+.pager-scroll::-webkit-scrollbar { display: none; }
+
+.pager-page {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.pager-page[data-page="0"] .weight-widget {
+  flex: 1; /* AGGIUNTO: fa espandere il widget in alto a dx */
+}
+.pager-page[data-page="0"] .fuel-widget {
+  flex: 1;
+}
+
+.pager-page[data-page="1"] { min-height: 100%; }
+.pager-page[data-page="1"] .weather-widget {
+  flex-grow: 1;
+}
+
+.pager-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pager-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: var(--dash-widget-border);
+  cursor: pointer;
+  padding: 0;
+}
+
+.pager-dot.active { background: var(--accent); }
+
+/* ---------- TABELLE DATI (Weight / Fuel) ---------- */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.data-table th {
+  text-align: right;
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-size: 11px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--dash-widget-border);
+}
+
+.data-table td {
+  text-align: right;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--dash-widget-border);
+}
+
+.data-table th:first-child, .data-table td:first-child {
+  text-align: left;
+  color: var(--text);
+}
+
+.data-table td:not(:first-child) {
+  font-weight: 600;
+}
+
+.data-table tbody tr:last-child td { border-bottom: none; }
+.fuel-widget .data-table td:first-child, .fuel-widget .data-table th:first-child { font-size: 12.5px; }
+
+/* ---------- WEATHER WIDGET ---------- */
+.wx-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.wx-tab {
+  flex: 1;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.wx-tab.active {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+
+.wx-row-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.wx-row-title {
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.wx-row-age {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.wx-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--text-secondary);
+}
+
+.wx-badge.vmc { background: var(--green-bg); color: var(--green-text); }
+.wx-badge.imc { background: #fadada; color: #b3261e; }
+[data-theme="dark"] .wx-badge.imc { background: #3a1414; color: #f28b82; }
+
+.wx-text {
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.wx-divider {
+  height: 1px;
+  background: var(--dash-widget-border);
+  margin: 4px 0 10px;
+}
+
+/* ---------- ROUTE: mappa + riepilogo testuale ---------- */
+.route-widget-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 10px;
+}
+
+.route-map-area {
+  flex: 1;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--input-bg);
+  border-radius: 6px;
+  overflow: hidden;
+  padding: 6px;
+}
+
+.route-map-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.route-map-fallback {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 0 10px;
+  margin: 0;
+}
+
+.route-map-fallback a { color: var(--accent); }
+
+.route-summary {
+  flex: 0 0 auto;
+  font-size: 13px;
+  line-height: 1.6;
+  padding-top: 8px;
+  border-top: 1px solid var(--dash-widget-border);
+  text-align: center;
+}
+
+.route-summary strong { font-weight: 700; }
+
+/* =========================================================
+   ACCEPTANCE SIGNATURE MODAL
+   ========================================================= */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 100;
+}
+
+.modal-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.95);
+  width: 90%;
+  max-width: 500px;
+  background: var(--widget-bg);
+  border-radius: 10px;
+  z-index: 101;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.modal.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.modal-header {
+  background: var(--dash-band-bg);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--widget-border);
+}
+
+.modal-title {
+  font-weight: 500;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.modal-header-btn {
+  background: none;
+  border: none;
+  font-size: 15px;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0;
+}
+
+#sig-cancel-btn {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+#sig-save-btn {
+  font-weight: 600;
+}
+
+.modal-body {
+  padding: 16px;
+}
+
+.acceptance-checkbox-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+
+.acceptance-checkbox-container input {
+  display: none;
+}
+
+.checkmark {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: all 0.2s ease;
+  background-color: var(--input-bg);
+}
+
+.acceptance-checkbox-container input:checked ~ .checkmark {
+  background: var(--green-bg);
+  border-color: var(--green-text);
+}
+
+.acceptance-checkbox-container input:checked ~ .checkmark::after {
+  content: '✓';
+  color: var(--green-text);
+  font-weight: 900;
+  font-size: 14px;
+}
+
+.acceptance-text {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.signature-pad-container {
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--input-bg);
+  height: 150px;
+  width: 100%;
+  overflow: hidden;
+  touch-action: none;
+}
+
+canvas#signature-pad {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
