@@ -411,6 +411,7 @@ body.in-flight .bottombar {
   color: var(--text-secondary);
 }
 
+.fi-header-side:first-child { text-align: left; }
 .fi-header-side:last-child { text-align: right; }
 
 .fi-header-title {
@@ -475,6 +476,7 @@ body.in-flight .bottombar {
   font-weight: 700;
 }
 
+.fi-detail-combo .fi-label { margin-right: 4px; }
 .fi-detail-combo .fi-value:not(:last-child) { margin-right: 10px; }
 
 .fi-time-line .fi-value,
@@ -522,7 +524,7 @@ body.in-flight .bottombar {
   flex: 1;
   margin-top: 0;
   border-radius: 0;
-  padding: 14px 16px;
+  padding: 11px 16px;
 }
 
 .fi-actions .btn-primary {

@@ -46,12 +46,12 @@ function extractFlightId(data) {
 }
 
 function extractCallsign(data) {
-  if (data.atc && data.atc.callsign) return data.atc.callsign;
   if (data.general) {
     const airline = data.general.icao_airline || data.general.iata_airline || '';
     const num = data.general.flight_number || '';
     if (airline || num) return `${airline}${num}`;
   }
+  if (data.atc && data.atc.callsign) return data.atc.callsign;
   return '—';
 }
 
