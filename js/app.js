@@ -302,11 +302,10 @@ function renderDashboard(flight) {
     renderRouteMap(data);
     renderRouteSummary(data, origin, destination, general);
 
-    document.getElementById('debug-json').textContent = JSON.stringify(data, null, 2);
+    // debug rimosso in HTML
 
   } catch (err) {
     console.error('Errore nel rendering della Dashboard:', err);
-    document.getElementById('debug-json').textContent = 'ERRORE: ' + err.message + '\n\n' + JSON.stringify(flight.raw, null, 2);
   }
 }
 
@@ -366,49 +365,59 @@ function renderRouteMap(data) {
   img.src = url;
 }
 
-function formatStepClimbs(stepclimbString) {
-  if (!stepclimbString) return '';
-  const parts = stepclimbString.split(',').map((s) => s.trim()).filter(Boolean);
-  return parts
-    .map((p, i) => {
-      const [wpt, fl] = p.split('/');
-      const flLabel = 'FL' + parseInt(fl, 10);
-      return i === 0 ? flLabel : `→ ${flLabel} (${wpt})`;
-    })
-    .join(' ');
-}
-
 function renderRouteSummary(data, origin, destination, general) {
   const el = document.getElementById('route-summary');
   let route = general.route || '';
   let initialAlt = '';
 
-  // Se c'è una stringa con le step climbs (es. "LGMK/0240,KEA/0380,SIPRO/0180")
+  // Funzione sicura per formattare il Flight Level (es. "0240" -> "F240", "24000" -> "F240")
+  function formatFL(val) {
+    let n = parseInt(val, 10);
+    if (isNaN(n)) return '';
+    if (n >= 1000) n = Math.round(n / 100);
+    return 'F' + n;
+  }
+
+  // Imposta il livello di volo iniziale di default
+  if (general.initial_altitude) {
+    initialAlt = formatFL(general.initial_altitude);
+  }
+
+  // Se è presente la stringa degli step climb, la elabora e la innesta nella rotta
   if (general.stepclimb_string) {
     const steps = general.stepclimb_string.split(',').map(s => s.trim()).filter(Boolean);
     
-    steps.forEach((step, index) => {
+    // Converte la rotta in un array (parola per parola) per evitare errori con le RegExp
+    const routeArray = route.split(' ');
+
+    steps.forEach((step) => {
       const parts = step.split('/');
       if (parts.length === 2) {
         const wpt = parts[0];
-        const fl = 'F' + parseInt(parts[1], 10); // Converte "0380" in "F380"
+        const fl = formatFL(parts[1]);
         
-        if (index === 0) {
-          // Il primo elemento è sempre l'altitudine iniziale alla partenza
+        let replaced = false;
+        // Cerca il waypoint parola per parola nella rotta e ci attacca il livello
+        for (let i = 0; i < routeArray.length; i++) {
+          if (routeArray[i] === wpt) {
+            routeArray[i] = `${wpt}/${fl}`;
+            replaced = true;
+          }
+        }
+
+        // Se il waypoint dello step non è nella rotta, potrebbe essere l'origine o il TOC
+        // in tal caso sovrascriviamo l'altitudine iniziale.
+        if (!replaced && (wpt === (origin.icao_code || '') || wpt === 'TOC')) {
           initialAlt = fl;
-        } else {
-          // Per i successivi, cerca il waypoint nella rotta e ci attacca il livello
-          const regex = new RegExp(`\\b${wpt}\\b`, 'g');
-          route = route.replace(regex, `${wpt}/${fl}`);
         }
       }
     });
-  } else if (general.initial_altitude) {
-    // Fallback se per qualche motivo manca la stringa delle step climbs
-    initialAlt = 'F' + Math.round(general.initial_altitude / 100);
+    
+    // Ricostruisce la stringa della rotta
+    route = routeArray.join(' ');
   }
 
-  // Costruisce la stringa finale esattamente nel formato Lido mBriefing
+  // Costruisce la stringa finale per il widget, fondendo tutto
   el.innerHTML = `<strong>${origin.icao_code || '----'}</strong>/${origin.plan_rwy || '--'} ${initialAlt} ${route} <strong>${destination.icao_code || '----'}</strong>/${destination.plan_rwy || '--'}`;
 }
 
