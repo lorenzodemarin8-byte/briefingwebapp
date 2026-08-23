@@ -411,7 +411,7 @@ body.in-flight .topbar, body.in-flight .bottombar {
 
 #view-dashboard .flight-info-widget {
   border-bottom: none;
-  flex: 0 0 auto;
+  flex: 1; /* AGGIUNTO: fa espandere il widget */
 }
 
 #view-dashboard .widget-header {
@@ -548,7 +548,7 @@ body.in-flight .topbar, body.in-flight .bottombar {
   padding: 6px 14px;
   background: var(--dash-band-bg);
   min-height: 38px;
-  margin-top: 0;
+  margin-top: auto; /* MODIFICATO: spinge la barra dei tasti sul fondo del widget */
 }
 
 .fi-actions .btn-primary, 
@@ -613,7 +613,9 @@ body.in-flight .topbar, body.in-flight .bottombar {
   gap: 18px;
   min-width: 0;
 }
-
+.pager-page[data-page="0"] .weight-widget {
+  flex: 1; /* AGGIUNTO: fa espandere il widget in alto a dx */
+}
 .pager-page[data-page="0"] .fuel-widget {
   flex: 1;
 }
