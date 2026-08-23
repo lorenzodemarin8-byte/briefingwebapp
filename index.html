@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>mBriefing</title>
-  <link rel="stylesheet" href="css/style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>mBriefing</title>
+<link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
@@ -34,75 +34,89 @@
 
   <!-- HOME VIEW: MY FLIGHTS -->
   <main id="view-home" class="view">
+
     <div class="content-toolbar">
       <button class="icon-btn" id="content-refresh-btn" title="Importa ultimo volo SimBrief">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><polyline points="21 3 21 9 15 9"/></svg>
       </button>
     </div>
+
     <section id="flights-list" class="flights-grid">
-      <!-- le card dei voli -->
+      <!-- le card dei voli vengono generate da js/app.js -->
     </section>
+
     <p class="empty-state" id="empty-state">Nessun volo importato. Apri il menu, inserisci il tuo username SimBrief e premi "Refresh da SimBrief".</p>
+
   </main>
 
-  <!-- DASHBOARD VIEW -->
-  <main id="view-dashboard" class="view view-flight" style="display:none;">
-    <button class="back-btn" id="dashboard-back">← My Flights</button>
-    
+  <!-- DASHBOARD VIEW (per volo) -->
+  <main id="view-dashboard" class="view" style="display:none;">
+
+    <button class="back-btn" id="dashboard-back">‹ My Flights</button>
+
     <div class="dashboard-grid">
-      
+
       <!-- COLONNA SINISTRA -->
       <div class="dash-col">
-        
+
         <div class="widget flight-info-widget">
-          <div class="widget-header"></div> <!-- Barra grigia in cima al widget vuota come da reference -->
-          
-          <div class="widget-body">
-            <!-- ICAO allineati con i dati sottostanti -->
-            <div class="fi-top-section">
-              <div class="fi-half left-align">
-                <span id="fi-orig" class="icao-text"></span>
-              </div>
-              <div class="fi-arrow">→</div>
-              <div class="fi-half right-align">
-                <span id="fi-dest" class="icao-text"></span><span class="fi-altn" id="fi-altn"></span>
-              </div>
-            </div>
 
-            <!-- Striscia Tempi -->
-            <div class="fi-strip">
-              <span><span class="fi-strip-label">Flight Time</span> <strong id="fi-flighttime"></strong></span>
-              <span><span class="fi-strip-label">Block Time</span> <strong id="fi-blocktime"></strong></span>
-            </div>
+          <div class="widget-header fi-widget-header">
+            <span class="fi-header-side" id="fi-header-actype">—</span>
+            <span class="fi-header-title" id="fi-header-flightnum">—</span>
+            <span class="fi-header-side" id="fi-header-reg">—</span>
+          </div>
 
-            <!-- Dettagli partenze e arrivi -->
-            <div class="fi-bottom-section">
-              <div class="fi-half left-align">
-                <div class="fi-item"><span class="lbl">RWY</span> <span class="val" id="fi-rwy-dep"></span> <span class="lbl">SID</span> <span class="val" id="fi-sid"></span></div>
-                <div class="fi-item lbl" id="fi-date-dep"></div>
-                <div class="fi-item"><span class="val" id="fi-std"></span> <span class="lbl">STD</span></div>
-                <div class="fi-item"><span class="val" id="fi-etd"></span> <span class="lbl">ETD</span></div>
-                <div class="fi-item"><span class="val">-</span> <span class="lbl">CTOT</span></div>
-              </div>
-              
-              <div class="fi-half right-align">
-                <div class="fi-item"><span class="lbl">RWY</span> <span class="val" id="fi-rwy-arr"></span> <span class="lbl">STAR</span> <span class="val" id="fi-star"></span></div>
-                <div class="fi-item lbl" id="fi-date-arr"></div>
-                <div class="fi-item"><span class="lbl">STA</span> <span class="val" id="fi-sta"></span></div>
-                <div class="fi-item"><span class="lbl">ETA</span> <span class="val" id="fi-eta"></span> <span class="val delta-late" id="fi-eta-delta"></span></div>
-              </div>
+          <div class="fi-row fi-header-row">
+            <div class="fi-side">
+              <div class="fi-icao" id="fi-orig">—</div>
+            </div>
+            <div class="fi-mid">
+              <span class="fi-arrow">→</span>
+              <span class="fi-altn" id="fi-altn"></span>
+            </div>
+            <div class="fi-side">
+              <div class="fi-icao" id="fi-dest">—</div>
             </div>
           </div>
-          
-          <div class="widget-footer">
-            <button class="btn-accept">Accept Flight</button>
-            <button class="btn-submit">Submit Flight</button>
+
+          <div class="fi-strip">
+            <span><span class="fi-strip-label">Flight Time</span> <span class="fi-strip-value" id="fi-flighttime">—</span></span>
+            <span><span class="fi-strip-label">Block Time</span> <span class="fi-strip-value" id="fi-blocktime">—</span></span>
           </div>
+
+          <div class="fi-row fi-details-row">
+            <div class="fi-side fi-side-dep">
+              <div class="fi-detail-combo">
+                <span class="fi-label">RWY</span><span class="fi-value" id="fi-rwy-dep">—</span>
+                <span class="fi-label">SID</span><span class="fi-value" id="fi-sid">—</span>
+              </div>
+              <div class="fi-date" id="fi-date">—</div>
+              <div class="fi-time-line"><span class="fi-value" id="fi-std">—</span><span class="fi-label">STD</span></div>
+              <div class="fi-time-line"><span class="fi-value" id="fi-etd">—</span><span class="fi-label">ETD</span></div>
+            </div>
+            <div class="fi-mid"></div>
+            <div class="fi-side fi-side-arr">
+              <div class="fi-detail-combo">
+                <span class="fi-label">RWY</span><span class="fi-value" id="fi-rwy-arr">—</span>
+                <span class="fi-label">STAR</span><span class="fi-value" id="fi-star">—</span>
+              </div>
+              <div class="fi-date" id="fi-date-arr">—</div>
+              <div class="fi-time-line"><span class="fi-label">STA</span><span class="fi-value" id="fi-sta">—</span></div>
+              <div class="fi-time-line"><span class="fi-label">ETA</span><span class="fi-value" id="fi-eta">—</span><span class="fi-delta" id="fi-eta-delta"></span></div>
+            </div>
+          </div>
+
+          <div class="fi-actions">
+            <button class="btn-primary" id="accept-flight-btn">Accept Flight</button>
+            <button class="btn-secondary" id="submit-flight-btn" disabled>Submit Flight</button>
+          </div>
+
         </div>
 
         <div class="widget checklist-widget">
           <div class="widget-header">Flight Checklist</div>
-          <div class="widget-body" style="min-height: 200px;"></div>
+          <div class="widget-body"></div>
         </div>
 
       </div>
@@ -115,34 +129,79 @@
         </div>
       </div>
 
-      <!-- COLONNA DESTRA (Pager Swipe) -->
-      <div class="dash-col" style="min-width: 0;">
-        <div class="pager-container" id="right-pager">
-          <div class="pager-scroll-area" id="pager-scroll-area">
-            
-            <!-- Pagina 0: Weight & Fuel -->
-            <div class="pager-page" data-page="0">
-              <div class="widget weight-widget">
-                <div class="widget-header">Weight</div>
-                <div class="widget-body" style="min-height: 150px;"></div>
-              </div>
-              <div class="widget fuel-widget">
-                <div class="widget-header">Fuel</div>
-                <div class="widget-body" style="min-height: 150px;"></div>
+      <!-- COLONNA DESTRA: pager a swipe Weight/Fuel <-> Weather -->
+      <div class="dash-col">
+        <div class="pager-scroll" id="pager-scroll">
+
+          <div class="pager-page" data-page="0">
+            <div class="widget weight-widget">
+              <div class="widget-header">Weight</div>
+              <div class="widget-body">
+                <table class="data-table">
+                  <thead>
+                    <tr><th></th><th>EST/ACT(kg)</th><th>Limit(kg)</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>DOW</td><td id="w-dow">—</td><td id="w-dow-limit">—</td></tr>
+                    <tr><td>LOAD</td><td id="w-load">—</td><td id="w-load-limit">—</td></tr>
+                    <tr><td>ZFW</td><td id="w-zfw">—</td><td id="w-zfw-limit">—</td></tr>
+                    <tr><td>TOW</td><td id="w-tow">—</td><td id="w-tow-limit">—</td></tr>
+                    <tr><td>LW</td><td id="w-lw">—</td><td id="w-lw-limit">—</td></tr>
+                  </tbody>
+                </table>
               </div>
             </div>
-
-            <!-- Pagina 1: Weather (altezza intera) -->
-            <div class="pager-page" data-page="1">
-              <div class="widget weather-widget" style="flex-grow: 1; margin-bottom: 0;">
-                <div class="widget-header">Weather</div>
-                <div class="widget-body" style="min-height: 334px;"></div>
+            <div class="widget fuel-widget">
+              <div class="widget-header">Fuel</div>
+              <div class="widget-body">
+                <table class="data-table">
+                  <thead>
+                    <tr><th></th><th>HH:MM</th><th>Fuel(kg)</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr><td>Trip</td><td id="f-trip-time">—</td><td id="f-trip-kg">—</td></tr>
+                    <tr><td>Minimum TakeOff Fuel</td><td id="f-mtow-time">—</td><td id="f-mtow-kg">—</td></tr>
+                    <tr><td>Taxi Fuel</td><td id="f-taxi-time">—</td><td id="f-taxi-kg">—</td></tr>
+                    <tr><td>Block Fuel</td><td id="f-block-time">—</td><td id="f-block-kg">—</td></tr>
+                    <tr><td>Estimated Landing Fuel</td><td id="f-landing-time">—</td><td id="f-landing-kg">—</td></tr>
+                    <tr><td>Max Discretionary Fuel Cap (LAND)</td><td id="f-disc-time">—</td><td id="f-disc-kg">—</td></tr>
+                  </tbody>
+                </table>
               </div>
             </div>
-
           </div>
+
+          <div class="pager-page" data-page="1">
+            <div class="widget weather-widget">
+              <div class="widget-header">Weather</div>
+              <div class="widget-body">
+
+                <div class="wx-tabs">
+                  <button class="wx-tab active" data-wx="origin" id="wx-tab-origin">—</button>
+                  <button class="wx-tab" data-wx="destination" id="wx-tab-destination">—</button>
+                  <button class="wx-tab" data-wx="alternate" id="wx-tab-alternate">ALTN</button>
+                </div>
+
+                <div class="wx-row-header">
+                  <span class="wx-row-title">METAR</span>
+                  <span class="wx-row-age" id="wx-metar-age"></span>
+                  <span class="wx-badge" id="wx-vmc-badge">—</span>
+                </div>
+                <div class="wx-text" id="wx-metar-text">—</div>
+
+                <div class="wx-divider"></div>
+
+                <div class="wx-row-header">
+                  <span class="wx-row-title">TAF</span>
+                  <span class="wx-row-age" id="wx-taf-age"></span>
+                </div>
+                <div class="wx-text" id="wx-taf-text">—</div>
+
+              </div>
+            </div>
+          </div>
+
         </div>
-        
         <div class="pager-dots" id="pager-dots">
           <button class="pager-dot active" data-page="0"></button>
           <button class="pager-dot" data-page="1"></button>
@@ -152,9 +211,10 @@
     </div>
 
     <details class="debug-raw">
-      <summary>Debug: dati grezzi SimBrief</summary>
+      <summary>Debug: dati grezzi SimBrief (per verificare i nomi dei campi)</summary>
       <pre id="debug-json"></pre>
     </details>
+
   </main>
 
   <!-- BOTTOM BAR -->
