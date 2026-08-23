@@ -78,17 +78,17 @@ function renderFlightInfoBar(flight) {
   document.getElementById('fib-reg').textContent = aircraft.reg || '----';
   document.getElementById('fib-callsign').textContent = (data.atc && data.atc.callsign) || '----';
   
-  // RIGA MODIFICATA: Aggiunti tag <strong> agli ICAO per permettere al CSS di metterli in grassetto
   document.getElementById('fib-route').innerHTML = 
     `<strong>${origin.icao_code || '----'}</strong> (${unixToHHMM(times.sched_out)}) - <strong>${destination.icao_code || '----'}</strong> (${unixToHHMM(times.sched_in)})`;
   
   document.getElementById('fib-ofp').textContent = general.release ? `OFP ${general.release}` : 'OFP --';
   document.getElementById('fib-ofpdate').textContent = params.time_generated ? formatObsDateTime(new Date(Number(params.time_generated) * 1000).toISOString()) : '--';
 
-  const status = flight.state && flight.state.accepted;
+  // Applica stato accettazione iniziale alla barra
+  const isAccepted = flight.state && flight.state.accepted;
   const badge = document.getElementById('fib-status');
-  badge.textContent = status ? 'ACCEPTED' : 'NOT ACCEPTED';
-  badge.className = status ? 'status-badge accepted' : 'status-badge not-accepted';
+  badge.textContent = isAccepted ? 'CONFIRMED' : 'NOT ACCEPTED';
+  badge.className = isAccepted ? 'status-badge accepted' : 'status-badge not-accepted';
 }
 
 /* ---------- HOME: LISTA VOLI ---------- */
@@ -172,8 +172,6 @@ function formatDateFromUnix(unixSeconds) {
   return `${days[d.getUTCDay()]} ${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
-/* SimBrief a volte restituisce "alternate" come singolo oggetto e a volte come
-   lista (quando ci sono più alternati pianificati): normalizziamo qui. */
 function getFirstAlternate(data) {
   if (!data.alternate) return {};
   if (Array.isArray(data.alternate)) return data.alternate[0] || {};
@@ -186,7 +184,6 @@ function isoToUnix(isoString) {
   return isNaN(t) ? null : Math.floor(t / 1000);
 }
 
-/* Restituisce data/ora assoluta in UTC, es. "20 Aug, 12:50z" */
 function formatObsDateTime(isoString) {
   const unix = isoToUnix(isoString);
   if (!unix) return '--';
@@ -196,7 +193,6 @@ function formatObsDateTime(isoString) {
   const mm = String(d.getUTCMinutes()).padStart(2, '0');
   return `${d.getUTCDate()} ${months[d.getUTCMonth()]}, ${hh}:${mm}z`;
 }
-
 
 /* ---------- DASHBOARD: rendering ---------- */
 function renderDashboard(flight) {
@@ -248,7 +244,8 @@ function renderDashboard(flight) {
       deltaEl.textContent = '';
     }
 
-    // Route, Checklist: per ora solo i contenitori/titoli, li popoliamo nel prossimo passo.
+    // Applica lo stato del pulsante Accept Flight
+    applyAcceptanceUI(flight.state && flight.state.accepted);
 
     // ---- WEIGHT ----
     const w = data.weights || {};
@@ -334,8 +331,6 @@ function renderWeather(wxAirports, which) {
   }
 }
 
-/* SimBrief restituisce "images.map" come singolo oggetto o come lista,
-   a seconda che ci sia una sola mappa o più mappe disponibili. */
 function getMapList(data) {
   const images = data.images || {};
   if (!images.map) return [];
@@ -371,7 +366,6 @@ function renderRouteMap(data) {
   img.src = url;
 }
 
-/* "LIRF/0390" oppure "LIRF/0390,ABCDE/0410" per gli eventuali step climb */
 function formatStepClimbs(stepclimbString) {
   if (!stepclimbString) return '';
   const parts = stepclimbString.split(',').map((s) => s.trim()).filter(Boolean);
@@ -391,8 +385,7 @@ function renderRouteSummary(data, origin, destination, general) {
   el.innerHTML = `<strong>${origin.icao_code || '----'}</strong>/${origin.plan_rwy || '--'} &nbsp; ${altitudes} &nbsp; ${route} &nbsp; <strong>${destination.icao_code || '----'}</strong>/${destination.plan_rwy || '--'}`;
 }
 
-
-/* ---------- PAGER (colonna destra, swipe Weight/Fuel <-> Weather) ---------- */
+/* ---------- PAGER ---------- */
 function resetPager() {
   const scroller = document.getElementById('pager-scroll');
   if (scroller) scroller.scrollLeft = 0;
@@ -403,7 +396,6 @@ function initPager() {
   const scroller = document.getElementById('pager-scroll');
   const dots = document.querySelectorAll('.pager-dot');
 
-  // click su un pallino -> scrolla alla pagina corrispondente
   dots.forEach((dot) => {
     dot.addEventListener('click', () => {
       const pageIndex = Number(dot.dataset.page);
@@ -411,11 +403,128 @@ function initPager() {
     });
   });
 
-  // scroll con il dito -> aggiorna il pallino attivo
   scroller.addEventListener('scroll', () => {
     const pageIndex = Math.round(scroller.scrollLeft / scroller.clientWidth);
     dots.forEach((d, i) => d.classList.toggle('active', i === pageIndex));
   });
+}
+
+/* ---------- SIGNATURE PAD E ACCETTAZIONE ---------- */
+let isDrawing = false;
+let ctx = null;
+let canvas = null;
+
+function initSignaturePad() {
+  canvas = document.getElementById('signature-pad');
+  if(!canvas) return;
+  ctx = canvas.getContext('2d');
+  
+  function resizeCanvas() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = getTheme() === 'dark' ? '#fff' : '#000';
+  }
+  
+  window.addEventListener('resize', resizeCanvas);
+  
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: clientX - rect.left, y: clientY - rect.top };
+  }
+  
+  function startDrawing(e) {
+    isDrawing = true;
+    const pos = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    e.preventDefault();
+  }
+  
+  function draw(e) {
+    if (!isDrawing) return;
+    const pos = getPos(e);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    e.preventDefault();
+  }
+  
+  function stopDrawing() { isDrawing = false; }
+  
+  canvas.addEventListener('mousedown', startDrawing);
+  canvas.addEventListener('mousemove', draw);
+  canvas.addEventListener('mouseup', stopDrawing);
+  canvas.addEventListener('mouseout', stopDrawing);
+  
+  canvas.addEventListener('touchstart', startDrawing, {passive: false});
+  canvas.addEventListener('touchmove', draw, {passive: false});
+  canvas.addEventListener('touchend', stopDrawing);
+  canvas.addEventListener('touchcancel', stopDrawing);
+  
+  return resizeCanvas;
+}
+
+function clearSignature() {
+  if(ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
+  document.getElementById('acceptance-checkbox').checked = false;
+}
+
+function openSignatureModal() {
+  document.getElementById('signature-modal-overlay').classList.add('open');
+  document.getElementById('signature-modal').classList.add('open');
+  setTimeout(() => {
+    const resize = initSignaturePad();
+    if(resize) resize();
+  }, 50); 
+}
+
+function closeSignatureModal() {
+  document.getElementById('signature-modal-overlay').classList.remove('open');
+  document.getElementById('signature-modal').classList.remove('open');
+}
+
+function setupAcceptanceLogic() {
+  document.getElementById('accept-flight-btn').addEventListener('click', openSignatureModal);
+  
+  document.getElementById('sig-cancel-btn').addEventListener('click', () => {
+    clearSignature();
+    closeSignatureModal();
+  });
+  
+  document.getElementById('sig-save-btn').addEventListener('click', () => {
+    // Salva stato e aggiorna UI
+    if (currentFlightId) {
+      updateFlightState(currentFlightId, { accepted: true });
+    }
+    closeSignatureModal();
+    applyAcceptanceUI(true);
+  });
+}
+
+function applyAcceptanceUI(isAccepted) {
+  const btn = document.getElementById('accept-flight-btn');
+  const badge = document.getElementById('fib-status');
+  
+  if (isAccepted) {
+    btn.textContent = 'Flight Accepted';
+    btn.classList.add('btn-accepted');
+    if(badge) {
+      badge.textContent = 'CONFIRMED';
+      badge.className = 'status-badge accepted';
+    }
+  } else {
+    btn.textContent = 'Accept Flight';
+    btn.classList.remove('btn-accepted');
+    if(badge) {
+      badge.textContent = 'NOT ACCEPTED';
+      badge.className = 'status-badge not-accepted';
+    }
+  }
 }
 
 /* ---------- INTERAZIONI GENERALI ---------- */
@@ -456,13 +565,13 @@ function initInteractions() {
   });
 
   initPager();
+  setupAcceptanceLogic();
 
   document.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       document.getElementById('topbar-title').textContent = btn.textContent;
-      // Briefing e NavLog arrivano nella prossima fase: per ora restiamo sulla Dashboard
     });
   });
 }
