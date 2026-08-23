@@ -84,7 +84,6 @@ function renderFlightInfoBar(flight) {
   document.getElementById('fib-ofp').textContent = general.release ? `OFP ${general.release}` : 'OFP --';
   document.getElementById('fib-ofpdate').textContent = params.time_generated ? formatObsDateTime(new Date(Number(params.time_generated) * 1000).toISOString()) : '--';
 
-  // Applica stato accettazione iniziale alla barra
   const isAccepted = flight.state && flight.state.accepted;
   const badge = document.getElementById('fib-status');
   badge.textContent = isAccepted ? 'CONFIRMED' : 'NOT ACCEPTED';
@@ -244,7 +243,6 @@ function renderDashboard(flight) {
       deltaEl.textContent = '';
     }
 
-    // Applica lo stato del pulsante Accept Flight
     applyAcceptanceUI(flight.state && flight.state.accepted);
 
     // ---- WEIGHT ----
@@ -301,8 +299,6 @@ function renderDashboard(flight) {
     // ---- ROUTE ----
     renderRouteMap(data);
     renderRouteSummary(data, origin, destination, general);
-
-    // debug rimosso in HTML
 
   } catch (err) {
     console.error('Errore nel rendering della Dashboard:', err);
@@ -370,54 +366,47 @@ function renderRouteSummary(data, origin, destination, general) {
   let route = general.route || '';
   let initialAlt = '';
 
-  // Funzione sicura per formattare il Flight Level (es. "0240" -> "F240", "24000" -> "F240")
+  // Funzione sicura per formattare il Flight Level
+  // Gestisce "0240", "24000" o anche testuali come "FL240" 
   function formatFL(val) {
-    let n = parseInt(val, 10);
-    if (isNaN(n)) return '';
+    if (!val) return '';
+    const m = String(val).match(/\d+/); // Estrae prepotentemente solo i numeri
+    if (!m) return val; 
+    let n = parseInt(m[0], 10);
     if (n >= 1000) n = Math.round(n / 100);
     return 'F' + n;
   }
 
-  // Imposta il livello di volo iniziale di default
   if (general.initial_altitude) {
     initialAlt = formatFL(general.initial_altitude);
   }
 
-  // Se è presente la stringa degli step climb, la elabora e la innesta nella rotta
   if (general.stepclimb_string) {
     const steps = general.stepclimb_string.split(',').map(s => s.trim()).filter(Boolean);
     
-    // Converte la rotta in un array (parola per parola) per evitare errori con le RegExp
-    const routeArray = route.split(' ');
+    steps.forEach((step, index) => {
+      // Se il passo è solo un'altitudine senza waypoint (raro ma possibile)
+      if (!step.includes('/')) {
+         if (index === 0) initialAlt = formatFL(step);
+         return;
+      }
 
-    steps.forEach((step) => {
       const parts = step.split('/');
-      if (parts.length === 2) {
-        const wpt = parts[0];
-        const fl = formatFL(parts[1]);
-        
-        let replaced = false;
-        // Cerca il waypoint parola per parola nella rotta e ci attacca il livello
-        for (let i = 0; i < routeArray.length; i++) {
-          if (routeArray[i] === wpt) {
-            routeArray[i] = `${wpt}/${fl}`;
-            replaced = true;
-          }
-        }
-
-        // Se il waypoint dello step non è nella rotta, potrebbe essere l'origine o il TOC
-        // in tal caso sovrascriviamo l'altitudine iniziale.
-        if (!replaced && (wpt === (origin.icao_code || '') || wpt === 'TOC')) {
-          initialAlt = fl;
+      const wpt = parts[0].trim();
+      const fl = formatFL(parts[1].trim());
+      
+      if (index === 0 || wpt === (origin.icao_code || '') || wpt === 'TOC') {
+        initialAlt = fl;
+      } else {
+        // Cerca la parola esatta e sostituisce incastrando l'altitudine
+        const regex = new RegExp(`\\b${wpt}\\b`);
+        if (regex.test(route)) {
+          route = route.replace(regex, `${wpt}/${fl}`);
         }
       }
     });
-    
-    // Ricostruisce la stringa della rotta
-    route = routeArray.join(' ');
   }
 
-  // Costruisce la stringa finale per il widget, fondendo tutto
   el.innerHTML = `<strong>${origin.icao_code || '----'}</strong>/${origin.plan_rwy || '--'} ${initialAlt} ${route} <strong>${destination.icao_code || '----'}</strong>/${destination.plan_rwy || '--'}`;
 }
 
@@ -533,7 +522,6 @@ function setupAcceptanceLogic() {
   });
   
   document.getElementById('sig-save-btn').addEventListener('click', () => {
-    // Salva stato e aggiorna UI
     if (currentFlightId) {
       updateFlightState(currentFlightId, { accepted: true });
     }
