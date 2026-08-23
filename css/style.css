@@ -370,8 +370,8 @@ body.in-flight .topbar, body.in-flight .bottombar {
   padding: 12px 20px;
   display: flex;
   flex-direction: column;
+  height: 100%;             /* AGGIUNTO: obbliga la pagina a prendere tutta l'altezza tra le due barre */
 }
-
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -380,8 +380,9 @@ body.in-flight .topbar, body.in-flight .bottombar {
   width: 100%;
   margin: 0 auto;
   align-items: stretch;
-  flex: 1;
+  flex: 1;                  /* MANTIENI QUESTO */
   min-height: 0;
+  height: 100%;             /* AGGIUNTO: obbliga la griglia a stirarsi dentro la view */
 }
 
 .dash-col {
