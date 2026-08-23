@@ -380,9 +380,36 @@ function formatStepClimbs(stepclimbString) {
 
 function renderRouteSummary(data, origin, destination, general) {
   const el = document.getElementById('route-summary');
-  const altitudes = formatStepClimbs(general.stepclimb_string) || (general.initial_altitude ? 'FL' + Math.round(general.initial_altitude / 100) : '---');
-  const route = general.route || '';
-  el.innerHTML = `<strong>${origin.icao_code || '----'}</strong>/${origin.plan_rwy || '--'} &nbsp; ${altitudes} &nbsp; ${route} &nbsp; <strong>${destination.icao_code || '----'}</strong>/${destination.plan_rwy || '--'}`;
+  let route = general.route || '';
+  let initialAlt = '';
+
+  // Se c'è una stringa con le step climbs (es. "LGMK/0240,KEA/0380,SIPRO/0180")
+  if (general.stepclimb_string) {
+    const steps = general.stepclimb_string.split(',').map(s => s.trim()).filter(Boolean);
+    
+    steps.forEach((step, index) => {
+      const parts = step.split('/');
+      if (parts.length === 2) {
+        const wpt = parts[0];
+        const fl = 'F' + parseInt(parts[1], 10); // Converte "0380" in "F380"
+        
+        if (index === 0) {
+          // Il primo elemento è sempre l'altitudine iniziale alla partenza
+          initialAlt = fl;
+        } else {
+          // Per i successivi, cerca il waypoint nella rotta e ci attacca il livello
+          const regex = new RegExp(`\\b${wpt}\\b`, 'g');
+          route = route.replace(regex, `${wpt}/${fl}`);
+        }
+      }
+    });
+  } else if (general.initial_altitude) {
+    // Fallback se per qualche motivo manca la stringa delle step climbs
+    initialAlt = 'F' + Math.round(general.initial_altitude / 100);
+  }
+
+  // Costruisce la stringa finale esattamente nel formato Lido mBriefing
+  el.innerHTML = `<strong>${origin.icao_code || '----'}</strong>/${origin.plan_rwy || '--'} ${initialAlt} ${route} <strong>${destination.icao_code || '----'}</strong>/${destination.plan_rwy || '--'}`;
 }
 
 /* ---------- PAGER ---------- */
