@@ -364,50 +364,53 @@ function renderRouteMap(data) {
 function renderRouteSummary(data, origin, destination, general) {
   const el = document.getElementById('route-summary');
   let route = general.route || '';
-  let initialAlt = '';
+  let initialAltStr = '';
+  let currentFL = 0;
 
-  // Funzione sicura per formattare il Flight Level
-  // Gestisce "0240", "24000" o anche testuali come "FL240" 
-  function formatFL(val) {
-    if (!val) return '';
-    const m = String(val).match(/\d+/); // Estrae prepotentemente solo i numeri
-    if (!m) return val; 
-    let n = parseInt(m[0], 10);
-    if (n >= 1000) n = Math.round(n / 100);
-    return 'F' + n;
-  }
-
+  // 1. Estrae il livello iniziale sicuro (indipendentemente dal formato)
   if (general.initial_altitude) {
-    initialAlt = formatFL(general.initial_altitude);
+    let val = String(general.initial_altitude).match(/\d+/);
+    if (val) {
+      currentFL = parseInt(val[0], 10);
+      // Trasforma piedi in FL se necessario
+      if (currentFL >= 1000) currentFL = Math.round(currentFL / 100);
+      initialAltStr = 'F' + currentFL;
+    }
   }
 
-  if (general.stepclimb_string) {
-    const steps = general.stepclimb_string.split(',').map(s => s.trim()).filter(Boolean);
-    
-    steps.forEach((step, index) => {
-      // Se il passo è solo un'altitudine senza waypoint (raro ma possibile)
-      if (!step.includes('/')) {
-         if (index === 0) initialAlt = formatFL(step);
-         return;
-      }
+  let routeArray = route.split(' ');
 
-      const parts = step.split('/');
-      const wpt = parts[0].trim();
-      const fl = formatFL(parts[1].trim());
-      
-      if (index === 0 || wpt === (origin.icao_code || '') || wpt === 'TOC') {
-        initialAlt = fl;
-      } else {
-        // Cerca la parola esatta e sostituisce incastrando l'altitudine
-        const regex = new RegExp(`\\b${wpt}\\b`);
-        if (regex.test(route)) {
-          route = route.replace(regex, `${wpt}/${fl}`);
+  // 2. L'idea dell'utente: passiamo attraverso il navlog!
+  if (data.navlog && data.navlog.fix) {
+    // Normalizza: assicura che sia sempre un array
+    let fixes = Array.isArray(data.navlog.fix) ? data.navlog.fix : [data.navlog.fix];
+    let activeFL = currentFL;
+
+    fixes.forEach(fix => {
+      if (fix.ident && fix.altitude_feet) {
+        let fixFL = Math.round(parseInt(fix.altitude_feet, 10) / 100);
+        
+        // Se c'è un salto di altitudine...
+        if (fixFL > 0 && fixFL !== activeFL) {
+          // ...verifichiamo se questo waypoint fa parte della rotta scritta
+          // (per scartare i punti di SID/STAR e i vari TOC/TOD intermedi invisibili)
+          for (let i = 0; i < routeArray.length; i++) {
+            if (routeArray[i] === fix.ident) {
+              // Bingo! Trovata una step climb legittima lungo la rotta
+              routeArray[i] = `${fix.ident}/F${fixFL}`;
+              activeFL = fixFL; // Aggiorna per cercare il prossimo step
+              break;
+            }
+          }
         }
       }
     });
   }
 
-  el.innerHTML = `<strong>${origin.icao_code || '----'}</strong>/${origin.plan_rwy || '--'} ${initialAlt} ${route} <strong>${destination.icao_code || '----'}</strong>/${destination.plan_rwy || '--'}`;
+  // 3. Ricostruisce la stringa con gli step climbs incastrati
+  route = routeArray.join(' ');
+
+  el.innerHTML = `<strong>${origin.icao_code || '----'}</strong>/${origin.plan_rwy || '--'} ${initialAltStr} ${route} <strong>${destination.icao_code || '----'}</strong>/${destination.plan_rwy || '--'}`;
 }
 
 /* ---------- PAGER ---------- */
