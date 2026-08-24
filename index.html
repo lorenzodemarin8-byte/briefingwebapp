@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>mBriefing</title>
-  <link rel="stylesheet" href="css/style.css?v=12">
+  <link rel="stylesheet" href="css/style.css?v=26">
 </head>
 <body>
 
@@ -221,6 +221,258 @@
     </div>
   </main>
 
+  <!-- BRIEFING VIEW -->
+  <main id="view-briefing" class="view" style="display:none;">
+    <div class="briefing-container">
+      
+      <!-- MENU LATERALE -->
+      <aside class="briefing-sidebar">
+        <div class="briefing-category">Flight Plan</div>
+        <div class="briefing-item" data-section="General">General</div>
+        <div class="briefing-item" data-section="Fuel">Fuel</div>
+        <div class="briefing-item" data-section="MEL/CDL Information">MEL/CDL Information</div>
+        <div class="briefing-item" data-section="ATC">ATC</div>
+        <div class="briefing-item" data-section="Dispatch Info">Dispatch Info</div>
+        <div class="briefing-item" data-section="Crew Alert and Bulletin">Crew Alert and Bulletin</div>
+        <div class="briefing-item active" data-section="Classic OFP">Classic OFP</div>
+
+        <div class="briefing-category">Journey Log</div>
+        <!-- Vuoto per ora -->
+
+        <div class="briefing-category">WX/RAIM/NOTAM</div>
+        <!-- Vuoto per ora -->
+      </aside>
+
+      <!-- CONTENUTO PRINCIPALE -->
+      <section class="briefing-content">
+        
+        <!-- GENERAL CONTAINER -->
+        <div id="briefing-general-container" class="briefing-general-container" style="display:none;">
+          <!-- Widget Info Principali -->
+          <div class="widget gen-widget">
+            <div class="widget-header gen-widget-header">
+              <span class="gen-header-text" id="gen-dep"> </span>
+              <span class="gen-header-plane">✈</span>
+              <span class="gen-header-text" id="gen-arr"> </span>
+            </div>
+            <div class="gen-info-grid-5">
+              <div class="gen-stat"><span class="gen-stat-label">ATC</span><span class="gen-stat-value" id="gen-callsign"> </span></div>
+              <div class="gen-stat"><span class="gen-stat-label">STD</span><span class="gen-stat-value" id="gen-std"> </span></div>
+              <div class="gen-stat"><span class="gen-stat-label">STA</span><span class="gen-stat-value" id="gen-sta"> </span></div>
+              <div class="gen-stat"><span class="gen-stat-label">A/C TYPE</span><span class="gen-stat-value" id="gen-actype"> </span></div>
+              <div class="gen-stat"><span class="gen-stat-label">REG NO</span><span class="gen-stat-value" id="gen-reg"> </span></div>
+            </div>
+            <div class="gen-divider"></div>
+            <div class="gen-info-grid-6">
+              <div class="gen-stat"><span class="gen-stat-label">CRZ SYS</span><span class="gen-stat-value" id="gen-crzsys"> </span></div>
+              <div class="gen-stat"><span class="gen-stat-label">GND DIST</span><span class="gen-stat-value" id="gen-gnddist"> </span></div>
+              <div class="gen-stat"><span class="gen-stat-label">AIR DIST</span><span class="gen-stat-value" id="gen-airdist"> </span></div>
+              <div class="gen-stat"><span class="gen-stat-label">TOC WIND</span><span class="gen-stat-value" id="gen-tocwind"> </span></div>
+              <div class="gen-stat"><span class="gen-stat-label">AVG WIND</span><span class="gen-stat-value" id="gen-avgwind"> </span></div>
+              <div class="gen-stat"><span class="gen-stat-label">AVG W/C</span><span class="gen-stat-value" id="gen-avgwc"> </span></div>
+              
+              <div class="gen-stat"><span class="gen-stat-label">ALT</span><span class="gen-stat-value" id="gen-alt"> </span></div>
+              <div class="gen-stat"><span class="gen-stat-label">TOC ISA</span><span class="gen-stat-value" id="gen-tocisa"> </span></div>
+              <div class="gen-stat"><span class="gen-stat-label">AVG FF KGS/HR</span><span class="gen-stat-value" id="gen-avgff"> </span></div>
+              <div class="gen-stat"><span class="gen-stat-label">FUEL BIAS</span><span class="gen-stat-value" id="gen-fuelbias"> </span></div>
+              <div class="gen-stat"><span class="gen-stat-label">TKOF ALTN</span><span class="gen-stat-value" id="gen-tkofaltn"> </span></div>
+            </div>
+          </div>
+
+          <!-- Widget Pesi -->
+          <div class="widget gen-weight-widget">
+            <table class="gen-data-table">
+              <thead>
+                <tr>
+                  <th>Weight (kg)</th>
+                  <th>Planned</th>
+                  <th>Actual</th>
+                  <th>Operational Limit</th>
+                  <th>Structural Limit</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>DOW</td>
+                  <td id="gen-w-dow-plan"></td>
+                  <td></td>
+                  <td></td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td>LOAD</td>
+                  <td id="gen-w-load-plan"></td>
+                  <td><input type="number" id="gen-w-load-act" class="act-weight-input" placeholder=""></td>
+                  <td></td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td>ZFW</td>
+                  <td id="gen-w-zfw-plan"></td>
+                  <td><input type="number" id="gen-w-zfw-act" class="act-weight-input" placeholder=""></td>
+                  <td></td>
+                  <td id="gen-w-zfw-struct"></td>
+                </tr>
+                <tr>
+                  <td>TOW</td>
+                  <td id="gen-w-tow-plan"></td>
+                  <td><input type="number" id="gen-w-tow-act" class="act-weight-input" placeholder=""></td>
+                  <td id="gen-w-tow-op"></td>
+                  <td id="gen-w-tow-struct"></td>
+                </tr>
+                <tr>
+                  <td>LW</td>
+                  <td id="gen-w-lw-plan"></td>
+                  <td><input type="number" id="gen-w-lw-act" class="act-weight-input" placeholder=""></td>
+                  <td id="gen-w-lw-op"></td>
+                  <td id="gen-w-lw-struct"></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- FUEL CONTAINER -->
+        <div id="briefing-fuel-container" class="briefing-general-container" style="display:none;">
+          <!-- Widget Fuel -->
+          <div class="widget briefing-fuel-widget">
+            <div class="widget-header gen-widget-header" style="justify-content: flex-start; padding: 12px 22px;">
+              <span class="gen-header-text" style="text-transform: none;">Fuel</span>
+            </div>
+            
+            <table class="gen-data-table brf-fuel-table">
+              <tbody>
+                <tr>
+                  <td>TRIP</td>
+                  <td id="brf-f-dest"></td>
+                  <td id="brf-f-trip-time"></td>
+                  <td id="brf-f-trip-fuel"></td>
+                </tr>
+                <tr>
+                  <td>MINCONT</td>
+                  <td></td>
+                  <td id="brf-f-cont-time"></td>
+                  <td id="brf-f-cont-fuel"></td>
+                </tr>
+                <tr>
+                  <td>Alternate</td>
+                  <td>
+                    <select id="brf-f-altn-select" class="brf-select"></select>
+                  </td>
+                  <td id="brf-f-altn-time"></td>
+                  <td id="brf-f-altn-fuel"></td>
+                </tr>
+                <tr>
+                  <td>Final Reserve</td>
+                  <td></td>
+                  <td id="brf-f-finres-time"></td>
+                  <td id="brf-f-finres-fuel"></td>
+                </tr>
+                <tr class="brf-row-separator">
+                  <td colspan="4"></td>
+                </tr>
+                <tr class="brf-row-bold">
+                  <td>Takeoff Fuel</td>
+                  <td></td>
+                  <td id="brf-f-tkof-time"></td>
+                  <td id="brf-f-tkof-fuel"></td>
+                </tr>
+                <tr>
+                  <td>Taxi fuel</td>
+                  <td id="brf-f-orig"></td>
+                  <td id="brf-f-taxi-time"></td>
+                  <td id="brf-f-taxi-fuel"></td>
+                </tr>
+                <tr class="brf-row-separator">
+                  <td colspan="4"></td>
+                </tr>
+                <tr class="brf-row-bold">
+                  <td>Minimum Block Fuel</td>
+                  <td></td>
+                  <td></td>
+                  <td id="brf-f-minblock-fuel"></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="brf-disc-wrapper">
+              <div class="brf-disc-container">
+                <div class="brf-disc-col brf-disc-reason-col">
+                  <span class="brf-disc-label">DISCRETIONARY FUEL</span>
+                  <input type="text" id="brf-disc-reason-input" class="brf-text-input" placeholder="Reason...">
+                </div>
+                <div class="brf-disc-col">
+                  <span class="brf-disc-label">TIME</span>
+                  <span id="brf-disc-time-val" class="brf-disc-val">--:--</span>
+                </div>
+                <div class="brf-disc-col">
+                  <span class="brf-disc-label">FUEL (kg)</span>
+                  <input type="number" id="brf-disc-fuel-input" class="act-weight-input" placeholder="0">
+                </div>
+              </div>
+              <div class="brf-max-disc-info">
+                Maximum Discretionary Fuel: <span id="brf-f-max-disc">---</span> kg
+              </div>
+            </div>
+
+            <div class="brf-fuel-footer">
+              <div class="brf-ff-row">
+                <span class="brf-ff-label">Estimated Landing fuel:</span>
+                <span class="brf-ff-val" id="brf-f-estlnd-fuel">---</span>
+              </div>
+              <div class="brf-ff-row">
+                <span class="brf-ff-label">Final Reserve Fuel:</span>
+                <span class="brf-ff-val" id="brf-f-totfinres-fuel">---</span>
+                <span class="brf-ff-time" id="brf-f-totfinres-time">(--:--)</span>
+              </div>
+            </div>
+
+            <div class="brf-block-strip">
+              <span class="brf-strip-title">Block Fuel</span>
+              <div class="brf-strip-controls">
+                <input type="number" id="brf-block-input" class="brf-block-input" value="0">
+                <span class="brf-strip-unit">(kg)</span>
+                <button class="brf-order-btn" id="brf-order-btn">ORDER</button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Widget Operational Impacts -->
+          <div class="widget briefing-impacts-widget">
+            <div class="widget-header gen-widget-header" style="justify-content: flex-start; padding: 12px 22px;">
+              <span class="gen-header-text" style="text-transform: none;">Operational Impacts</span>
+            </div>
+            <table class="gen-data-table brf-impacts-table">
+              <tbody id="brf-impacts-tbody">
+                <!-- Generato tramite JS -->
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+
+        <!-- ATC CONTAINER -->
+        <div id="briefing-atc-container" class="briefing-general-container" style="display:none;">
+          <div class="widget briefing-atc-widget">
+            <div class="widget-header gen-widget-header" style="justify-content: flex-start; padding: 12px 22px;">
+              <span class="gen-header-text" style="text-transform: none;">ATC Flight Plan</span>
+            </div>
+            <div class="widget-body" style="padding: 22px;">
+              <pre id="brf-atc-text" class="atc-fp-text"></pre>
+            </div>
+          </div>
+        </div>
+
+        <div id="classic-ofp-container" class="classic-ofp-container"></div>
+        <div id="briefing-placeholder" style="display:none; padding: 40px; color: var(--text-secondary); text-align: center; font-size: 14px;">
+          Contenuto in fase di sviluppo...
+        </div>
+      </section>
+
+    </div>
+  </main>
+
   <!-- BOTTOM BAR -->
   <footer class="bottombar">
     <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
@@ -248,8 +500,8 @@
     </div>
   </div>
 
-  <script src="js/storage.js?v=12"></script>
-  <script src="js/simbrief.js?v=12"></script>
-  <script src="js/app.js?v=12"></script>
+  <script src="js/storage.js?v=26"></script>
+  <script src="js/simbrief.js?v=26"></script>
+  <script src="js/app.js?v=26"></script>
 </body>
 </html>
