@@ -1082,6 +1082,7 @@ canvas#signature-pad {
   border-radius: 8px;
   overflow: hidden;
   margin-bottom: 16px;
+  flex-shrink: 0; /* Aggiunto per evitare lo schiacciamento */
 }
 
 .gen-widget-header {
