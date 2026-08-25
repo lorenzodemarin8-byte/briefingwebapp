@@ -3,6 +3,7 @@
 */
 
 let currentFlightId = null;
+let currentAirportsData = []; // Array per contenere i dati strutturati degli aeroporti
 
 /* ---------- THEME ---------- */
 const SUN_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><line x1="12" y1="1.5" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22.5"/><line x1="1.5" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22.5" y2="12"/><line x1="4.5" y1="4.5" x2="6.2" y2="6.2"/><line x1="17.8" y1="17.8" x2="19.5" y2="19.5"/><line x1="4.5" y1="19.5" x2="6.2" y2="17.8"/><line x1="17.8" y1="6.2" x2="19.5" y2="4.5"/></svg>';
@@ -67,6 +68,16 @@ function showDashboard(id) {
   }
   document.getElementById('topbar-title').textContent = 'Dashboard';
   document.getElementById('flight-info-bar').style.display = 'flex';
+  
+  // Inizializza flag storage
+  if (!flight.state.flaggedNotams) {
+    flight.state.flaggedNotams = [];
+    updateFlightState(id, { flaggedNotams: [] });
+  }
+  
+  extractAirportsData(flight.raw); // Estrae i dati aeroporti per il menu
+  renderBriefingMenu(); // Rigenera il menu laterale WX/RAIM/NOTAM
+
   renderFlightInfoBar(flight);
   renderDashboard(flight);
   resetPager();
@@ -152,7 +163,7 @@ async function handleRefresh() {
     saveFlight(id, {
       raw: data,
       fetchedAt: Date.now(),
-      state: (getFlight(id) && getFlight(id).state) || { accepted: false, fuelOrdered: false }
+      state: (getFlight(id) && getFlight(id).state) || { accepted: false, fuelOrdered: false, flaggedNotams: [] }
     });
     status.textContent = `Volo importato: ${extractCallsign(data)} (${data.origin ? data.origin.icao_code : '?'} → ${data.destination ? data.destination.icao_code : '?'})`;
     renderFlightsList();
@@ -198,6 +209,19 @@ function formatObsDateTime(isoString) {
   const hh = String(d.getUTCHours()).padStart(2, '0');
   const mm = String(d.getUTCMinutes()).padStart(2, '0');
   return `${d.getUTCDate()} ${months[d.getUTCMonth()]}, ${hh}:${mm}z`;
+}
+
+function formatNotamDate(dtg) {
+  if (!dtg || dtg.length < 12) return 'UFN';
+  const y = parseInt(dtg.substring(0,4), 10);
+  const m = parseInt(dtg.substring(4,6), 10) - 1;
+  const d = parseInt(dtg.substring(6,8), 10);
+  const hh = parseInt(dtg.substring(8,10), 10);
+  const mm = parseInt(dtg.substring(10,12), 10);
+  const date = new Date(Date.UTC(y, m, d, hh, mm));
+  if (isNaN(date.getTime())) return 'UFN';
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${String(date.getUTCDate()).padStart(2,'0')} ${months[date.getUTCMonth()]} ${date.getUTCFullYear()}, ${String(date.getUTCHours()).padStart(2,'0')}:${String(date.getUTCMinutes()).padStart(2,'0')}z`;
 }
 
 /* ---------- DASHBOARD: rendering ---------- */
@@ -679,6 +703,375 @@ function renderAtcSection(flight) {
   document.getElementById('brf-atc-text').textContent = atcText.trim();
 }
 
+/* ---------- BRIEFING: DISPATCH INFO ---------- */
+function renderDispatchSection(flight) {
+  if (!flight) return;
+  const data = flight.raw || {};
+  const general = data.general || {};
+  const rmk = general.dx_rmk && general.dx_rmk.trim() !== '' ? general.dx_rmk : 'NONE';
+  document.getElementById('brf-dispatch-text').textContent = rmk;
+}
+
+/* ---------- BRIEFING: MENU AEROPORTI & WX/RUNWAYS/NOTAMS ---------- */
+
+function decodeQCodeCategory(qcode) {
+  if (!qcode || qcode.length < 3) return 'AIRPORT';
+  const sub2 = qcode.substring(1, 3).toUpperCase();
+  
+  if (sub2 === 'PD') return 'SID';
+  if (sub2 === 'PA') return 'STAR';
+  if (sub2 === 'PI') return 'APPROACH PROCEDURES';
+  if (sub2 === 'MR') return 'RUNWAY';
+  
+  return 'AIRPORT';
+}
+
+function extractAirportsData(data) {
+  currentAirportsData = [];
+  
+  let allNotams = [];
+  if (data.notams && data.notams.notamdrec) {
+    allNotams = Array.isArray(data.notams.notamdrec) ? data.notams.notamdrec : [data.notams.notamdrec];
+  }
+
+  function getAptNotams(icao) {
+    return allNotams.filter(n => n.cns_location_id === icao || n.icao_id === icao || n.location_icao === icao);
+  }
+
+  if (data.origin) {
+    currentAirportsData.push({
+      type: 'Departure',
+      icao: data.origin.icao_code,
+      iata: data.origin.iata_code,
+      name: data.origin.name,
+      metar: data.origin.metar,
+      metar_time: data.origin.metar_time,
+      metar_category: data.origin.metar_category,
+      taf: data.origin.taf,
+      taf_time: data.origin.taf_time,
+      runways: data.tlr && data.tlr.takeoff ? data.tlr.takeoff.runway : null,
+      notams: getAptNotams(data.origin.icao_code)
+    });
+  }
+  
+  if (data.destination) {
+    currentAirportsData.push({
+      type: 'Arrival',
+      icao: data.destination.icao_code,
+      iata: data.destination.iata_code,
+      name: data.destination.name,
+      metar: data.destination.metar,
+      metar_time: data.destination.metar_time,
+      metar_category: data.destination.metar_category,
+      taf: data.destination.taf,
+      taf_time: data.destination.taf_time,
+      runways: data.tlr && data.tlr.landing ? data.tlr.landing.runway : null,
+      notams: getAptNotams(data.destination.icao_code)
+    });
+  }
+
+  if (data.alternate) {
+    let altns = Array.isArray(data.alternate) ? data.alternate : [data.alternate];
+    altns.forEach(alt => {
+      if (alt && alt.icao_code) {
+        currentAirportsData.push({
+          type: 'Arrival Alternate',
+          icao: alt.icao_code,
+          iata: alt.iata_code,
+          name: alt.name,
+          metar: alt.metar,
+          metar_time: alt.metar_time,
+          metar_category: alt.metar_category,
+          taf: alt.taf,
+          taf_time: alt.taf_time,
+          runways: null,
+          notams: getAptNotams(alt.icao_code)
+        });
+      }
+    });
+  }
+
+  if (data.takeoff_altn) {
+    let toAltns = Array.isArray(data.takeoff_altn) ? data.takeoff_altn : [data.takeoff_altn];
+    toAltns.forEach(alt => {
+      if (alt && alt.icao_code) {
+        currentAirportsData.push({
+          type: 'Takeoff Alternate',
+          icao: alt.icao_code,
+          iata: alt.iata_code,
+          name: alt.name,
+          metar: alt.metar,
+          metar_time: alt.metar_time,
+          metar_category: alt.metar_category,
+          taf: alt.taf,
+          taf_time: alt.taf_time,
+          runways: null,
+          notams: getAptNotams(alt.icao_code)
+        });
+      }
+    });
+  }
+
+  if (data.enroute_altn) {
+    let erAltns = Array.isArray(data.enroute_altn) ? data.enroute_altn : [data.enroute_altn];
+    erAltns.forEach(alt => {
+      if (alt && alt.icao_code) {
+        currentAirportsData.push({
+          type: 'Enroute Alternate',
+          icao: alt.icao_code,
+          iata: alt.iata_code,
+          name: alt.name,
+          metar: alt.metar,
+          metar_time: alt.metar_time,
+          metar_category: alt.metar_category,
+          taf: alt.taf,
+          taf_time: alt.taf_time,
+          runways: null,
+          notams: getAptNotams(alt.icao_code)
+        });
+      }
+    });
+  }
+}
+
+function renderBriefingMenu() {
+  const listEl = document.getElementById('brf-wx-menu-list');
+  listEl.innerHTML = '';
+
+  currentAirportsData.forEach((apt, index) => {
+    const div = document.createElement('div');
+    div.className = 'briefing-item brf-apt-item';
+    div.dataset.aptIndex = index;
+    
+    let title = apt.icao || '????';
+    if (apt.iata) title += `/${apt.iata}`;
+
+    div.innerHTML = `
+      <div class="brf-apt-item-main">${title}</div>
+      <div class="brf-apt-item-sub">${apt.type}</div>
+    `;
+    listEl.appendChild(div);
+  });
+
+  // Riapplica i listener dopo aver generato i nuovi elementi
+  bindBriefingTabs();
+}
+
+function renderAirportSection(index) {
+  const flight = getFlight(currentFlightId);
+  if (!flight.state.flaggedNotams) flight.state.flaggedNotams = [];
+  
+  const apt = currentAirportsData[index];
+  if (!apt) return;
+
+  // WX
+  document.getElementById('brf-apt-metar-text').textContent = apt.metar || 'METAR non disponibile';
+  document.getElementById('brf-apt-taf-text').textContent = apt.taf || 'TAF non disponibile';
+  document.getElementById('brf-apt-metar-age').textContent = formatObsDateTime(apt.metar_time);
+  document.getElementById('brf-apt-taf-age').textContent = apt.taf_time ? `Issued ${formatObsDateTime(apt.taf_time)}` : '';
+
+  const badge = document.getElementById('brf-apt-vmc-badge');
+  const category = (apt.metar_category || '').toLowerCase();
+  if (category === 'vfr' || category === 'mvfr') {
+    badge.textContent = 'VMC';
+    badge.className = 'wx-badge vmc';
+  } else if (category === 'ifr' || category === 'lifr') {
+    badge.textContent = 'IMC';
+    badge.className = 'wx-badge imc';
+  } else {
+    badge.textContent = '--';
+    badge.className = 'wx-badge';
+  }
+
+  // RUNWAYS
+  const rwyWidget = document.getElementById('brf-apt-rwy-widget');
+  const rwyTbody = document.getElementById('brf-apt-rwy-tbody');
+  
+  if ((apt.type === 'Departure' || apt.type === 'Arrival') && apt.runways) {
+    rwyWidget.style.display = 'flex';
+    rwyTbody.innerHTML = '';
+    
+    let rwyList = Array.isArray(apt.runways) ? apt.runways : [apt.runways];
+    
+    rwyList.forEach(r => {
+      let rName = r.identifier ? `RW${String(r.identifier).padStart(2, '0')}` : '---';
+      
+      let rLenFt = parseFloat(r.length || r.length_tora || r.length_lda);
+      let rLen = !isNaN(rLenFt) ? Math.round(rLenFt * 0.3048) + ' m' : '---';
+      
+      let rElev = r.elevation ? r.elevation + ' ft' : '---';
+      let rMag = r.magnetic_course || '---';
+      let rTrue = r.true_course || '---';
+      
+      // Calcolo Headwind/Tailwind
+      let hwRaw = Number(r.headwind_component);
+      let hwVal = '---';
+      let hwClass = 'wind-green';
+      let hwArrow = '';
+      
+      if (!isNaN(hwRaw)) {
+        if (hwRaw < 0) {
+          hwArrow = '↑'; // Tailwind
+          hwVal = Math.abs(hwRaw);
+          hwClass = hwVal > 10 ? 'wind-red' : 'wind-amber';
+        } else {
+          hwArrow = '↓'; // Headwind
+          hwVal = hwRaw;
+          hwClass = 'wind-green';
+        }
+      }
+
+      // Calcolo Crosswind
+      let xwRaw = Number(r.crosswind_component);
+      let xwVal = '---';
+      let xwClass = 'wind-green';
+      if (!isNaN(xwRaw)) {
+        xwVal = Math.abs(xwRaw);
+        xwClass = xwVal > 10 ? 'wind-amber' : 'wind-green';
+      }
+
+      let row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${rName}</td>
+        <td>${rLen}</td>
+        <td>${rElev}</td>
+        <td>${rMag}</td>
+        <td>${rTrue}</td>
+        <td>
+          <div class="wind-comp-cell">
+            <div class="wind-box ${hwClass}"><span>${hwArrow}</span><span>${hwVal}</span></div>
+            <div class="wind-box ${xwClass}"><span>${xwVal}</span></div>
+          </div>
+        </td>
+      `;
+      rwyTbody.appendChild(row);
+    });
+  } else {
+    rwyWidget.style.display = 'none';
+  }
+
+  // NOTAMs
+  const notamWidget = document.getElementById('brf-apt-notam-widget');
+  const notamBody = document.getElementById('brf-apt-notam-body');
+  
+  if (apt.notams && apt.notams.length > 0) {
+    notamWidget.style.display = 'flex';
+    
+    // Header con filtro
+    let notamHtml = `
+      <div class="notam-filter-bar">
+        <label for="brf-notam-filter">Show:</label>
+        <select id="brf-notam-filter" class="brf-select">
+          <option value="all">All</option>
+          <option value="flagged">Flagged</option>
+        </select>
+      </div>
+    `;
+    
+    // Raggruppa per categoria
+    const grouped = {};
+    apt.notams.forEach(n => {
+      const cat = decodeQCodeCategory(n.notam_qcode);
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(n);
+    });
+    
+    // Ordine: Runway, SID, STAR, Approach, Airport
+    const catOrder = { 'RUNWAY': 1, 'SID': 2, 'STAR': 3, 'APPROACH PROCEDURES': 4, 'AIRPORT': 5 };
+    const sortedCats = Object.keys(grouped).sort((a, b) => (catOrder[a] || 99) - (catOrder[b] || 99));
+    
+    for (const cat of sortedCats) {
+      const list = grouped[cat];
+      notamHtml += `<div class="notam-category-wrapper">`;
+      notamHtml += `<div class="notam-category-title">${cat}</div>`;
+      
+      list.forEach(n => {
+        const notamId = n.notam_id || 'UNKNOWN';
+        const start = formatNotamDate(n.notam_effective_dtg || n.notam_created_dtg);
+        const end = formatNotamDate(n.notam_expire_dtg || n.notam_expire_dtg_estimated);
+        
+        let rawText = n.notam_report || n.notam_text || '';
+        
+        // Highlighting
+        let safeText = rawText
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+          .replace(/\b(TWY|RWY|VOR|LOC|NDB|ILS|RNP|RNAV|DME|STAR|SID|GLS|GNSS|GPS)\b/g, '<span class="notam-hl-warn">$1</span>')
+          .replace(/(\bCLSD\b|U\/S|\bNOT AVAILABLE\b|\bNOT AVBL\b|\bDO NOT USE\b)/g, '<span class="notam-hl-danger">$1</span>');
+          
+        let isFlagged = flight.state.flaggedNotams.includes(notamId);
+        let flagClass = isFlagged ? 'flagged' : '';
+
+        notamHtml += `
+          <div class="notam-box" data-notam-id="${notamId}">
+            <div class="notam-top-row">
+              <div class="notam-badge">${cat}</div>
+              <button class="notam-flag ${flagClass}" aria-label="Flag NOTAM">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
+              </button>
+            </div>
+            <div class="notam-header">${notamId} - ${start} - ${end}</div>
+            <div class="notam-body">${safeText}</div>
+          </div>
+        `;
+      });
+      notamHtml += `</div>`;
+    }
+    
+    notamBody.innerHTML = notamHtml;
+
+    // Aggiungi Logica Filtro e Click sulle Flags
+    const filterSelect = document.getElementById('brf-notam-filter');
+    const flagBtns = notamBody.querySelectorAll('.notam-flag');
+
+    function applyNotamFilter() {
+      const mode = filterSelect.value;
+      notamBody.querySelectorAll('.notam-category-wrapper').forEach(wrapper => {
+        let visibleCount = 0;
+        wrapper.querySelectorAll('.notam-box').forEach(box => {
+          const isFlagged = box.querySelector('.notam-flag').classList.contains('flagged');
+          if (mode === 'flagged' && !isFlagged) {
+            box.style.display = 'none';
+          } else {
+            box.style.display = 'block';
+            visibleCount++;
+          }
+        });
+        wrapper.style.display = visibleCount > 0 ? 'block' : 'none';
+      });
+    }
+
+    filterSelect.addEventListener('change', applyNotamFilter);
+
+    flagBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const box = e.currentTarget.closest('.notam-box');
+        const nid = box.dataset.notamId;
+        
+        let fState = flight.state || {};
+        let fNotams = fState.flaggedNotams || [];
+        
+        if (fNotams.includes(nid)) {
+          fNotams = fNotams.filter(id => id !== nid);
+          e.currentTarget.classList.remove('flagged');
+        } else {
+          fNotams.push(nid);
+          e.currentTarget.classList.add('flagged');
+        }
+        
+        updateFlightState(currentFlightId, { flaggedNotams: fNotams });
+        flight.state.flaggedNotams = fNotams;
+        
+        if (filterSelect.value === 'flagged') {
+          applyNotamFilter();
+        }
+      });
+    });
+
+  } else {
+    notamWidget.style.display = 'none';
+  }
+}
+
 function renderClassicOfpText(data) {
   const container = document.getElementById('classic-ofp-container');
   if (!container) return;
@@ -943,42 +1336,71 @@ function applyAcceptanceUI(isAccepted) {
 }
 
 /* ---------- GESTIONE INTERFACCIA BRIEFING ---------- */
-function initBriefingInteractions() {
+function bindBriefingTabs() {
   document.querySelectorAll('.briefing-item').forEach(item => {
-    item.addEventListener('click', () => {
+    // Rimuove eventuali vecchi listener clonanado l'elemento (utile se richiamata più volte)
+    const newItem = item.cloneNode(true);
+    item.parentNode.replaceChild(newItem, item);
+    
+    newItem.addEventListener('click', () => {
       document.querySelectorAll('.briefing-item').forEach(i => i.classList.remove('active'));
-      item.classList.add('active');
+      newItem.classList.add('active');
       
-      document.getElementById('topbar-title').textContent = item.dataset.section;
-
       const ofpContainer = document.getElementById('classic-ofp-container');
       const generalContainer = document.getElementById('briefing-general-container');
       const fuelContainer = document.getElementById('briefing-fuel-container');
       const atcContainer = document.getElementById('briefing-atc-container');
+      const dispatchContainer = document.getElementById('briefing-dispatch-container');
+      const airportContainer = document.getElementById('briefing-airport-container');
       const placeholder = document.getElementById('briefing-placeholder');
 
+      // Nascondi tutto
       ofpContainer.style.display = 'none';
       generalContainer.style.display = 'none';
       fuelContainer.style.display = 'none';
       atcContainer.style.display = 'none';
+      dispatchContainer.style.display = 'none';
+      airportContainer.style.display = 'none';
       placeholder.style.display = 'none';
 
-      if (item.dataset.section === 'Classic OFP') {
-        ofpContainer.style.display = 'flex';
-      } else if (item.dataset.section === 'General') {
-        generalContainer.style.display = 'flex';
-        renderGeneralSection(getFlight(currentFlightId));
-      } else if (item.dataset.section === 'Fuel') {
-        fuelContainer.style.display = 'flex';
-        renderFuelSection(getFlight(currentFlightId));
-      } else if (item.dataset.section === 'ATC') {
-        atcContainer.style.display = 'flex';
-        renderAtcSection(getFlight(currentFlightId));
-      } else {
-        placeholder.style.display = 'block';
+      // Switch sui tab statici
+      if (newItem.dataset.section) {
+        document.getElementById('topbar-title').textContent = newItem.dataset.section;
+        
+        if (newItem.dataset.section === 'Classic OFP') {
+          ofpContainer.style.display = 'flex';
+        } else if (newItem.dataset.section === 'General') {
+          generalContainer.style.display = 'flex';
+          renderGeneralSection(getFlight(currentFlightId));
+        } else if (newItem.dataset.section === 'Fuel') {
+          fuelContainer.style.display = 'flex';
+          renderFuelSection(getFlight(currentFlightId));
+        } else if (newItem.dataset.section === 'ATC') {
+          atcContainer.style.display = 'flex';
+          renderAtcSection(getFlight(currentFlightId));
+        } else if (newItem.dataset.section === 'Dispatch Info') {
+          dispatchContainer.style.display = 'flex';
+          renderDispatchSection(getFlight(currentFlightId));
+        } else {
+          placeholder.style.display = 'block';
+        }
+      } 
+      // Switch sui tab aeroporti dinamici
+      else if (newItem.dataset.aptIndex !== undefined) {
+        airportContainer.style.display = 'flex';
+        const apt = currentAirportsData[newItem.dataset.aptIndex];
+        let title = apt.icao || '????';
+        if (apt.iata) title += `/${apt.iata}`;
+        if (apt.name) title += ` - ${apt.name}`;
+        document.getElementById('topbar-title').textContent = title;
+        renderAirportSection(newItem.dataset.aptIndex);
       }
     });
   });
+}
+
+function initBriefingInteractions() {
+  bindBriefingTabs();
 }
 
 
@@ -1037,7 +1459,19 @@ function initInteractions() {
         document.getElementById('topbar-title').textContent = 'Dashboard';
       } else if (tab === 'briefing') {
         const activeItem = document.querySelector('.briefing-item.active');
-        document.getElementById('topbar-title').textContent = activeItem ? activeItem.dataset.section : 'Briefing';
+        if (activeItem) {
+          if (activeItem.dataset.section) {
+            document.getElementById('topbar-title').textContent = activeItem.dataset.section;
+          } else if (activeItem.dataset.aptIndex !== undefined) {
+             const apt = currentAirportsData[activeItem.dataset.aptIndex];
+             let title = apt.icao || '????';
+             if (apt.iata) title += `/${apt.iata}`;
+             if (apt.name) title += ` - ${apt.name}`;
+             document.getElementById('topbar-title').textContent = title;
+          }
+        } else {
+           document.getElementById('topbar-title').textContent = 'Briefing';
+        }
       } else {
         document.getElementById('topbar-title').textContent = btn.textContent;
       }

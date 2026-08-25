@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>mBriefing</title>
-  <link rel="stylesheet" href="css/style.css?v=27">
+  <link rel="stylesheet" href="css/style.css?v=32">
 </head>
 <body>
 
@@ -240,7 +240,9 @@
         <!-- Vuoto per ora -->
 
         <div class="briefing-category">WX/RAIM/NOTAM</div>
-        <!-- Vuoto per ora -->
+        <div id="brf-wx-menu-list">
+          <!-- Popolato dinamicamente da JS con gli aeroporti -->
+        </div>
       </aside>
 
       <!-- CONTENUTO PRINCIPALE -->
@@ -464,6 +466,76 @@
           </div>
         </div>
 
+        <!-- DISPATCH INFO CONTAINER -->
+        <div id="briefing-dispatch-container" class="briefing-general-container" style="display:none;">
+          <div class="widget briefing-dispatch-widget">
+            <div class="widget-header gen-widget-header" style="justify-content: flex-start; padding: 12px 22px;">
+              <span class="gen-header-text" style="text-transform: none;">Dispatch Info</span>
+            </div>
+            <div class="widget-body" style="padding: 22px;">
+              <p id="brf-dispatch-text" class="dispatch-text"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- AIRPORT (WX/NOTAM) CONTAINER -->
+        <div id="briefing-airport-container" class="briefing-general-container" style="display:none;">
+          
+          <!-- Widget WX -->
+          <div class="widget briefing-wx-widget">
+            <div class="widget-header gen-widget-header" style="justify-content: flex-start; padding: 12px 22px;">
+              <span class="gen-header-text" style="text-transform: none;">WX</span>
+            </div>
+            <div class="widget-body">
+              <div class="wx-row-header">
+                <span class="wx-row-title">METAR</span>
+                <span class="wx-row-age" id="brf-apt-metar-age"></span>
+                <span class="wx-badge" id="brf-apt-vmc-badge"> </span>
+              </div>
+              <div class="wx-text" id="brf-apt-metar-text"> </div>
+              <div class="wx-divider"></div>
+              <div class="wx-row-header">
+                <span class="wx-row-title">TAF</span>
+                <span class="wx-row-age" id="brf-apt-taf-age"></span>
+              </div>
+              <div class="wx-text" id="brf-apt-taf-text"> </div>
+            </div>
+          </div>
+
+          <!-- Widget Runways (TLR) -->
+          <div class="widget briefing-rwy-widget" id="brf-apt-rwy-widget" style="display:none;">
+            <div class="widget-header gen-widget-header" style="justify-content: flex-start; padding: 12px 22px;">
+              <span class="gen-header-text" style="text-transform: none;">Runways</span>
+            </div>
+            <table class="gen-data-table">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>LENGTH</th>
+                  <th>ELEVATION</th>
+                  <th>BEARING (MAG)</th>
+                  <th>BEARING (TRUE)</th>
+                  <th>WIND COMPONENT</th>
+                </tr>
+              </thead>
+              <tbody id="brf-apt-rwy-tbody">
+                <!-- Generato tramite JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Widget NOTAMs -->
+          <div class="widget briefing-notam-widget" id="brf-apt-notam-widget" style="display:none;">
+            <div class="widget-header gen-widget-header" style="justify-content: flex-start; padding: 12px 22px;">
+              <span class="gen-header-text" style="text-transform: none;">NOTAMs</span>
+            </div>
+            <div class="widget-body" id="brf-apt-notam-body" style="padding: 14px 22px 22px;">
+              <!-- Generato tramite JS -->
+            </div>
+          </div>
+
+        </div>
+
         <div id="classic-ofp-container" class="classic-ofp-container"></div>
         <div id="briefing-placeholder" style="display:none; padding: 40px; color: var(--text-secondary); text-align: center; font-size: 14px;">
           Contenuto in fase di sviluppo...
@@ -500,8 +572,8 @@
     </div>
   </div>
 
-  <script src="js/storage.js?v=27"></script>
-  <script src="js/simbrief.js?v=27"></script>
-  <script src="js/app.js?v=27"></script>
+  <script src="js/storage.js?v=32"></script>
+  <script src="js/simbrief.js?v=32"></script>
+  <script src="js/app.js?v=32"></script>
 </body>
 </html>
