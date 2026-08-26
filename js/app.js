@@ -4,6 +4,29 @@
 
 let currentFlightId = null;
 let currentAirportsData = []; // Array per contenere i dati strutturati degli aeroporti
+let cdmInterval = null; // Variabile globale per l'auto-refresh del CDM
+
+// Trackers per notifiche
+let prevCdmState = { tobt: "", tsat: "", ctot: "" };
+let isFirstCdmFetch = true;
+
+/* ---------- TOAST NOTIFICATIONS ---------- */
+function showToast(message) {
+  let container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    document.body.appendChild(container);
+  }
+  const toast = document.createElement('div');
+  toast.className = 'toast-message';
+  toast.innerText = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('fade-out');
+    setTimeout(() => toast.remove(), 400);
+  }, 6000);
+}
 
 /* ---------- THEME ---------- */
 const SUN_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><line x1="12" y1="1.5" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22.5"/><line x1="1.5" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22.5" y2="12"/><line x1="4.5" y1="4.5" x2="6.2" y2="6.2"/><line x1="17.8" y1="17.8" x2="19.5" y2="19.5"/><line x1="4.5" y1="19.5" x2="6.2" y2="17.8"/><line x1="17.8" y1="6.2" x2="19.5" y2="4.5"/></svg>';
@@ -37,6 +60,12 @@ function router() {
 }
 
 function showHome() {
+  // Pulisce l'intervallo CDM se si torna alla home
+  if (cdmInterval) {
+    clearInterval(cdmInterval);
+    cdmInterval = null;
+  }
+
   document.getElementById('view-home').style.display = 'flex';
   document.getElementById('view-dashboard').style.display = 'none';
   document.getElementById('view-briefing').style.display = 'none';
@@ -49,6 +78,10 @@ function showHome() {
 }
 
 function showDashboard(id) {
+  // Reset tracking notification all'apertura del volo
+  prevCdmState = { tobt: "", tsat: "", ctot: "" };
+  isFirstCdmFetch = true;
+
   const flight = getFlight(id);
   document.getElementById('view-home').style.display = 'none';
   document.getElementById('view-dashboard').style.display = 'flex';
@@ -69,14 +102,13 @@ function showDashboard(id) {
   document.getElementById('topbar-title').textContent = 'Dashboard';
   document.getElementById('flight-info-bar').style.display = 'flex';
   
-  // Inizializza flag storage
   if (!flight.state.flaggedNotams) {
     flight.state.flaggedNotams = [];
     updateFlightState(id, { flaggedNotams: [] });
   }
   
-  extractAirportsData(flight.raw); // Estrae i dati aeroporti per il menu
-  renderBriefingMenu(); // Rigenera il menu laterale WX/RAIM/NOTAM
+  extractAirportsData(flight.raw); 
+  renderBriefingMenu(); 
 
   renderFlightInfoBar(flight);
   renderDashboard(flight);
@@ -173,7 +205,45 @@ async function handleRefresh() {
   }
 }
 
-/* ---------- DASHBOARD: formattazione ---------- */
+/* ---------- FUNZIONI VATSIM (A-CDM VIA VERCEL SERVERLESS FUNCTION) ---------- */
+async function fetchVatsimCDM(cid) {
+  if (!cid) return null;
+  
+  try {
+    // Ora chiamiamo il nostro endpoint locale che fa da ponte verso VATSIM Radar
+    const response = await fetch(`/api/cdm/${cid}`);
+    
+    if (!response.ok) return null;
+    const data = await response.json();
+    
+    let ctot = null;
+    let tsat = null;
+    let tobt = null;
+    
+    // Estrazione dati: cerchiamo in cdmData, se manca cerchiamo nella root
+    let rawCtot = (data.cdmData && data.cdmData.ctot) ? data.cdmData.ctot : data.ctot;
+    let rawTsat = (data.cdmData && data.cdmData.tsat) ? data.cdmData.tsat : data.tsat;
+    let rawTobt = (data.cdmData && data.cdmData.tobt) ? data.cdmData.tobt : (data.obt || data.tobt);
+
+    if (rawCtot && String(rawCtot).trim() !== "") ctot = String(rawCtot).trim().substring(0, 4);
+    if (rawTsat && String(rawTsat).trim() !== "") tsat = String(rawTsat).trim().substring(0, 4);
+    if (rawTobt && String(rawTobt).trim() !== "") tobt = String(rawTobt).trim().substring(0, 4);
+    
+    return { ctot, tsat, tobt };
+  } catch (err) {
+    console.error("Errore fetch CDM (Vercel API Route):", err);
+    return null;
+  }
+}
+
+function unixToHHMM(unixSeconds) {
+  if (!unixSeconds) return '--:--';
+  const d = new Date(Number(unixSeconds) * 1000);
+  const hh = String(d.getUTCHours()).padStart(2, '0');
+  const mm = String(d.getUTCMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
 function formatHHMM(totalSeconds) {
   if (!totalSeconds && totalSeconds !== 0) return '--:--';
   const h = Math.floor(totalSeconds / 3600);
@@ -224,6 +294,22 @@ function formatNotamDate(dtg) {
   return `${String(date.getUTCDate()).padStart(2,'0')} ${months[date.getUTCMonth()]} ${date.getUTCFullYear()}, ${String(date.getUTCHours()).padStart(2,'0')}:${String(date.getUTCMinutes()).padStart(2,'0')}z`;
 }
 
+function parseHHMM(str, baseUnixTimestamp) {
+  if (!str || str.length !== 4) return null;
+  const h = parseInt(str.slice(0, 2), 10);
+  const m = parseInt(str.slice(2, 4), 10);
+  let d = new Date(baseUnixTimestamp * 1000);
+  const schedHH = d.getUTCHours();
+  d.setUTCHours(h, m, 0, 0);
+  
+  if (h < schedHH && (schedHH - h) > 12) {
+      d.setUTCDate(d.getUTCDate() + 1);
+  } else if (h > schedHH && (h - schedHH) > 12) {
+      d.setUTCDate(d.getUTCDate() - 1);
+  }
+  return Math.floor(d.getTime() / 1000);
+}
+
 /* ---------- DASHBOARD: rendering ---------- */
 function renderDashboard(flight) {
   try {
@@ -251,17 +337,15 @@ function renderDashboard(flight) {
     document.getElementById('fi-sid').textContent = general.sid_ident || 'NONE';
     document.getElementById('fi-date').textContent = formatDateFromUnix(times.sched_out);
     document.getElementById('fi-std').textContent = unixToHHMM(times.sched_out);
-    document.getElementById('fi-etd').textContent = unixToHHMM(times.est_out || times.sched_out);
-
-    document.getElementById('fi-rwy-arr').textContent = destination.plan_rwy || '--';
-    document.getElementById('fi-star').textContent = general.star_ident || 'NONE';
-    document.getElementById('fi-date-arr').textContent = formatDateFromUnix(times.sched_in);
-    document.getElementById('fi-sta').textContent = unixToHHMM(times.sched_in);
-    document.getElementById('fi-eta').textContent = unixToHHMM(times.est_in || times.sched_in);
-
+    
+    // Inizializzazione ETD e ETA standard e funzioni calcolo Delta
+    const etdEl = document.getElementById('fi-etd');
+    const etaEl = document.getElementById('fi-eta');
     const deltaEl = document.getElementById('fi-eta-delta');
-    if (times.sched_in && times.est_in) {
-      const diffMin = Math.round((Number(times.est_in) - Number(times.sched_in)) / 60);
+    
+    function updateDelta(baseUnixIn, calcUnixIn) {
+      if (!baseUnixIn) { deltaEl.textContent = ''; return; }
+      const diffMin = Math.round((calcUnixIn - Number(baseUnixIn)) / 60);
       if (diffMin === 0) {
         deltaEl.textContent = '';
       } else if (diffMin < 0) {
@@ -271,9 +355,88 @@ function renderDashboard(flight) {
         deltaEl.textContent = `+${String(diffMin).padStart(2, '0')}m`;
         deltaEl.className = 'fi-delta delta-late';
       }
-    } else {
-      deltaEl.textContent = '';
     }
+
+    if (cdmInterval) {
+      clearInterval(cdmInterval);
+      cdmInterval = null;
+    }
+
+    const ctotVal = document.getElementById('fi-ctot');
+    ctotVal.textContent = '-'; 
+    
+    const stdUnix = Number(times.sched_out);
+    const staUnix = Number(times.sched_in);
+
+    function refreshCDM() {
+      let cid = localStorage.getItem('mbriefing_vt_cid');
+      const cidInput = document.getElementById('vt-cid');
+      if (!cid && cidInput && cidInput.value.trim() !== '') cid = cidInput.value.trim();
+      if (!cid) return; 
+
+      fetchVatsimCDM(cid).then(cdmDataObj => {
+        if (cdmDataObj) {
+          const cleanTime = (t) => (t && String(t).trim().length >= 4) ? String(t).trim().substring(0, 4) : "";
+          
+          const newTobt = cleanTime(cdmDataObj.tobt);
+          const newTsat = cleanTime(cdmDataObj.tsat);
+          const newCtot = cleanTime(cdmDataObj.ctot);
+          const taxiMin = cdmDataObj.taxi !== undefined && cdmDataObj.taxi !== "" ? parseInt(cdmDataObj.taxi, 10) : 15;
+
+          // Gestione notifiche
+          if (isFirstCdmFetch) {
+            prevCdmState = { tobt: newTobt, tsat: newTsat, ctot: newCtot };
+            isFirstCdmFetch = false;
+          } else {
+            const fmt = (t) => t ? `${t.substring(0, 2)}:${t.substring(2, 4)}z` : "";
+            if (newCtot && newCtot !== prevCdmState.ctot) showToast(`SLOT notification: you have a new CTOT at ${fmt(newCtot)}`);
+            if (prevCdmState.ctot && !newCtot) showToast(`SLOT notification: your CTOT has been cancelled`);
+            if (newTsat && newTsat !== prevCdmState.tsat) showToast(`TSAT notification: new TSAT at ${fmt(newTsat)}`);
+            if (newTobt && newTobt !== prevCdmState.tobt) showToast(`TOBT notification: new TOBT at ${fmt(newTobt)}`);
+            
+            prevCdmState = { tobt: newTobt, tsat: newTsat, ctot: newCtot };
+          }
+
+          // Applicazione DOM
+          if (newCtot) {
+            ctotVal.textContent = `${newCtot.substring(0,2)}:${newCtot.substring(2,4)}z`;
+          } else {
+            ctotVal.textContent = '-';
+          }
+
+          let effectiveEtdUnix = stdUnix; // Fallback: STD pianificato
+
+          // Logica priorità: TSAT > CTOT - Taxi > TOBT > STD
+          if (newTsat) {
+            effectiveEtdUnix = parseHHMM(newTsat, stdUnix);
+          } else if (newCtot) {
+            effectiveEtdUnix = parseHHMM(newCtot, stdUnix) - (taxiMin * 60);
+          } else if (newTobt) {
+            effectiveEtdUnix = parseHHMM(newTobt, stdUnix);
+          }
+
+          etdEl.textContent = unixToHHMM(effectiveEtdUnix);
+          
+          const delaySecs = effectiveEtdUnix - stdUnix;
+          const newEtaUnix = staUnix + delaySecs;
+          
+          etaEl.textContent = unixToHHMM(newEtaUnix);
+          updateDelta(staUnix, newEtaUnix);
+        }
+      });
+    }
+
+    etdEl.textContent = unixToHHMM(times.est_out || times.sched_out);
+    etaEl.textContent = unixToHHMM(times.est_in || times.sched_in);
+    updateDelta(times.sched_in, (times.est_in || times.sched_in));
+
+    refreshCDM();
+    cdmInterval = setInterval(refreshCDM, 60000); // Polling 60s
+
+    document.getElementById('fi-rwy-arr').textContent = destination.plan_rwy || '--';
+    document.getElementById('fi-star').textContent = general.star_ident || 'NONE';
+    document.getElementById('fi-date-arr').textContent = formatDateFromUnix(times.sched_in);
+    document.getElementById('fi-sta').textContent = unixToHHMM(times.sched_in);
 
     applyAcceptanceUI(flight.state && flight.state.accepted);
 
@@ -636,7 +799,6 @@ function renderFuelSection(flight) {
   });
 
   // WIDGET OPERATIONAL IMPACTS
-  // SimBrief mette gli impact nell'oggetto principale data.impacts
   const impacts = data.impacts || {};
 
   // Formattazione esatta con SPAZIO (Fuel: raw number -> P/M 0000; Time: seconds -> HHMM -> P/M 0000)
@@ -968,7 +1130,7 @@ function renderAirportSection(index) {
       </div>
     `;
     
-    // Raggruppa per categoria
+    // Raggruppa per categoria usando la funzione di decodifica
     const grouped = {};
     apt.notams.forEach(n => {
       const cat = decodeQCodeCategory(n.notam_qcode);
@@ -1416,24 +1578,35 @@ function closeDrawer() {
 }
 
 function initInteractions() {
+  // Carica i dati salvati
   const lastId = localStorage.getItem('mbriefing_sb_id');
   if (lastId) document.getElementById('sb-username').value = lastId;
+  
+  const lastCid = localStorage.getItem('mbriefing_vt_cid');
+  if (lastCid) document.getElementById('vt-cid').value = lastCid;
 
   document.getElementById('menu-toggle').addEventListener('click', openDrawer);
   document.getElementById('drawer-close').addEventListener('click', closeDrawer);
   document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
+  
   document.getElementById('sb-refresh').addEventListener('click', async () => {
-    await handleRefresh();
     localStorage.setItem('mbriefing_sb_id', document.getElementById('sb-username').value.trim());
+    localStorage.setItem('mbriefing_vt_cid', document.getElementById('vt-cid').value.trim());
+    await handleRefresh();
   });
 
   document.getElementById('content-refresh-btn').addEventListener('click', async () => {
     const saved = localStorage.getItem('mbriefing_sb_id');
+    const savedCid = localStorage.getItem('mbriefing_vt_cid');
+    
     if (!saved) {
       openDrawer();
       return;
     }
+    
     document.getElementById('sb-username').value = saved;
+    if (savedCid) document.getElementById('vt-cid').value = savedCid;
+    
     await handleRefresh();
   });
 

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>mBriefing</title>
-  <link rel="stylesheet" href="css/style.css?v=32">
+  <link rel="stylesheet" href="css/style.css?v=37">
 </head>
 <body>
 
@@ -56,6 +56,10 @@
     <div class="drawer-body">
       <label class="drawer-label" for="sb-username">Username o Pilot ID</label>
       <input type="text" id="sb-username" placeholder="es. lupo05">
+      
+      <label class="drawer-label" for="vt-cid" style="margin-top: 8px;">VATSIM CID (per CTOT/TSAT)</label>
+      <input type="text" id="vt-cid" placeholder="es. 1234567">
+
       <button class="btn-primary btn-block" id="sb-refresh">Refresh da SimBrief</button>
       <p class="hint" id="sb-status"></p>
     </div>
@@ -111,6 +115,8 @@
               <div class="fi-date" id="fi-date"> </div>
               <div class="fi-time-line"><span class="fi-value" id="fi-std"> </span><span class="fi-label">STD</span></div>
               <div class="fi-time-line"><span class="fi-value" id="fi-etd"> </span><span class="fi-label">ETD</span></div>
+              <!-- CTOT Row sempre visibile -->
+              <div class="fi-time-line" id="fi-ctot-row"><span class="fi-value" id="fi-ctot">-</span><span class="fi-label">CTOT</span></div>
             </div>
             <div class="fi-mid"></div>
             <div class="fi-side fi-side-arr">
@@ -572,8 +578,8 @@
     </div>
   </div>
 
-  <script src="js/storage.js?v=32"></script>
-  <script src="js/simbrief.js?v=32"></script>
-  <script src="js/app.js?v=32"></script>
+  <script src="js/storage.js?v=37"></script>
+  <script src="js/simbrief.js?v=37"></script>
+  <script src="js/app.js?v=37"></script>
 </body>
 </html>
