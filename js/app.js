@@ -3,12 +3,15 @@
 */
 
 let currentFlightId = null;
-let currentAirportsData = []; // Array per contenere i dati strutturati degli aeroporti
-let cdmInterval = null; // Variabile globale per l'auto-refresh del CDM
+let currentAirportsData = []; 
+let cdmInterval = null; 
 
 // Trackers per notifiche
 let prevCdmState = { tobt: "", tsat: "", ctot: "" };
 let isFirstCdmFetch = true;
+
+// Dati NavLog
+let navlogActuals = {}; // { wpId: { time: "", afob: "" } }
 
 /* ---------- TOAST NOTIFICATIONS ---------- */
 function showToast(message) {
@@ -60,15 +63,14 @@ function router() {
 }
 
 function showHome() {
-  // Pulisce l'intervallo CDM se si torna alla home
   if (cdmInterval) {
     clearInterval(cdmInterval);
     cdmInterval = null;
   }
-
   document.getElementById('view-home').style.display = 'flex';
   document.getElementById('view-dashboard').style.display = 'none';
   document.getElementById('view-briefing').style.display = 'none';
+  document.getElementById('view-navlog').style.display = 'none';
   document.getElementById('topbar-title').textContent = 'My Flights';
   document.getElementById('home-nav-btn').style.visibility = 'hidden';
   document.getElementById('flight-info-bar').style.display = 'none';
@@ -78,7 +80,6 @@ function showHome() {
 }
 
 function showDashboard(id) {
-  // Reset tracking notification all'apertura del volo
   prevCdmState = { tobt: "", tsat: "", ctot: "" };
   isFirstCdmFetch = true;
 
@@ -86,11 +87,11 @@ function showDashboard(id) {
   document.getElementById('view-home').style.display = 'none';
   document.getElementById('view-dashboard').style.display = 'flex';
   document.getElementById('view-briefing').style.display = 'none';
+  document.getElementById('view-navlog').style.display = 'none';
   document.getElementById('home-nav-btn').style.visibility = 'visible';
   document.querySelector('.bottombar').style.display = 'flex';
   document.body.classList.add('in-flight');
   
-  // Resetta la barra inferiore su Dashboard
   document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
   document.querySelector('.tab-btn[data-tab="dashboard"]').classList.add('active');
 
@@ -109,7 +110,6 @@ function showDashboard(id) {
   
   extractAirportsData(flight.raw); 
   renderBriefingMenu(); 
-
   renderFlightInfoBar(flight);
   renderDashboard(flight);
   resetPager();
@@ -208,11 +208,8 @@ async function handleRefresh() {
 /* ---------- FUNZIONI VATSIM (A-CDM VIA VERCEL SERVERLESS FUNCTION) ---------- */
 async function fetchVatsimCDM(cid) {
   if (!cid) return null;
-  
   try {
-    // Ora chiamiamo il nostro endpoint locale che fa da ponte verso VATSIM Radar
     const response = await fetch(`/api/cdm/${cid}`);
-    
     if (!response.ok) return null;
     const data = await response.json();
     
@@ -220,7 +217,6 @@ async function fetchVatsimCDM(cid) {
     let tsat = null;
     let tobt = null;
     
-    // Estrazione dati: cerchiamo in cdmData, se manca cerchiamo nella root
     let rawCtot = (data.cdmData && data.cdmData.ctot) ? data.cdmData.ctot : data.ctot;
     let rawTsat = (data.cdmData && data.cdmData.tsat) ? data.cdmData.tsat : data.tsat;
     let rawTobt = (data.cdmData && data.cdmData.tobt) ? data.cdmData.tobt : (data.obt || data.tobt);
@@ -244,6 +240,19 @@ function unixToHHMM(unixSeconds) {
   return `${hh}:${mm}`;
 }
 
+function minToHHMM(totalMin) {
+  if (totalMin === "" || totalMin === null || totalMin === undefined || isNaN(totalMin)) return "--:--";
+  const h = Math.floor(totalMin / 60);
+  const m = Math.round(totalMin % 60);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function hhmmToMin(str) {
+  if (!str || !/^\d{1,2}:\d{2}$/.test(str)) return null;
+  const parts = str.split(":");
+  return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+}
+
 function formatHHMM(totalSeconds) {
   if (!totalSeconds && totalSeconds !== 0) return '--:--';
   const h = Math.floor(totalSeconds / 3600);
@@ -265,35 +274,6 @@ function getFirstAlternate(data) {
   return data.alternate;
 }
 
-function isoToUnix(isoString) {
-  if (!isoString) return null;
-  const t = Date.parse(isoString);
-  return isNaN(t) ? null : Math.floor(t / 1000);
-}
-
-function formatObsDateTime(isoString) {
-  const unix = isoToUnix(isoString);
-  if (!unix) return '--';
-  const d = new Date(unix * 1000);
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const hh = String(d.getUTCHours()).padStart(2, '0');
-  const mm = String(d.getUTCMinutes()).padStart(2, '0');
-  return `${d.getUTCDate()} ${months[d.getUTCMonth()]}, ${hh}:${mm}z`;
-}
-
-function formatNotamDate(dtg) {
-  if (!dtg || dtg.length < 12) return 'UFN';
-  const y = parseInt(dtg.substring(0,4), 10);
-  const m = parseInt(dtg.substring(4,6), 10) - 1;
-  const d = parseInt(dtg.substring(6,8), 10);
-  const hh = parseInt(dtg.substring(8,10), 10);
-  const mm = parseInt(dtg.substring(10,12), 10);
-  const date = new Date(Date.UTC(y, m, d, hh, mm));
-  if (isNaN(date.getTime())) return 'UFN';
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return `${String(date.getUTCDate()).padStart(2,'0')} ${months[date.getUTCMonth()]} ${date.getUTCFullYear()}, ${String(date.getUTCHours()).padStart(2,'0')}:${String(date.getUTCMinutes()).padStart(2,'0')}z`;
-}
-
 function parseHHMM(str, baseUnixTimestamp) {
   if (!str || str.length !== 4) return null;
   const h = parseInt(str.slice(0, 2), 10);
@@ -310,7 +290,190 @@ function parseHHMM(str, baseUnixTimestamp) {
   return Math.floor(d.getTime() / 1000);
 }
 
-/* ---------- DASHBOARD: rendering ---------- */
+/* ---------- NAVLOG DATA MAPPER ---------- */
+function mapSimbriefToNavLog(ofp) {
+  let fixes = ofp.navlog.fix; 
+  if (!Array.isArray(fixes)) fixes = [fixes]; // Previene crash per rotte a fix singolo
+
+  const routeDistance = Number(ofp.general.route_distance) || 0;
+  const schedOutUnix = Number(ofp.times.sched_out) || 0; 
+  const altn = getFirstAlternate(ofp);
+
+  const waypoints = [];
+  let cumulativeDistance = 0;
+
+  fixes.forEach((fix, idx) => {
+    const legDistance = Number(fix.distance) || 0;
+    cumulativeDistance += legDistance;
+    const dtdNm = Math.max(0, Math.round(routeDistance - cumulativeDistance));
+    const isBoundary = !!(fix.fir_crossing && fix.fir_crossing.fir);
+
+    if (idx > 0) {
+      waypoints.push({
+        id: fix.ident + '_aw',
+        isAirwayInfo: true,
+        via: fix.via_airway || "DCT",
+        trackStr: (fix.track_true && fix.track_mag) ? `${fix.track_true}T/${fix.track_mag}M` : "",
+        dtwNm: legDistance,
+        ttwMin: Number(fix.time_leg) / 60,
+        ftwKg: Math.round(Number(fix.fuel_leg) || 0),
+        flPlanned: Math.round((Number(fix.altitude_feet) || 0) / 100),
+      });
+    }
+
+    waypoints.push({
+      id: fix.ident,
+      name: (fix.type === "apt" || fix.type === "vor" || fix.type === "ndb") ? fix.name : "", // Nome esteso
+      isBoundary,
+      isAirwayInfo: false,
+      dtdNm,
+      plannedTimeMin: Number(fix.time_total) / 60,
+      plannedEfobKg: Math.round(Number(fix.fuel_plan_onboard) || 0),
+    });
+  });
+
+  const fuel = ofp.fuel || {};
+  return {
+    originIcao: ofp.origin?.icao_code || "",
+    destIcao: ofp.destination?.icao_code || "",
+    altnIcao: altn?.icao_code || "",
+    rampFuelKg: Number(fuel.plan_ramp) || 0,
+    finalReserveKg: Number(fuel.reserve) || 0,
+    totalReserveKg: (Number(fuel.reserve) || 0) + (Number(fuel.alternate_burn) || 0) + (Number(fuel.contingency) || 0),
+    plannedLandingFuelKg: Number(fuel.plan_landing) || 0,
+    schedOutUnix,
+    waypoints,
+  };
+}
+
+/* ---------- RENDER NAVLOG ---------- */
+function renderNavLog(flightId) {
+  const flight = getFlight(flightId);
+  if (!flight) return;
+  const nlData = mapSimbriefToNavLog(flight.raw);
+  
+  document.getElementById('nl-orig-icao').textContent = nlData.originIcao;
+  document.getElementById('nl-dest-icao').textContent = nlData.destIcao;
+
+  function renderFuelBar() {
+    const realWps = nlData.waypoints.filter(w => !w.isAirwayInfo);
+    const lastPlanned = realWps[realWps.length - 1];
+    
+    let lastEnteredIdx = -1;
+    for (let i = 0; i < realWps.length; i++) {
+      const a = navlogActuals[realWps[i].id] || { time: "", afob: "" };
+      if (a.afob !== "" && !isNaN(Number(a.afob))) lastEnteredIdx = i;
+    }
+
+    let expLandingKg = nlData.plannedLandingFuelKg;
+    let progressPct = 0;
+
+    if (lastEnteredIdx !== -1) {
+      const wp = realWps[lastEnteredIdx];
+      const actualAfob = Number((navlogActuals[wp.id] || {}).afob);
+      const remainingPlannedBurn = lastPlanned.plannedEfobKg ? (wp.plannedEfobKg - lastPlanned.plannedEfobKg) : 0;
+      expLandingKg = actualAfob - remainingPlannedBurn;
+      progressPct = (lastEnteredIdx / (realWps.length - 1)) * 100;
+    }
+
+    const pct = (kg) => Math.min(100, Math.max(0, (kg / nlData.rampFuelKg) * 100));
+    const finresPct = pct(nlData.finalReserveKg);
+    const totalResPct = pct(nlData.totalReserveKg);
+    const landingPct = pct(expLandingKg);
+    const landingLow = expLandingKg < nlData.totalReserveKg;
+
+    const fbHtml = `
+      <div class="navlog-fuel-bar">
+        <div class="navlog-fuel-track">
+          <div class="navlog-fuel-fill" style="width: ${progressPct}%;"></div>
+          <div class="navlog-marker-totres" style="left: ${totalResPct}%;"></div>
+          <div class="navlog-marker-landing ${landingLow ? 'bg-amber-400' : 'bg-emerald-500'}" style="left: ${landingPct}%;"></div>
+          <div class="navlog-marker-finres" style="left: calc(${finresPct}% - 4px);"></div>
+        </div>
+        <div class="navlog-fuel-legend">
+          <span class="navlog-legend-item"><span class="navlog-legend-dot-finres"></span> FINRES ${nlData.finalReserveKg}</span>
+          <span class="navlog-legend-item"><span class="navlog-legend-line-totres"></span> TOTAL RESERVE ${nlData.totalReserveKg} ${nlData.altnIcao ? `(${nlData.altnIcao})` : ''}</span>
+          <span class="navlog-legend-item font-medium ${landingLow ? 'text-amber-600' : 'text-emerald-600'}">
+            <span class="navlog-legend-line-land ${landingLow ? 'bg-amber-400' : 'bg-emerald-500'}"></span> LANDING ${Math.round(expLandingKg)}
+          </span>
+        </div>
+      </div>
+    `;
+    document.getElementById('nl-fuel-bar-container').innerHTML = fbHtml;
+  }
+
+  function renderWaypoints() {
+    const container = document.getElementById('nl-waypoints-container');
+    container.innerHTML = '';
+    
+    nlData.waypoints.forEach(wp => {
+      const row = document.createElement('div');
+      
+      if (wp.isAirwayInfo) {
+        row.className = 'navlog-row-aw';
+        row.innerHTML = `
+          <div>${wp.via} ${wp.trackStr ? `<span style="color:#9ca3af;">${wp.trackStr}</span>` : ''}</div>
+          <div>DTW ${wp.dtwNm}</div>
+          <div>TTW ${minToHHMM(wp.ttwMin)}</div>
+          <div></div><div></div>
+          <div>FTW ${wp.ftwKg}</div>
+          <div>FL ${wp.flPlanned}</div>
+          <div></div>
+        `;
+      } else {
+        row.className = `navlog-row-wp ${wp.isBoundary ? 'is-boundary' : ''}`;
+        
+        const actual = navlogActuals[wp.id] || { time: "", afob: "" };
+        const actTimeMin = hhmmToMin(actual.time);
+        const timeDeltaMin = actTimeMin !== null ? actTimeMin - wp.plannedTimeMin : null;
+        const afobKg = actual.afob !== "" ? Number(actual.afob) : null;
+        const fuelDeltaKg = afobKg !== null && !isNaN(afobKg) ? afobKg - wp.plannedEfobKg : null;
+
+        const timeColor = timeDeltaMin === null ? "color:#9ca3af;" : timeDeltaMin <= 0 ? "color:#059669;" : "color:#d97706;";
+        const fuelColor = fuelDeltaKg === null ? "color:#9ca3af;" : fuelDeltaKg >= 0 ? "color:#059669;" : "color:#d97706;";
+        
+        row.innerHTML = `
+          <div>
+            <div class="navlog-wp-ident">${wp.id}</div>
+            ${wp.name ? `<div class="navlog-wp-name">${wp.name}</div>` : ''}
+          </div>
+          <div>${wp.dtdNm}</div>
+          <div style="color:#6b7280;">${minToHHMM(wp.plannedTimeMin)}</div>
+          <div><input type="text" placeholder="--:--" class="navlog-input wp-time-input" data-wpid="${wp.id}" value="${actual.time}"></div>
+          <div style="${timeColor} font-weight:600;">${timeDeltaMin === null ? '—' : `${timeDeltaMin > 0 ? '+' : ''}${timeDeltaMin} min`}</div>
+          <div style="color:#6b7280;">${wp.plannedEfobKg}</div>
+          <div><input type="number" placeholder="AFOB" class="navlog-input wp-afob-input" data-wpid="${wp.id}" value="${actual.afob}"></div>
+          <div style="${fuelColor} font-weight:600;">${fuelDeltaKg === null ? '—' : `${fuelDeltaKg > 0 ? '+' : ''}${Math.round(fuelDeltaKg)}`}</div>
+        `;
+      }
+      container.appendChild(row);
+    });
+
+    // Aggiunta Listeners Input Navlog
+    container.querySelectorAll('.wp-time-input').forEach(inp => {
+      inp.addEventListener('input', (e) => {
+        const wpid = e.target.dataset.wpid;
+        if(!navlogActuals[wpid]) navlogActuals[wpid] = { time:"", afob:"" };
+        navlogActuals[wpid].time = e.target.value;
+        renderWaypoints(); 
+      });
+    });
+    container.querySelectorAll('.wp-afob-input').forEach(inp => {
+      inp.addEventListener('input', (e) => {
+        const wpid = e.target.dataset.wpid;
+        if(!navlogActuals[wpid]) navlogActuals[wpid] = { time:"", afob:"" };
+        navlogActuals[wpid].afob = e.target.value;
+        renderWaypoints(); 
+        renderFuelBar(); 
+      });
+    });
+  }
+
+  renderFuelBar();
+  renderWaypoints();
+}
+
+/* ---------- DASHBOARD: rendering main ---------- */
 function renderDashboard(flight) {
   try {
     const data = flight.raw;
@@ -338,7 +501,6 @@ function renderDashboard(flight) {
     document.getElementById('fi-date').textContent = formatDateFromUnix(times.sched_out);
     document.getElementById('fi-std').textContent = unixToHHMM(times.sched_out);
     
-    // Inizializzazione ETD e ETA standard e funzioni calcolo Delta
     const etdEl = document.getElementById('fi-etd');
     const etaEl = document.getElementById('fi-eta');
     const deltaEl = document.getElementById('fi-eta-delta');
@@ -381,9 +543,7 @@ function renderDashboard(flight) {
           const newTobt = cleanTime(cdmDataObj.tobt);
           const newTsat = cleanTime(cdmDataObj.tsat);
           const newCtot = cleanTime(cdmDataObj.ctot);
-          const taxiMin = cdmDataObj.taxi !== undefined && cdmDataObj.taxi !== "" ? parseInt(cdmDataObj.taxi, 10) : 15;
 
-          // Gestione notifiche
           if (isFirstCdmFetch) {
             prevCdmState = { tobt: newTobt, tsat: newTsat, ctot: newCtot };
             isFirstCdmFetch = false;
@@ -397,20 +557,18 @@ function renderDashboard(flight) {
             prevCdmState = { tobt: newTobt, tsat: newTsat, ctot: newCtot };
           }
 
-          // Applicazione DOM
           if (newCtot) {
             ctotVal.textContent = `${newCtot.substring(0,2)}:${newCtot.substring(2,4)}z`;
           } else {
             ctotVal.textContent = '-';
           }
 
-          let effectiveEtdUnix = stdUnix; // Fallback: STD pianificato
-
-          // Logica priorità: TSAT > CTOT - Taxi > TOBT > STD
+          let effectiveEtdUnix = stdUnix; 
           if (newTsat) {
             effectiveEtdUnix = parseHHMM(newTsat, stdUnix);
           } else if (newCtot) {
-            effectiveEtdUnix = parseHHMM(newCtot, stdUnix) - (taxiMin * 60);
+            // Nota: 15min default taxi = 900s
+            effectiveEtdUnix = parseHHMM(newCtot, stdUnix) - 900;
           } else if (newTobt) {
             effectiveEtdUnix = parseHHMM(newTobt, stdUnix);
           }
@@ -431,7 +589,7 @@ function renderDashboard(flight) {
     updateDelta(times.sched_in, (times.est_in || times.sched_in));
 
     refreshCDM();
-    cdmInterval = setInterval(refreshCDM, 60000); // Polling 60s
+    cdmInterval = setInterval(refreshCDM, 60000); 
 
     document.getElementById('fi-rwy-arr').textContent = destination.plan_rwy || '--';
     document.getElementById('fi-star').textContent = general.star_ident || 'NONE';
@@ -492,8 +650,6 @@ function renderDashboard(flight) {
     // ---- ROUTE ----
     renderRouteMap(data);
     renderRouteSummary(data, origin, destination, general);
-
-    // ---- BRIEFING TAB: Classic OFP come testo formattato (niente iframe/PDF) ----
     renderClassicOfpText(data);
 
   } catch (err) {
@@ -801,7 +957,6 @@ function renderFuelSection(flight) {
   // WIDGET OPERATIONAL IMPACTS
   const impacts = data.impacts || {};
 
-  // Formattazione esatta con SPAZIO (Fuel: raw number -> P/M 0000; Time: seconds -> HHMM -> P/M 0000)
   function formatImpact(imp) {
     let bPrefix = 'P', bVal = '0000', tPrefix = 'P', tVal = '0000';
     if (imp) {
@@ -814,7 +969,7 @@ function renderFuelSection(flight) {
       bVal = Math.abs(bDiff).toString().padStart(4, '0');
       
       let tSec = Math.abs(tDiff);
-      let tMins = Math.floor(tSec / 60); // Tronca i minuti (come l'OFP originale)
+      let tMins = Math.floor(tSec / 60); 
       let h = Math.floor(tMins / 60);
       let m = tMins % 60;
       tVal = String(h).padStart(2, '0') + String(m).padStart(2, '0');
@@ -832,7 +987,6 @@ function renderFuelSection(flight) {
     </tr>`;
   }
 
-  // Pesca in modo sicuro le chiavi dirette dall'oggetto impacts
   const wUp = impacts.zfw_plus_1000 || impacts.plus_1000 || impacts.weight_up || null;
   const wDn = impacts.zfw_minus_1000 || impacts.minus_1000 || impacts.weight_down || null;
   const fUp = impacts.plus_2000ft || impacts.plus_2000 || impacts.level_up || null;
@@ -851,8 +1005,6 @@ function renderFuelSection(flight) {
   impHtml += rowHtml('', 'CI 100', sUp);
 
   document.getElementById('brf-impacts-tbody').innerHTML = impHtml;
-
-  // Prima chiamata per popolare la tabella carburante all'apertura
   updateFuelCalcs();
 }
 
@@ -875,7 +1027,6 @@ function renderDispatchSection(flight) {
 }
 
 /* ---------- BRIEFING: MENU AEROPORTI & WX/RUNWAYS/NOTAMS ---------- */
-
 function decodeQCodeCategory(qcode) {
   if (!qcode || qcode.length < 3) return 'AIRPORT';
   const sub2 = qcode.substring(1, 3).toUpperCase();
@@ -1015,7 +1166,6 @@ function renderBriefingMenu() {
     listEl.appendChild(div);
   });
 
-  // Riapplica i listener dopo aver generato i nuovi elementi
   bindBriefingTabs();
 }
 
@@ -1026,7 +1176,6 @@ function renderAirportSection(index) {
   const apt = currentAirportsData[index];
   if (!apt) return;
 
-  // WX
   document.getElementById('brf-apt-metar-text').textContent = apt.metar || 'METAR non disponibile';
   document.getElementById('brf-apt-taf-text').textContent = apt.taf || 'TAF non disponibile';
   document.getElementById('brf-apt-metar-age').textContent = formatObsDateTime(apt.metar_time);
@@ -1065,7 +1214,6 @@ function renderAirportSection(index) {
       let rMag = r.magnetic_course || '---';
       let rTrue = r.true_course || '---';
       
-      // Calcolo Headwind/Tailwind
       let hwRaw = Number(r.headwind_component);
       let hwVal = '---';
       let hwClass = 'wind-green';
@@ -1073,17 +1221,16 @@ function renderAirportSection(index) {
       
       if (!isNaN(hwRaw)) {
         if (hwRaw < 0) {
-          hwArrow = '↑'; // Tailwind
+          hwArrow = '↑'; 
           hwVal = Math.abs(hwRaw);
           hwClass = hwVal > 10 ? 'wind-red' : 'wind-amber';
         } else {
-          hwArrow = '↓'; // Headwind
+          hwArrow = '↓'; 
           hwVal = hwRaw;
           hwClass = 'wind-green';
         }
       }
 
-      // Calcolo Crosswind
       let xwRaw = Number(r.crosswind_component);
       let xwVal = '---';
       let xwClass = 'wind-green';
@@ -1119,7 +1266,6 @@ function renderAirportSection(index) {
   if (apt.notams && apt.notams.length > 0) {
     notamWidget.style.display = 'flex';
     
-    // Header con filtro
     let notamHtml = `
       <div class="notam-filter-bar">
         <label for="brf-notam-filter">Show:</label>
@@ -1130,7 +1276,6 @@ function renderAirportSection(index) {
       </div>
     `;
     
-    // Raggruppa per categoria usando la funzione di decodifica
     const grouped = {};
     apt.notams.forEach(n => {
       const cat = decodeQCodeCategory(n.notam_qcode);
@@ -1138,7 +1283,6 @@ function renderAirportSection(index) {
       grouped[cat].push(n);
     });
     
-    // Ordine: Runway, SID, STAR, Approach, Airport
     const catOrder = { 'RUNWAY': 1, 'SID': 2, 'STAR': 3, 'APPROACH PROCEDURES': 4, 'AIRPORT': 5 };
     const sortedCats = Object.keys(grouped).sort((a, b) => (catOrder[a] || 99) - (catOrder[b] || 99));
     
@@ -1154,7 +1298,6 @@ function renderAirportSection(index) {
         
         let rawText = n.notam_report || n.notam_text || '';
         
-        // Highlighting
         let safeText = rawText
           .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
           .replace(/\b(TWY|RWY|VOR|LOC|NDB|ILS|RNP|RNAV|DME|STAR|SID|GLS|GNSS|GPS)\b/g, '<span class="notam-hl-warn">$1</span>')
@@ -1181,7 +1324,6 @@ function renderAirportSection(index) {
     
     notamBody.innerHTML = notamHtml;
 
-    // Aggiungi Logica Filtro e Click sulle Flags
     const filterSelect = document.getElementById('brf-notam-filter');
     const flagBtns = notamBody.querySelectorAll('.notam-flag');
 
@@ -1310,7 +1452,6 @@ function renderRouteMap(data) {
   img.src = url;
 }
 
-/* ROTTA: logica TOC/TOD e Stepclimbs ripristinata */
 function renderRouteSummary(data, origin, destination, general) {
   const el = document.getElementById('route-summary');
   const route = general.route || '';
@@ -1500,7 +1641,6 @@ function applyAcceptanceUI(isAccepted) {
 /* ---------- GESTIONE INTERFACCIA BRIEFING ---------- */
 function bindBriefingTabs() {
   document.querySelectorAll('.briefing-item').forEach(item => {
-    // Rimuove eventuali vecchi listener clonanado l'elemento (utile se richiamata più volte)
     const newItem = item.cloneNode(true);
     item.parentNode.replaceChild(newItem, item);
     
@@ -1516,7 +1656,6 @@ function bindBriefingTabs() {
       const airportContainer = document.getElementById('briefing-airport-container');
       const placeholder = document.getElementById('briefing-placeholder');
 
-      // Nascondi tutto
       ofpContainer.style.display = 'none';
       generalContainer.style.display = 'none';
       fuelContainer.style.display = 'none';
@@ -1525,7 +1664,6 @@ function bindBriefingTabs() {
       airportContainer.style.display = 'none';
       placeholder.style.display = 'none';
 
-      // Switch sui tab statici
       if (newItem.dataset.section) {
         document.getElementById('topbar-title').textContent = newItem.dataset.section;
         
@@ -1547,7 +1685,6 @@ function bindBriefingTabs() {
           placeholder.style.display = 'block';
         }
       } 
-      // Switch sui tab aeroporti dinamici
       else if (newItem.dataset.aptIndex !== undefined) {
         airportContainer.style.display = 'flex';
         const apt = currentAirportsData[newItem.dataset.aptIndex];
@@ -1565,7 +1702,6 @@ function initBriefingInteractions() {
   bindBriefingTabs();
 }
 
-
 /* ---------- INTERAZIONI GENERALI ---------- */
 function openDrawer() {
   document.getElementById('side-drawer').classList.add('open');
@@ -1578,7 +1714,6 @@ function closeDrawer() {
 }
 
 function initInteractions() {
-  // Carica i dati salvati
   const lastId = localStorage.getItem('mbriefing_sb_id');
   if (lastId) document.getElementById('sb-username').value = lastId;
   
@@ -1627,6 +1762,7 @@ function initInteractions() {
       
       document.getElementById('view-dashboard').style.display = tab === 'dashboard' ? 'flex' : 'none';
       document.getElementById('view-briefing').style.display = tab === 'briefing' ? 'flex' : 'none';
+      document.getElementById('view-navlog').style.display = tab === 'navlog' ? 'flex' : 'none';
       
       if (tab === 'dashboard') {
         document.getElementById('topbar-title').textContent = 'Dashboard';
@@ -1645,6 +1781,9 @@ function initInteractions() {
         } else {
            document.getElementById('topbar-title').textContent = 'Briefing';
         }
+      } else if (tab === 'navlog') {
+        document.getElementById('topbar-title').textContent = 'NavLog';
+        if (currentFlightId) renderNavLog(currentFlightId);
       } else {
         document.getElementById('topbar-title').textContent = btn.textContent;
       }
