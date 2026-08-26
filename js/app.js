@@ -3,15 +3,12 @@
 */
 
 let currentFlightId = null;
-let currentAirportsData = []; // Array per contenere i dati strutturati degli aeroporti
-let cdmInterval = null; // Variabile globale per l'auto-refresh del CDM
+let currentAirportsData = []; 
+let cdmInterval = null; 
 
-// Trackers per notifiche
 let prevCdmState = { tobt: "", tsat: "", ctot: "" };
 let isFirstCdmFetch = true;
-
-// Dati NavLog
-let navlogActuals = {}; // { wpId: { time: "", afob: "" } }
+let navlogActuals = {}; 
 
 /* ---------- TOAST NOTIFICATIONS ---------- */
 function showToast(message) {
@@ -74,12 +71,12 @@ function showHome() {
   const viewHome = document.getElementById('view-home');
   const viewDash = document.getElementById('view-dashboard');
   const viewBrf = document.getElementById('view-briefing');
-  const viewNav = document.getElementById('view-navlog'); // Potrebbe non esistere se HTML vecchio
+  const viewNav = document.getElementById('view-navlog'); 
 
   if (viewHome) viewHome.style.display = 'flex';
   if (viewDash) viewDash.style.display = 'none';
   if (viewBrf) viewBrf.style.display = 'none';
-  if (viewNav) viewNav.style.display = 'none'; // Salvataggio anticrash
+  if (viewNav) viewNav.style.display = 'none'; 
   
   const title = document.getElementById('topbar-title');
   if (title) title.textContent = 'My Flights';
@@ -98,58 +95,64 @@ function showHome() {
 }
 
 function showDashboard(id) {
-  prevCdmState = { tobt: "", tsat: "", ctot: "" };
-  isFirstCdmFetch = true;
+  try {
+    prevCdmState = { tobt: "", tsat: "", ctot: "" };
+    isFirstCdmFetch = true;
 
-  const flight = getFlight(id);
-  
-  const viewHome = document.getElementById('view-home');
-  const viewDash = document.getElementById('view-dashboard');
-  const viewBrf = document.getElementById('view-briefing');
-  const viewNav = document.getElementById('view-navlog');
+    const flight = getFlight(id);
+    
+    const viewHome = document.getElementById('view-home');
+    const viewDash = document.getElementById('view-dashboard');
+    const viewBrf = document.getElementById('view-briefing');
+    const viewNav = document.getElementById('view-navlog');
 
-  if (viewHome) viewHome.style.display = 'none';
-  if (viewDash) viewDash.style.display = 'flex';
-  if (viewBrf) viewBrf.style.display = 'none';
-  if (viewNav) viewNav.style.display = 'none'; // Salvataggio anticrash
-  
-  const homeBtn = document.getElementById('home-nav-btn');
-  if (homeBtn) homeBtn.style.visibility = 'visible';
-  
-  const bottomBar = document.querySelector('.bottombar');
-  if (bottomBar) bottomBar.style.display = 'flex';
-  
-  document.body.classList.add('in-flight');
-  
-  document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
-  const dashTab = document.querySelector('.tab-btn[data-tab="dashboard"]');
-  if (dashTab) dashTab.classList.add('active');
+    if (viewHome) viewHome.style.display = 'none';
+    if (viewDash) viewDash.style.display = 'flex';
+    if (viewBrf) viewBrf.style.display = 'none';
+    if (viewNav) viewNav.style.display = 'none'; 
+    
+    const homeBtn = document.getElementById('home-nav-btn');
+    if (homeBtn) homeBtn.style.visibility = 'visible';
+    
+    const bottomBar = document.querySelector('.bottombar');
+    if (bottomBar) bottomBar.style.display = 'flex';
+    
+    document.body.classList.add('in-flight');
+    
+    document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+    const dashTab = document.querySelector('.tab-btn[data-tab="dashboard"]');
+    if (dashTab) dashTab.classList.add('active');
 
-  if (!flight) {
+    if (!flight) {
+      const title = document.getElementById('topbar-title');
+      if (title) title.textContent = 'Volo non trovato';
+      const infoBar = document.getElementById('flight-info-bar');
+      if (infoBar) infoBar.style.display = 'none';
+      return;
+    }
+    
     const title = document.getElementById('topbar-title');
-    if (title) title.textContent = 'Volo non trovato';
+    if (title) title.textContent = 'Dashboard';
+    
     const infoBar = document.getElementById('flight-info-bar');
-    if (infoBar) infoBar.style.display = 'none';
-    return;
-  }
-  
-  const title = document.getElementById('topbar-title');
-  if (title) title.textContent = 'Dashboard';
-  
-  const infoBar = document.getElementById('flight-info-bar');
-  if (infoBar) infoBar.style.display = 'flex';
-  
-  if (!flight.state.flaggedNotams) {
-    flight.state.flaggedNotams = [];
-    updateFlightState(id, { flaggedNotams: [] });
-  }
-  
-  extractAirportsData(flight.raw); 
-  renderBriefingMenu(); 
+    if (infoBar) infoBar.style.display = 'flex';
+    
+    if (!flight.state.flaggedNotams) {
+      flight.state.flaggedNotams = [];
+      updateFlightState(id, { flaggedNotams: [] });
+    }
+    
+    extractAirportsData(flight.raw); 
+    renderBriefingMenu(); 
 
-  renderFlightInfoBar(flight);
-  renderDashboard(flight);
-  resetPager();
+    renderFlightInfoBar(flight);
+    renderDashboard(flight);
+    resetPager();
+
+  } catch (error) {
+    alert("CRASH IN SHOWDASHBOARD: " + error.message);
+    console.error(error);
+  }
 }
 
 function renderFlightInfoBar(flight) {
@@ -161,18 +164,26 @@ function renderFlightInfoBar(flight) {
   const times = data.times || {};
   const params = data.params || {};
 
-  document.getElementById('fib-flightnum').textContent = extractCallsign(data);
-  document.getElementById('fib-reg').textContent = aircraft.reg || '----';
-  document.getElementById('fib-callsign').textContent = (data.atc && data.atc.callsign) || '----';
+  const fibFlightnum = document.getElementById('fib-flightnum');
+  const fibReg = document.getElementById('fib-reg');
+  const fibCallsign = document.getElementById('fib-callsign');
+  const fibRoute = document.getElementById('fib-route');
+  const fibOfp = document.getElementById('fib-ofp');
+  const fibOfpdate = document.getElementById('fib-ofpdate');
+  const badge = document.getElementById('fib-status');
+
+  if (fibFlightnum) fibFlightnum.textContent = extractCallsign(data);
+  if (fibReg) fibReg.textContent = aircraft.reg || '----';
+  if (fibCallsign) fibCallsign.textContent = (data.atc && data.atc.callsign) || '----';
   
-  document.getElementById('fib-route').innerHTML = 
-    `<strong>${origin.icao_code || '----'}</strong> (${unixToHHMM(times.sched_out)}) - <strong>${destination.icao_code || '----'}</strong> (${unixToHHMM(times.sched_in)})`;
+  if (fibRoute) {
+    fibRoute.innerHTML = `<strong>${origin.icao_code || '----'}</strong> (${unixToHHMM(times.sched_out)}) - <strong>${destination.icao_code || '----'}</strong> (${unixToHHMM(times.sched_in)})`;
+  }
   
-  document.getElementById('fib-ofp').textContent = general.release ? `OFP ${general.release}` : 'OFP --';
-  document.getElementById('fib-ofpdate').textContent = params.time_generated ? formatObsDateTime(new Date(Number(params.time_generated) * 1000).toISOString()) : '--';
+  if (fibOfp) fibOfp.textContent = general.release ? `OFP ${general.release}` : 'OFP --';
+  if (fibOfpdate) fibOfpdate.textContent = params.time_generated ? formatObsDateTime(new Date(Number(params.time_generated) * 1000).toISOString()) : '--';
 
   const isAccepted = flight.state && flight.state.accepted;
-  const badge = document.getElementById('fib-status');
   if (badge) {
     badge.textContent = isAccepted ? 'CONFIRMED' : 'NOT ACCEPTED';
     badge.className = isAccepted ? 'status-badge accepted' : 'status-badge not-accepted';
@@ -386,8 +397,8 @@ function mapSimbriefToNavLog(ofp) {
   let fixes = (ofp.navlog && ofp.navlog.fix) ? ofp.navlog.fix : []; 
   if (!Array.isArray(fixes)) fixes = [fixes]; 
 
-  const routeDistance = Number(ofp.general?.route_distance) || 0;
-  const schedOutUnix = Number(ofp.times?.sched_out) || 0; 
+  const routeDistance = (ofp.general && ofp.general.route_distance) ? Number(ofp.general.route_distance) : 0;
+  const schedOutUnix = (ofp.times && ofp.times.sched_out) ? Number(ofp.times.sched_out) : 0; 
   const altn = getFirstAlternate(ofp);
 
   const waypoints = [];
@@ -426,9 +437,9 @@ function mapSimbriefToNavLog(ofp) {
 
   const fuel = ofp.fuel || {};
   return {
-    originIcao: ofp.origin?.icao_code || "",
-    destIcao: ofp.destination?.icao_code || "",
-    altnIcao: altn?.icao_code || "",
+    originIcao: (ofp.origin && ofp.origin.icao_code) ? ofp.origin.icao_code : "",
+    destIcao: (ofp.destination && ofp.destination.icao_code) ? ofp.destination.icao_code : "",
+    altnIcao: (altn && altn.icao_code) ? altn.icao_code : "",
     rampFuelKg: Number(fuel.plan_ramp) || 0,
     finalReserveKg: Number(fuel.reserve) || 0,
     totalReserveKg: (Number(fuel.reserve) || 0) + (Number(fuel.alternate_burn) || 0) + (Number(fuel.contingency) || 0),
@@ -440,134 +451,140 @@ function mapSimbriefToNavLog(ofp) {
 
 /* ---------- RENDER NAVLOG ---------- */
 function renderNavLog(flightId) {
-  const flight = getFlight(flightId);
-  if (!flight) return;
-  const nlData = mapSimbriefToNavLog(flight.raw);
-  
-  const origEl = document.getElementById('nl-orig-icao');
-  const destEl = document.getElementById('nl-dest-icao');
-  if(origEl) origEl.textContent = nlData.originIcao;
-  if(destEl) destEl.textContent = nlData.destIcao;
-
-  function renderFuelBar() {
-    const realWps = nlData.waypoints.filter(w => !w.isAirwayInfo);
-    if(realWps.length === 0) return;
+  try {
+    const flight = getFlight(flightId);
+    if (!flight) return;
+    const nlData = mapSimbriefToNavLog(flight.raw);
     
-    const lastPlanned = realWps[realWps.length - 1];
-    
-    let lastEnteredIdx = -1;
-    for (let i = 0; i < realWps.length; i++) {
-      const a = navlogActuals[realWps[i].id] || { time: "", afob: "" };
-      if (a.afob !== "" && !isNaN(Number(a.afob))) lastEnteredIdx = i;
-    }
+    const origEl = document.getElementById('nl-orig-icao');
+    const destEl = document.getElementById('nl-dest-icao');
+    if(origEl) origEl.textContent = nlData.originIcao;
+    if(destEl) destEl.textContent = nlData.destIcao;
 
-    let expLandingKg = nlData.plannedLandingFuelKg;
-    let progressPct = 0;
-
-    if (lastEnteredIdx !== -1) {
-      const wp = realWps[lastEnteredIdx];
-      const actualAfob = Number((navlogActuals[wp.id] || {}).afob);
-      const remainingPlannedBurn = lastPlanned.plannedEfobKg ? (wp.plannedEfobKg - lastPlanned.plannedEfobKg) : 0;
-      expLandingKg = actualAfob - remainingPlannedBurn;
-      progressPct = (lastEnteredIdx / (realWps.length - 1)) * 100;
-    }
-
-    const pct = (kg) => Math.min(100, Math.max(0, (kg / nlData.rampFuelKg) * 100));
-    const finresPct = pct(nlData.finalReserveKg);
-    const totalResPct = pct(nlData.totalReserveKg);
-    const landingPct = pct(expLandingKg);
-    const landingLow = expLandingKg < nlData.totalReserveKg;
-
-    const fbHtml = `
-      <div class="navlog-fuel-bar">
-        <div class="navlog-fuel-track">
-          <div class="navlog-fuel-fill" style="width: ${progressPct}%;"></div>
-          <div class="navlog-marker-totres" style="left: ${totalResPct}%;"></div>
-          <div class="navlog-marker-landing ${landingLow ? 'bg-amber-400' : 'bg-emerald-500'}" style="left: ${landingPct}%;"></div>
-          <div class="navlog-marker-finres" style="left: calc(${finresPct}% - 4px);"></div>
-        </div>
-        <div class="navlog-fuel-legend">
-          <span class="navlog-legend-item"><span class="navlog-legend-dot-finres"></span> FINRES ${nlData.finalReserveKg}</span>
-          <span class="navlog-legend-item"><span class="navlog-legend-line-totres"></span> TOTAL RESERVE ${nlData.totalReserveKg} ${nlData.altnIcao ? `(${nlData.altnIcao})` : ''}</span>
-          <span class="navlog-legend-item font-medium ${landingLow ? 'text-amber-600' : 'text-emerald-600'}">
-            <span class="navlog-legend-line-land ${landingLow ? 'bg-amber-400' : 'bg-emerald-500'}"></span> LANDING ${Math.round(expLandingKg)}
-          </span>
-        </div>
-      </div>
-    `;
-    const container = document.getElementById('nl-fuel-bar-container');
-    if(container) container.innerHTML = fbHtml;
-  }
-
-  function renderWaypoints() {
-    const container = document.getElementById('nl-waypoints-container');
-    if(!container) return;
-    container.innerHTML = '';
-    
-    nlData.waypoints.forEach(wp => {
-      const row = document.createElement('div');
+    function renderFuelBar() {
+      const realWps = nlData.waypoints.filter(w => !w.isAirwayInfo);
+      if(realWps.length === 0) return;
       
-      if (wp.isAirwayInfo) {
-        row.className = 'navlog-row-aw';
-        row.innerHTML = `
-          <div>${wp.via} ${wp.trackStr ? `<span style="color:#9ca3af;">${wp.trackStr}</span>` : ''}</div>
-          <div>DTW ${wp.dtwNm}</div>
-          <div>TTW ${minToHHMM(wp.ttwMin)}</div>
-          <div></div><div></div>
-          <div>FTW ${wp.ftwKg}</div>
-          <div>FL ${wp.flPlanned}</div>
-          <div></div>
-        `;
-      } else {
-        row.className = `navlog-row-wp ${wp.isBoundary ? 'is-boundary' : ''}`;
-        
-        const actual = navlogActuals[wp.id] || { time: "", afob: "" };
-        const actTimeMin = hhmmToMin(actual.time);
-        const timeDeltaMin = actTimeMin !== null ? actTimeMin - wp.plannedTimeMin : null;
-        const afobKg = actual.afob !== "" ? Number(actual.afob) : null;
-        const fuelDeltaKg = afobKg !== null && !isNaN(afobKg) ? afobKg - wp.plannedEfobKg : null;
-
-        const timeColor = timeDeltaMin === null ? "color:#9ca3af;" : timeDeltaMin <= 0 ? "color:#059669;" : "color:#d97706;";
-        const fuelColor = fuelDeltaKg === null ? "color:#9ca3af;" : fuelDeltaKg >= 0 ? "color:#059669;" : "color:#d97706;";
-        
-        row.innerHTML = `
-          <div>
-            <div class="navlog-wp-ident">${wp.id}</div>
-            ${wp.name ? `<div class="navlog-wp-name">${wp.name}</div>` : ''}
-          </div>
-          <div>${wp.dtdNm}</div>
-          <div style="color:#6b7280;">${minToHHMM(wp.plannedTimeMin)}</div>
-          <div><input type="text" placeholder="--:--" class="navlog-input wp-time-input" data-wpid="${wp.id}" value="${actual.time}"></div>
-          <div style="${timeColor} font-weight:600;">${timeDeltaMin === null ? '—' : `${timeDeltaMin > 0 ? '+' : ''}${timeDeltaMin} min`}</div>
-          <div style="color:#6b7280;">${wp.plannedEfobKg}</div>
-          <div><input type="number" placeholder="AFOB" class="navlog-input wp-afob-input" data-wpid="${wp.id}" value="${actual.afob}"></div>
-          <div style="${fuelColor} font-weight:600;">${fuelDeltaKg === null ? '—' : `${fuelDeltaKg > 0 ? '+' : ''}${Math.round(fuelDeltaKg)}`}</div>
-        `;
+      const lastPlanned = realWps[realWps.length - 1];
+      
+      let lastEnteredIdx = -1;
+      for (let i = 0; i < realWps.length; i++) {
+        const a = navlogActuals[realWps[i].id] || { time: "", afob: "" };
+        if (a.afob !== "" && !isNaN(Number(a.afob))) lastEnteredIdx = i;
       }
-      container.appendChild(row);
-    });
 
-    container.querySelectorAll('.wp-time-input').forEach(inp => {
-      inp.addEventListener('input', (e) => {
-        const wpid = e.target.dataset.wpid;
-        if(!navlogActuals[wpid]) navlogActuals[wpid] = { time:"", afob:"" };
-        navlogActuals[wpid].time = e.target.value;
-        renderWaypoints(); 
+      let expLandingKg = nlData.plannedLandingFuelKg;
+      let progressPct = 0;
+
+      if (lastEnteredIdx !== -1) {
+        const wp = realWps[lastEnteredIdx];
+        const actualAfob = Number((navlogActuals[wp.id] || {}).afob);
+        const remainingPlannedBurn = lastPlanned.plannedEfobKg ? (wp.plannedEfobKg - lastPlanned.plannedEfobKg) : 0;
+        expLandingKg = actualAfob - remainingPlannedBurn;
+        progressPct = (lastEnteredIdx / (realWps.length - 1)) * 100;
+      }
+
+      const pct = (kg) => Math.min(100, Math.max(0, (kg / nlData.rampFuelKg) * 100));
+      const finresPct = pct(nlData.finalReserveKg);
+      const totalResPct = pct(nlData.totalReserveKg);
+      const landingPct = pct(expLandingKg);
+      const landingLow = expLandingKg < nlData.totalReserveKg;
+
+      const fbHtml = `
+        <div class="navlog-fuel-bar">
+          <div class="navlog-fuel-track">
+            <div class="navlog-fuel-fill" style="width: ${progressPct}%;"></div>
+            <div class="navlog-marker-totres" style="left: ${totalResPct}%;"></div>
+            <div class="navlog-marker-landing ${landingLow ? 'bg-amber-400' : 'bg-emerald-500'}" style="left: ${landingPct}%;"></div>
+            <div class="navlog-marker-finres" style="left: calc(${finresPct}% - 4px);"></div>
+          </div>
+          <div class="navlog-fuel-legend">
+            <span class="navlog-legend-item"><span class="navlog-legend-dot-finres"></span> FINRES ${nlData.finalReserveKg}</span>
+            <span class="navlog-legend-item"><span class="navlog-legend-line-totres"></span> TOTAL RESERVE ${nlData.totalReserveKg} ${nlData.altnIcao ? `(${nlData.altnIcao})` : ''}</span>
+            <span class="navlog-legend-item font-medium ${landingLow ? 'text-amber-600' : 'text-emerald-600'}">
+              <span class="navlog-legend-line-land ${landingLow ? 'bg-amber-400' : 'bg-emerald-500'}"></span> LANDING ${Math.round(expLandingKg)}
+            </span>
+          </div>
+        </div>
+      `;
+      const container = document.getElementById('nl-fuel-bar-container');
+      if(container) container.innerHTML = fbHtml;
+    }
+
+    function renderWaypoints() {
+      const container = document.getElementById('nl-waypoints-container');
+      if(!container) return;
+      container.innerHTML = '';
+      
+      nlData.waypoints.forEach(wp => {
+        const row = document.createElement('div');
+        
+        if (wp.isAirwayInfo) {
+          row.className = 'navlog-row-aw';
+          row.innerHTML = `
+            <div>${wp.via} ${wp.trackStr ? `<span style="color:#9ca3af;">${wp.trackStr}</span>` : ''}</div>
+            <div>DTW ${wp.dtwNm}</div>
+            <div>TTW ${minToHHMM(wp.ttwMin)}</div>
+            <div></div><div></div>
+            <div>FTW ${wp.ftwKg}</div>
+            <div>FL ${wp.flPlanned}</div>
+            <div></div>
+          `;
+        } else {
+          row.className = `navlog-row-wp ${wp.isBoundary ? 'is-boundary' : ''}`;
+          
+          const actual = navlogActuals[wp.id] || { time: "", afob: "" };
+          const actTimeMin = hhmmToMin(actual.time);
+          const timeDeltaMin = actTimeMin !== null ? actTimeMin - wp.plannedTimeMin : null;
+          const afobKg = actual.afob !== "" ? Number(actual.afob) : null;
+          const fuelDeltaKg = afobKg !== null && !isNaN(afobKg) ? afobKg - wp.plannedEfobKg : null;
+
+          const timeColor = timeDeltaMin === null ? "color:#9ca3af;" : timeDeltaMin <= 0 ? "color:#059669;" : "color:#d97706;";
+          const fuelColor = fuelDeltaKg === null ? "color:#9ca3af;" : fuelDeltaKg >= 0 ? "color:#059669;" : "color:#d97706;";
+          
+          row.innerHTML = `
+            <div>
+              <div class="navlog-wp-ident">${wp.id}</div>
+              ${wp.name ? `<div class="navlog-wp-name">${wp.name}</div>` : ''}
+            </div>
+            <div>${wp.dtdNm}</div>
+            <div style="color:#6b7280;">${minToHHMM(wp.plannedTimeMin)}</div>
+            <div><input type="text" placeholder="--:--" class="navlog-input wp-time-input" data-wpid="${wp.id}" value="${actual.time}"></div>
+            <div style="${timeColor} font-weight:600;">${timeDeltaMin === null ? '—' : `${timeDeltaMin > 0 ? '+' : ''}${timeDeltaMin} min`}</div>
+            <div style="color:#6b7280;">${wp.plannedEfobKg}</div>
+            <div><input type="number" placeholder="AFOB" class="navlog-input wp-afob-input" data-wpid="${wp.id}" value="${actual.afob}"></div>
+            <div style="${fuelColor} font-weight:600;">${fuelDeltaKg === null ? '—' : `${fuelDeltaKg > 0 ? '+' : ''}${Math.round(fuelDeltaKg)}`}</div>
+          `;
+        }
+        container.appendChild(row);
       });
-    });
-    container.querySelectorAll('.wp-afob-input').forEach(inp => {
-      inp.addEventListener('input', (e) => {
-        const wpid = e.target.dataset.wpid;
-        if(!navlogActuals[wpid]) navlogActuals[wpid] = { time:"", afob:"" };
-        navlogActuals[wpid].afob = e.target.value;
-        renderWaypoints(); 
-        renderFuelBar(); 
+
+      container.querySelectorAll('.wp-time-input').forEach(inp => {
+        inp.addEventListener('input', (e) => {
+          const wpid = e.target.dataset.wpid;
+          if(!navlogActuals[wpid]) navlogActuals[wpid] = { time:"", afob:"" };
+          navlogActuals[wpid].time = e.target.value;
+          renderWaypoints(); 
+        });
       });
-    });
+      container.querySelectorAll('.wp-afob-input').forEach(inp => {
+        inp.addEventListener('input', (e) => {
+          const wpid = e.target.dataset.wpid;
+          if(!navlogActuals[wpid]) navlogActuals[wpid] = { time:"", afob:"" };
+          navlogActuals[wpid].afob = e.target.value;
+          renderWaypoints(); 
+          renderFuelBar(); 
+        });
+      });
+    }
+
+    renderFuelBar();
+    renderWaypoints();
+
+  } catch (error) {
+    alert("CRASH IN NAVLOG: " + error.message);
+    console.error(error);
   }
-
-  renderFuelBar();
-  renderWaypoints();
 }
 
 /* ---------- DASHBOARD: rendering main ---------- */
@@ -582,28 +599,44 @@ function renderDashboard(flight) {
 
     const altn = getFirstAlternate(data);
 
-    document.getElementById('fi-header-actype').textContent = aircraft.icaocode || '----';
-    document.getElementById('fi-header-flightnum').textContent = extractCallsign(data);
-    document.getElementById('fi-header-reg').textContent = aircraft.reg || '----';
+    const elActype = document.getElementById('fi-header-actype');
+    const elFlightnum = document.getElementById('fi-header-flightnum');
+    const elReg = document.getElementById('fi-header-reg');
+    const elOrig = document.getElementById('fi-orig');
+    const elDest = document.getElementById('fi-dest');
+    const elAltn = document.getElementById('fi-altn');
+    const elFlighttime = document.getElementById('fi-flighttime');
+    const elBlocktime = document.getElementById('fi-blocktime');
+    const elRwyDep = document.getElementById('fi-rwy-dep');
+    const elSid = document.getElementById('fi-sid');
+    const elDate = document.getElementById('fi-date');
+    const elStd = document.getElementById('fi-std');
+    const elRwyArr = document.getElementById('fi-rwy-arr');
+    const elStar = document.getElementById('fi-star');
+    const elDateArr = document.getElementById('fi-date-arr');
+    const elSta = document.getElementById('fi-sta');
 
-    document.getElementById('fi-orig').textContent = origin.icao_code || '----';
-    document.getElementById('fi-dest').textContent = destination.icao_code || '----';
-    document.getElementById('fi-altn').textContent = altn.icao_code ? `(${altn.icao_code})` : '';
+    if(elActype) elActype.textContent = aircraft.icaocode || '----';
+    if(elFlightnum) elFlightnum.textContent = extractCallsign(data);
+    if(elReg) elReg.textContent = aircraft.reg || '----';
+    if(elOrig) elOrig.textContent = origin.icao_code || '----';
+    if(elDest) elDest.textContent = destination.icao_code || '----';
+    if(elAltn) elAltn.textContent = altn.icao_code ? `(${altn.icao_code})` : '';
 
-    document.getElementById('fi-flighttime').textContent = formatHHMM(times.est_time_enroute || times.sched_time_enroute);
-    document.getElementById('fi-blocktime').textContent = formatHHMM(times.est_block || times.sched_block);
+    if(elFlighttime) elFlighttime.textContent = formatHHMM(times.est_time_enroute || times.sched_time_enroute);
+    if(elBlocktime) elBlocktime.textContent = formatHHMM(times.est_block || times.sched_block);
 
-    document.getElementById('fi-rwy-dep').textContent = origin.plan_rwy || '--';
-    document.getElementById('fi-sid').textContent = general.sid_ident || 'NONE';
-    document.getElementById('fi-date').textContent = formatDateFromUnix(times.sched_out);
-    document.getElementById('fi-std').textContent = unixToHHMM(times.sched_out);
+    if(elRwyDep) elRwyDep.textContent = origin.plan_rwy || '--';
+    if(elSid) elSid.textContent = general.sid_ident || 'NONE';
+    if(elDate) elDate.textContent = formatDateFromUnix(times.sched_out);
+    if(elStd) elStd.textContent = unixToHHMM(times.sched_out);
     
     const etdEl = document.getElementById('fi-etd');
     const etaEl = document.getElementById('fi-eta');
     const deltaEl = document.getElementById('fi-eta-delta');
     
     function updateDelta(baseUnixIn, calcUnixIn) {
-      if (!baseUnixIn) { deltaEl.textContent = ''; return; }
+      if (!baseUnixIn || !deltaEl) return;
       const diffMin = Math.round((calcUnixIn - Number(baseUnixIn)) / 60);
       if (diffMin === 0) {
         deltaEl.textContent = '';
@@ -689,25 +722,24 @@ function renderDashboard(flight) {
     refreshCDM();
     cdmInterval = setInterval(refreshCDM, 60000); 
 
-    document.getElementById('fi-rwy-arr').textContent = destination.plan_rwy || '--';
-    document.getElementById('fi-star').textContent = general.star_ident || 'NONE';
-    document.getElementById('fi-date-arr').textContent = formatDateFromUnix(times.sched_in);
-    document.getElementById('fi-sta').textContent = unixToHHMM(times.sched_in);
+    if(elRwyArr) elRwyArr.textContent = destination.plan_rwy || '--';
+    if(elStar) elStar.textContent = general.star_ident || 'NONE';
+    if(elDateArr) elDateArr.textContent = formatDateFromUnix(times.sched_in);
+    if(elSta) elSta.textContent = unixToHHMM(times.sched_in);
 
     applyAcceptanceUI(flight.state && flight.state.accepted);
 
     // ---- WEIGHT ----
     const w = data.weights || {};
-    document.getElementById('w-dow').textContent = w.oew ?? '---';
-    document.getElementById('w-dow-limit').textContent = '---';
-    document.getElementById('w-load').textContent = w.payload ?? '---';
-    document.getElementById('w-load-limit').textContent = '---';
-    document.getElementById('w-zfw').textContent = w.est_zfw ?? '---';
-    document.getElementById('w-zfw-limit').textContent = w.max_zfw ?? '---';
-    document.getElementById('w-tow').textContent = w.est_tow ?? '---';
-    document.getElementById('w-tow-limit').textContent = w.max_tow ?? '---';
-    document.getElementById('w-lw').textContent = w.est_ldw ?? '---';
-    document.getElementById('w-lw-limit').textContent = w.max_ldw ?? '---';
+    const setW = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = (val != null) ? val : '---'; };
+    setW('w-dow', w.oew);
+    setW('w-load', w.payload);
+    setW('w-zfw', w.est_zfw);
+    setW('w-zfw-limit', w.max_zfw);
+    setW('w-tow', w.est_tow);
+    setW('w-tow-limit', w.max_tow);
+    setW('w-lw', w.est_ldw);
+    setW('w-lw-limit', w.max_ldw);
 
     // ---- FUEL ----
     const f = data.fuel || {};
@@ -718,23 +750,30 @@ function renderDashboard(flight) {
     const taxiOutSec = Number(times.taxi_out) || 0;
     const minTakeoffSec = tripSec + contSec + finresSec + altnSec;
 
-    document.getElementById('f-trip-time').textContent = formatHHMM(tripSec);
-    document.getElementById('f-trip-kg').textContent = f.enroute_burn ?? '---';
-    document.getElementById('f-mtow-time').textContent = minTakeoffSec ? formatHHMM(minTakeoffSec) : '--:--';
-    document.getElementById('f-mtow-kg').textContent = f.min_takeoff ?? '---';
-    document.getElementById('f-taxi-time').textContent = taxiOutSec ? formatHHMM(taxiOutSec) : '--:--';
-    document.getElementById('f-taxi-kg').textContent = f.taxi ?? '---';
-    document.getElementById('f-block-time').textContent = '--:--';
-    document.getElementById('f-block-kg').textContent = f.plan_ramp ?? '---';
-    document.getElementById('f-landing-time').textContent = '--:--';
-    document.getElementById('f-landing-kg').textContent = f.plan_landing ?? '---';
-    document.getElementById('f-disc-time').textContent = '--:--';
-    document.getElementById('f-disc-kg').textContent = (w.max_ldw != null && w.est_ldw != null) ? (w.max_ldw - w.est_ldw) : '---';
+    setW('f-trip-kg', f.enroute_burn);
+    setW('f-mtow-kg', f.min_takeoff);
+    setW('f-taxi-kg', f.taxi);
+    setW('f-block-kg', f.plan_ramp);
+    setW('f-landing-kg', f.plan_landing);
+
+    const elTripTime = document.getElementById('f-trip-time');
+    if(elTripTime) elTripTime.textContent = formatHHMM(tripSec);
+    const elMtowTime = document.getElementById('f-mtow-time');
+    if(elMtowTime) elMtowTime.textContent = minTakeoffSec ? formatHHMM(minTakeoffSec) : '--:--';
+    const elTaxiTime = document.getElementById('f-taxi-time');
+    if(elTaxiTime) elTaxiTime.textContent = taxiOutSec ? formatHHMM(taxiOutSec) : '--:--';
+    
+    setW('f-block-time', '--:--');
+    setW('f-landing-time', '--:--');
+    setW('f-disc-time', '--:--');
+    setW('f-disc-kg', (w.max_ldw != null && w.est_ldw != null) ? (w.max_ldw - w.est_ldw) : '---');
 
     // ---- WEATHER ----
     const wxAirports = { origin, destination, alternate: altn };
-    document.getElementById('wx-tab-origin').textContent = origin.icao_code || 'ORIG';
-    document.getElementById('wx-tab-destination').textContent = destination.icao_code || 'DEST';
+    const wtabOrig = document.getElementById('wx-tab-origin');
+    const wtabDest = document.getElementById('wx-tab-destination');
+    if(wtabOrig) wtabOrig.textContent = origin.icao_code || 'ORIG';
+    if(wtabDest) wtabDest.textContent = destination.icao_code || 'DEST';
     renderWeather(wxAirports, 'origin');
 
     document.querySelectorAll('.wx-tab').forEach((tab) => {
@@ -751,6 +790,7 @@ function renderDashboard(flight) {
     renderClassicOfpText(data);
 
   } catch (err) {
+    alert("CRASH IN RENDER DASHBOARD: " + err.message);
     console.error('Errore nel rendering della Dashboard:', err);
   }
 }
@@ -775,21 +815,20 @@ function renderGeneralSection(flight) {
   const atc = data.atc || {};
   const toc = findTocFix(data);
 
-  document.getElementById('gen-dep').textContent = origin.iata_code ? `${origin.icao_code}/${origin.iata_code}` : (origin.icao_code || '----');
-  document.getElementById('gen-arr').textContent = destination.iata_code ? `${destination.icao_code}/${destination.iata_code}` : (destination.icao_code || '----');
+  const setT = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
 
-  document.getElementById('gen-callsign').textContent = atc.callsign || '—';
-  document.getElementById('gen-std').textContent = `${unixToHHMM(times.sched_out)}/${unixToHHMM(times.sched_off)}`;
-  document.getElementById('gen-sta').textContent = `${unixToHHMM(times.sched_on)}/${unixToHHMM(times.sched_in)}`;
-  document.getElementById('gen-actype').textContent = aircraft.name || aircraft.icaocode || '—';
-  document.getElementById('gen-reg').textContent = aircraft.reg || '—';
+  setT('gen-dep', origin.iata_code ? `${origin.icao_code}/${origin.iata_code}` : (origin.icao_code || '----'));
+  setT('gen-arr', destination.iata_code ? `${destination.icao_code}/${destination.iata_code}` : (destination.icao_code || '----'));
+  setT('gen-callsign', atc.callsign || '—');
+  setT('gen-std', `${unixToHHMM(times.sched_out)}/${unixToHHMM(times.sched_off)}`);
+  setT('gen-sta', `${unixToHHMM(times.sched_on)}/${unixToHHMM(times.sched_in)}`);
+  setT('gen-actype', aircraft.name || aircraft.icaocode || '—');
+  setT('gen-reg', aircraft.reg || '—');
+  setT('gen-crzsys', general.cruise_profile || (general.costindex ? `CI ${general.costindex}` : '—'));
+  setT('gen-gnddist', general.route_distance ? `${general.route_distance}NM` : '—');
+  setT('gen-airdist', general.air_distance ? `${general.air_distance}NM` : '—');
+  setT('gen-tocwind', toc ? `${toc.wind_dir}°/${toc.wind_spd}KT` : '—');
 
-  document.getElementById('gen-crzsys').textContent = general.cruise_profile || (general.costindex ? `CI ${general.costindex}` : '—');
-  document.getElementById('gen-gnddist').textContent = general.route_distance ? `${general.route_distance}NM` : '—';
-  document.getElementById('gen-airdist').textContent = general.air_distance ? `${general.air_distance}NM` : '—';
-  document.getElementById('gen-tocwind').textContent = toc ? `${toc.wind_dir}°/${toc.wind_spd}KT` : '—';
-  document.getElementById('gen-avgwind').textContent = (general.avg_wind_dir && general.avg_wind_spd) ? `${general.avg_wind_dir}°/${general.avg_wind_spd}KT` : '—';
-  
   let avgWcStr = '—';
   if (general.avg_wind_comp) {
     let wcStr = String(general.avg_wind_comp).toUpperCase();
@@ -799,7 +838,7 @@ function renderGeneralSection(flight) {
       avgWcStr = (isNegative ? 'M ' : 'P ') + num.toString().padStart(3, '0');
     }
   }
-  document.getElementById('gen-avgwc').textContent = avgWcStr;
+  setT('gen-avgwc', avgWcStr);
 
   let initialAltStr = '—';
   if (general.initial_altitude) {
@@ -810,40 +849,38 @@ function renderGeneralSection(flight) {
       initialAltStr = n.toString();
     }
   }
-  document.getElementById('gen-alt').textContent = initialAltStr;
+  setT('gen-alt', initialAltStr);
   
   if (toc && toc.oat_isa_dev !== undefined) {
      const isa = Number(toc.oat_isa_dev);
      const sign = isa >= 0 ? 'P ' : 'M ';
      const val = Math.abs(isa).toString().padStart(3, '0');
-     document.getElementById('gen-tocisa').textContent = `${sign}${val}`;
+     setT('gen-tocisa', `${sign}${val}`);
   } else {
-     document.getElementById('gen-tocisa').textContent = '—';
+     setT('gen-tocisa', '—');
   }
 
-  document.getElementById('gen-avgff').textContent = fuel.avg_fuel_flow ? `${fuel.avg_fuel_flow}` : '—';
+  setT('gen-avgff', fuel.avg_fuel_flow ? `${fuel.avg_fuel_flow}` : '—');
   
   if (aircraft.fuelfactor) {
      const bias = (Number(aircraft.fuelfactor) - 1) * 100;
      const sign = bias >= 0 ? 'P ' : 'M ';
-     document.getElementById('gen-fuelbias').textContent = `${sign}${Math.abs(bias).toFixed(1)}`;
+     setT('gen-fuelbias', `${sign}${Math.abs(bias).toFixed(1)}`);
   } else {
-     document.getElementById('gen-fuelbias').textContent = '—';
+     setT('gen-fuelbias', '—');
   }
   
-  const tkofAltn = data.takeoff_altn && data.takeoff_altn.icao_code;
-  document.getElementById('gen-tkofaltn').textContent = tkofAltn || '-';
+  setT('gen-tkofaltn', (data.takeoff_altn && data.takeoff_altn.icao_code) || '-');
 
   // WIDGET PESI
-  document.getElementById('gen-w-dow-plan').textContent = data.weights.oew || '—';
-  document.getElementById('gen-w-load-plan').textContent = data.weights.payload || '—';
-  document.getElementById('gen-w-zfw-plan').textContent = data.weights.est_zfw || '—';
-  document.getElementById('gen-w-tow-plan').textContent = data.weights.est_tow || '—';
-  document.getElementById('gen-w-lw-plan').textContent = data.weights.est_ldw || '—';
-
-  document.getElementById('gen-w-zfw-struct').textContent = data.weights.max_zfw || '—';
-  document.getElementById('gen-w-tow-struct').textContent = data.weights.max_tow_struct || data.weights.max_tow || '—';
-  document.getElementById('gen-w-lw-struct').textContent = data.weights.max_ldw || '—';
+  setT('gen-w-dow-plan', data.weights.oew || '—');
+  setT('gen-w-load-plan', data.weights.payload || '—');
+  setT('gen-w-zfw-plan', data.weights.est_zfw || '—');
+  setT('gen-w-tow-plan', data.weights.est_tow || '—');
+  setT('gen-w-lw-plan', data.weights.est_ldw || '—');
+  setT('gen-w-zfw-struct', data.weights.max_zfw || '—');
+  setT('gen-w-tow-struct', data.weights.max_tow_struct || data.weights.max_tow || '—');
+  setT('gen-w-lw-struct', data.weights.max_ldw || '—');
 
   let opTow = '—';
   if (data.tlr && data.tlr.takeoff && data.tlr.takeoff.runway) {
@@ -851,7 +888,7 @@ function renderGeneralSection(flight) {
     let rwy = rwyList.find(r => String(r.identifier).padStart(2, '0') === String(origin.plan_rwy).padStart(2, '0'));
     if (rwy && rwy.max_weight) opTow = rwy.max_weight;
   }
-  document.getElementById('gen-w-tow-op').textContent = opTow;
+  setT('gen-w-tow-op', opTow);
 
   let opLw = '—';
   if (data.tlr && data.tlr.landing && data.tlr.landing.runway) {
@@ -864,7 +901,7 @@ function renderGeneralSection(flight) {
       else if (rwy.max_weight) opLw = rwy.max_weight;
     }
   }
-  document.getElementById('gen-w-lw-op').textContent = opLw;
+  setT('gen-w-lw-op', opLw);
 
   setupWeightLimitCheck('gen-w-zfw-act', null, 'gen-w-zfw-struct');
   setupWeightLimitCheck('gen-w-tow-act', 'gen-w-tow-op', 'gen-w-tow-struct');
@@ -903,8 +940,10 @@ function renderFuelSection(flight) {
   const weights = data.weights || {};
   const alternates = data.alternate ? (Array.isArray(data.alternate) ? data.alternate : [data.alternate]) : [];
 
-  document.getElementById('brf-f-dest').textContent = dest.icao_code || '';
-  document.getElementById('brf-f-orig').textContent = orig.icao_code || '';
+  const setT = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
+
+  setT('brf-f-dest', dest.icao_code || '');
+  setT('brf-f-orig', orig.icao_code || '');
 
   const tripFuel = Number(fuel.enroute_burn) || 0;
   const contFuel = Number(fuel.contingency) || 0;
@@ -917,36 +956,37 @@ function renderFuelSection(flight) {
   const finresTime = Number(times.reserve_time) || 0;
   const taxiTime = Number(times.taxi_out) || 0;
 
-  document.getElementById('brf-f-trip-fuel').textContent = tripFuel;
-  document.getElementById('brf-f-trip-time').textContent = formatHHMM(tripTime);
-  document.getElementById('brf-f-cont-fuel').textContent = contFuel;
-  document.getElementById('brf-f-cont-time').textContent = formatHHMM(contTime);
-  document.getElementById('brf-f-finres-fuel').textContent = finresFuel;
-  document.getElementById('brf-f-finres-time').textContent = formatHHMM(finresTime);
-  document.getElementById('brf-f-taxi-fuel').textContent = taxiFuel;
-  document.getElementById('brf-f-taxi-time').textContent = formatHHMM(taxiTime);
+  setT('brf-f-trip-fuel', tripFuel);
+  setT('brf-f-trip-time', formatHHMM(tripTime));
+  setT('brf-f-cont-fuel', contFuel);
+  setT('brf-f-cont-time', formatHHMM(contTime));
+  setT('brf-f-finres-fuel', finresFuel);
+  setT('brf-f-finres-time', formatHHMM(finresTime));
+  setT('brf-f-taxi-fuel', taxiFuel);
+  setT('brf-f-taxi-time', formatHHMM(taxiTime));
 
-  // Maximum Discretionary Fuel (Max LW - Est LW)
   let maxDisc = '---';
   if (weights.max_ldw != null && weights.est_ldw != null) {
       maxDisc = weights.max_ldw - weights.est_ldw;
   }
-  document.getElementById('brf-f-max-disc').textContent = maxDisc;
+  setT('brf-f-max-disc', maxDisc);
 
   const sel = document.getElementById('brf-f-altn-select');
-  sel.innerHTML = '';
-  if (alternates.length > 0) {
-    alternates.forEach((alt, idx) => {
+  if(sel) {
+    sel.innerHTML = '';
+    if (alternates.length > 0) {
+      alternates.forEach((alt, idx) => {
+        let opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = alt.icao_code || `ALT${idx+1}`;
+        sel.appendChild(opt);
+      });
+    } else {
       let opt = document.createElement('option');
-      opt.value = idx;
-      opt.textContent = alt.icao_code || `ALT${idx+1}`;
+      opt.value = '-1';
+      opt.textContent = 'NONE';
       sel.appendChild(opt);
-    });
-  } else {
-    let opt = document.createElement('option');
-    opt.value = '-1';
-    opt.textContent = 'NONE';
-    sel.appendChild(opt);
+    }
   }
 
   const blockInput = document.getElementById('brf-block-input');
@@ -969,77 +1009,90 @@ function renderFuelSection(flight) {
         }
     }
 
-    document.getElementById('brf-f-altn-fuel').textContent = altnFuel;
-    document.getElementById('brf-f-altn-time').textContent = formatHHMM(altnTime);
+    setT('brf-f-altn-fuel', altnFuel);
+    setT('brf-f-altn-time', formatHHMM(altnTime));
 
     const tkofFuel = tripFuel + contFuel + altnFuel + finresFuel;
     const tkofTime = tripTime + contTime + altnTime + finresTime;
 
-    document.getElementById('brf-f-tkof-fuel').textContent = tkofFuel;
-    document.getElementById('brf-f-tkof-time').textContent = formatHHMM(tkofTime);
+    setT('brf-f-tkof-fuel', tkofFuel);
+    setT('brf-f-tkof-time', formatHHMM(tkofTime));
 
     const minBlockFuel = tkofFuel + taxiFuel;
-    document.getElementById('brf-f-minblock-fuel').textContent = minBlockFuel;
+    setT('brf-f-minblock-fuel', minBlockFuel);
 
-    let discFuel = Number(document.getElementById('brf-disc-fuel-input').value) || 0;
+    let discFuel = 0;
+    if(document.getElementById('brf-disc-fuel-input')) {
+      discFuel = Number(document.getElementById('brf-disc-fuel-input').value) || 0;
+    }
     let calcBlockFuel = Math.ceil((minBlockFuel + discFuel) / 100) * 100;
 
     const blockInputEl = document.getElementById('brf-block-input');
-    if (!isBlockFuelManual) {
+    if (!isBlockFuelManual && blockInputEl) {
       blockInputEl.value = calcBlockFuel;
     }
 
     const estLndFuel = fuel.plan_landing || '---';
-    document.getElementById('brf-f-estlnd-fuel').textContent = estLndFuel;
+    setT('brf-f-estlnd-fuel', estLndFuel);
 
     let totFinresFuel = finresFuel + altnFuel;
     let totFinresTime = finresTime + altnTime;
-    document.getElementById('brf-f-totfinres-fuel').textContent = totFinresFuel;
-    document.getElementById('brf-f-totfinres-time').textContent = '(' + formatHHMM(totFinresTime) + ')';
+    setT('brf-f-totfinres-fuel', totFinresFuel);
+    setT('brf-f-totfinres-time', '(' + formatHHMM(totFinresTime) + ')');
 
     const orderBtnEl = document.getElementById('brf-order-btn');
-    orderBtnEl.classList.remove('btn-ordered');
-    orderBtnEl.textContent = 'ORDER';
+    if(orderBtnEl) {
+      orderBtnEl.classList.remove('btn-ordered');
+      orderBtnEl.textContent = 'ORDER';
+    }
   }
 
-  const newSel = sel.cloneNode(true);
-  sel.parentNode.replaceChild(newSel, sel);
-  newSel.addEventListener('change', () => {
-    isBlockFuelManual = false;
-    updateFuelCalcs();
-  });
+  if(sel) {
+    const newSel = sel.cloneNode(true);
+    sel.parentNode.replaceChild(newSel, sel);
+    newSel.addEventListener('change', () => {
+      isBlockFuelManual = false;
+      updateFuelCalcs();
+    });
+  }
   
-  const newDisc = discInput.cloneNode(true);
-  discInput.parentNode.replaceChild(newDisc, discInput);
-  newDisc.value = '';
-  discTimeVal.textContent = '--:--';
-  discReason.value = '';
+  if(discInput) {
+    const newDisc = discInput.cloneNode(true);
+    discInput.parentNode.replaceChild(newDisc, discInput);
+    newDisc.value = '';
+    if(discTimeVal) discTimeVal.textContent = '--:--';
+    if(discReason) discReason.value = '';
 
-  newDisc.addEventListener('input', () => {
-    let val = Number(newDisc.value);
-    if (val > 0 && avgFF > 0) {
-      let secs = Math.round((val / avgFF) * 3600);
-      document.getElementById('brf-disc-time-val').textContent = formatHHMM(secs);
-    } else {
-      document.getElementById('brf-disc-time-val').textContent = '--:--';
-    }
-    isBlockFuelManual = false;
-    updateFuelCalcs();
-  });
+    newDisc.addEventListener('input', () => {
+      let val = Number(newDisc.value);
+      if (val > 0 && avgFF > 0) {
+        let secs = Math.round((val / avgFF) * 3600);
+        if(discTimeVal) discTimeVal.textContent = formatHHMM(secs);
+      } else {
+        if(discTimeVal) discTimeVal.textContent = '--:--';
+      }
+      isBlockFuelManual = false;
+      updateFuelCalcs();
+    });
+  }
 
-  const newBlockInput = blockInput.cloneNode(true);
-  blockInput.parentNode.replaceChild(newBlockInput, blockInput);
-  newBlockInput.addEventListener('input', () => {
-    isBlockFuelManual = true;
-    updateFuelCalcs();
-  });
+  if(blockInput) {
+    const newBlockInput = blockInput.cloneNode(true);
+    blockInput.parentNode.replaceChild(newBlockInput, blockInput);
+    newBlockInput.addEventListener('input', () => {
+      isBlockFuelManual = true;
+      updateFuelCalcs();
+    });
+  }
 
-  const newOrderBtn = orderBtn.cloneNode(true);
-  orderBtn.parentNode.replaceChild(newOrderBtn, orderBtn);
-  newOrderBtn.addEventListener('click', () => {
-    newOrderBtn.classList.add('btn-ordered');
-    newOrderBtn.textContent = 'ORDER SENT';
-  });
+  if(orderBtn) {
+    const newOrderBtn = orderBtn.cloneNode(true);
+    orderBtn.parentNode.replaceChild(newOrderBtn, orderBtn);
+    newOrderBtn.addEventListener('click', () => {
+      newOrderBtn.classList.add('btn-ordered');
+      newOrderBtn.textContent = 'ORDER SENT';
+    });
+  }
 
   const impacts = data.impacts || {};
 
@@ -1090,7 +1143,8 @@ function renderFuelSection(flight) {
   impHtml += rowHtml('SPEED CHANGE', 'CI 0', sDn);
   impHtml += rowHtml('', 'CI 100', sUp);
 
-  document.getElementById('brf-impacts-tbody').innerHTML = impHtml;
+  const tBody = document.getElementById('brf-impacts-tbody');
+  if(tBody) tBody.innerHTML = impHtml;
   updateFuelCalcs();
 }
 
@@ -1100,7 +1154,8 @@ function renderAtcSection(flight) {
   const data = flight.raw || {};
   const atc = data.atc || {};
   const atcText = atc.flightplan_text || 'ATC Flight Plan non disponibile.';
-  document.getElementById('brf-atc-text').textContent = atcText.trim();
+  const atcEl = document.getElementById('brf-atc-text');
+  if(atcEl) atcEl.textContent = atcText.trim();
 }
 
 /* ---------- BRIEFING: DISPATCH INFO ---------- */
@@ -1108,8 +1163,9 @@ function renderDispatchSection(flight) {
   if (!flight) return;
   const data = flight.raw || {};
   const general = data.general || {};
-  const rmk = general.dx_rmk && general.dx_rmk.trim() !== '' ? general.dx_rmk : 'NONE';
-  document.getElementById('brf-dispatch-text').textContent = rmk;
+  const rmk = (general.dx_rmk && general.dx_rmk.trim() !== '') ? general.dx_rmk : 'NONE';
+  const dxEl = document.getElementById('brf-dispatch-text');
+  if(dxEl) dxEl.textContent = rmk;
 }
 
 /* ---------- BRIEFING: MENU AEROPORTI & WX/RUNWAYS/NOTAMS ---------- */
@@ -1148,7 +1204,7 @@ function extractAirportsData(data) {
       metar_category: data.origin.metar_category,
       taf: data.origin.taf,
       taf_time: data.origin.taf_time,
-      runways: data.tlr && data.tlr.takeoff ? data.tlr.takeoff.runway : null,
+      runways: (data.tlr && data.tlr.takeoff) ? data.tlr.takeoff.runway : null,
       notams: getAptNotams(data.origin.icao_code)
     });
   }
@@ -1164,7 +1220,7 @@ function extractAirportsData(data) {
       metar_category: data.destination.metar_category,
       taf: data.destination.taf,
       taf_time: data.destination.taf_time,
-      runways: data.tlr && data.tlr.landing ? data.tlr.landing.runway : null,
+      runways: (data.tlr && data.tlr.landing) ? data.tlr.landing.runway : null,
       notams: getAptNotams(data.destination.icao_code)
     });
   }
@@ -1189,52 +1245,11 @@ function extractAirportsData(data) {
       }
     });
   }
-
-  if (data.takeoff_altn) {
-    let toAltns = Array.isArray(data.takeoff_altn) ? data.takeoff_altn : [data.takeoff_altn];
-    toAltns.forEach(alt => {
-      if (alt && alt.icao_code) {
-        currentAirportsData.push({
-          type: 'Takeoff Alternate',
-          icao: alt.icao_code,
-          iata: alt.iata_code,
-          name: alt.name,
-          metar: alt.metar,
-          metar_time: alt.metar_time,
-          metar_category: alt.metar_category,
-          taf: alt.taf,
-          taf_time: alt.taf_time,
-          runways: null,
-          notams: getAptNotams(alt.icao_code)
-        });
-      }
-    });
-  }
-
-  if (data.enroute_altn) {
-    let erAltns = Array.isArray(data.enroute_altn) ? data.enroute_altn : [data.enroute_altn];
-    erAltns.forEach(alt => {
-      if (alt && alt.icao_code) {
-        currentAirportsData.push({
-          type: 'Enroute Alternate',
-          icao: alt.icao_code,
-          iata: alt.iata_code,
-          name: alt.name,
-          metar: alt.metar,
-          metar_time: alt.metar_time,
-          metar_category: alt.metar_category,
-          taf: alt.taf,
-          taf_time: alt.taf_time,
-          runways: null,
-          notams: getAptNotams(alt.icao_code)
-        });
-      }
-    });
-  }
 }
 
 function renderBriefingMenu() {
   const listEl = document.getElementById('brf-wx-menu-list');
+  if(!listEl) return;
   listEl.innerHTML = '';
 
   currentAirportsData.forEach((apt, index) => {
@@ -1257,34 +1272,39 @@ function renderBriefingMenu() {
 
 function renderAirportSection(index) {
   const flight = getFlight(currentFlightId);
+  if (!flight) return;
   if (!flight.state.flaggedNotams) flight.state.flaggedNotams = [];
   
   const apt = currentAirportsData[index];
   if (!apt) return;
 
-  document.getElementById('brf-apt-metar-text').textContent = apt.metar || 'METAR non disponibile';
-  document.getElementById('brf-apt-taf-text').textContent = apt.taf || 'TAF non disponibile';
-  document.getElementById('brf-apt-metar-age').textContent = formatObsDateTime(apt.metar_time);
-  document.getElementById('brf-apt-taf-age').textContent = apt.taf_time ? `Issued ${formatObsDateTime(apt.taf_time)}` : '';
+  const setT = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
+
+  setT('brf-apt-metar-text', apt.metar || 'METAR non disponibile');
+  setT('brf-apt-taf-text', apt.taf || 'TAF non disponibile');
+  setT('brf-apt-metar-age', formatObsDateTime(apt.metar_time));
+  setT('brf-apt-taf-age', apt.taf_time ? `Issued ${formatObsDateTime(apt.taf_time)}` : '');
 
   const badge = document.getElementById('brf-apt-vmc-badge');
-  const category = (apt.metar_category || '').toLowerCase();
-  if (category === 'vfr' || category === 'mvfr') {
-    badge.textContent = 'VMC';
-    badge.className = 'wx-badge vmc';
-  } else if (category === 'ifr' || category === 'lifr') {
-    badge.textContent = 'IMC';
-    badge.className = 'wx-badge imc';
-  } else {
-    badge.textContent = '--';
-    badge.className = 'wx-badge';
+  if(badge) {
+    const category = (apt.metar_category || '').toLowerCase();
+    if (category === 'vfr' || category === 'mvfr') {
+      badge.textContent = 'VMC';
+      badge.className = 'wx-badge vmc';
+    } else if (category === 'ifr' || category === 'lifr') {
+      badge.textContent = 'IMC';
+      badge.className = 'wx-badge imc';
+    } else {
+      badge.textContent = '--';
+      badge.className = 'wx-badge';
+    }
   }
 
   // RUNWAYS
   const rwyWidget = document.getElementById('brf-apt-rwy-widget');
   const rwyTbody = document.getElementById('brf-apt-rwy-tbody');
   
-  if ((apt.type === 'Departure' || apt.type === 'Arrival') && apt.runways) {
+  if ((apt.type === 'Departure' || apt.type === 'Arrival') && apt.runways && rwyWidget && rwyTbody) {
     rwyWidget.style.display = 'flex';
     rwyTbody.innerHTML = '';
     
@@ -1292,10 +1312,8 @@ function renderAirportSection(index) {
     
     rwyList.forEach(r => {
       let rName = r.identifier ? `RW${String(r.identifier).padStart(2, '0')}` : '---';
-      
       let rLenFt = parseFloat(r.length || r.length_tora || r.length_lda);
       let rLen = !isNaN(rLenFt) ? Math.round(rLenFt * 0.3048) + ' m' : '---';
-      
       let rElev = r.elevation ? r.elevation + ' ft' : '---';
       let rMag = r.magnetic_course || '---';
       let rTrue = r.true_course || '---';
@@ -1341,7 +1359,7 @@ function renderAirportSection(index) {
       `;
       rwyTbody.appendChild(row);
     });
-  } else {
+  } else if (rwyWidget) {
     rwyWidget.style.display = 'none';
   }
 
@@ -1349,7 +1367,7 @@ function renderAirportSection(index) {
   const notamWidget = document.getElementById('brf-apt-notam-widget');
   const notamBody = document.getElementById('brf-apt-notam-body');
   
-  if (apt.notams && apt.notams.length > 0) {
+  if (apt.notams && apt.notams.length > 0 && notamWidget && notamBody) {
     notamWidget.style.display = 'flex';
     
     let notamHtml = `
@@ -1414,6 +1432,7 @@ function renderAirportSection(index) {
     const flagBtns = notamBody.querySelectorAll('.notam-flag');
 
     function applyNotamFilter() {
+      if(!filterSelect) return;
       const mode = filterSelect.value;
       notamBody.querySelectorAll('.notam-category-wrapper').forEach(wrapper => {
         let visibleCount = 0;
@@ -1430,7 +1449,7 @@ function renderAirportSection(index) {
       });
     }
 
-    filterSelect.addEventListener('change', applyNotamFilter);
+    if(filterSelect) filterSelect.addEventListener('change', applyNotamFilter);
 
     flagBtns.forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -1451,13 +1470,13 @@ function renderAirportSection(index) {
         updateFlightState(currentFlightId, { flaggedNotams: fNotams });
         flight.state.flaggedNotams = fNotams;
         
-        if (filterSelect.value === 'flagged') {
+        if (filterSelect && filterSelect.value === 'flagged') {
           applyNotamFilter();
         }
       });
     });
 
-  } else {
+  } else if (notamWidget) {
     notamWidget.style.display = 'none';
   }
 }
@@ -1484,22 +1503,26 @@ function renderClassicOfpText(data) {
 
 function renderWeather(wxAirports, which) {
   const airport = wxAirports[which] || {};
-  document.getElementById('wx-metar-text').textContent = airport.metar || 'METAR non disponibile';
-  document.getElementById('wx-taf-text').textContent = airport.taf || 'TAF non disponibile';
-  document.getElementById('wx-metar-age').textContent = formatObsDateTime(airport.metar_time);
-  document.getElementById('wx-taf-age').textContent = airport.taf_time ? `Issued ${formatObsDateTime(airport.taf_time)}` : '';
+  const setT = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
+  
+  setT('wx-metar-text', airport.metar || 'METAR non disponibile');
+  setT('wx-taf-text', airport.taf || 'TAF non disponibile');
+  setT('wx-metar-age', formatObsDateTime(airport.metar_time));
+  setT('wx-taf-age', airport.taf_time ? `Issued ${formatObsDateTime(airport.taf_time)}` : '');
 
   const badge = document.getElementById('wx-vmc-badge');
-  const category = (airport.metar_category || '').toLowerCase();
-  if (category === 'vfr' || category === 'mvfr') {
-    badge.textContent = 'VMC';
-    badge.className = 'wx-badge vmc';
-  } else if (category === 'ifr' || category === 'lifr') {
-    badge.textContent = 'IMC';
-    badge.className = 'wx-badge imc';
-  } else {
-    badge.textContent = '--';
-    badge.className = 'wx-badge';
+  if(badge) {
+    const category = (airport.metar_category || '').toLowerCase();
+    if (category === 'vfr' || category === 'mvfr') {
+      badge.textContent = 'VMC';
+      badge.className = 'wx-badge vmc';
+    } else if (category === 'ifr' || category === 'lifr') {
+      badge.textContent = 'IMC';
+      badge.className = 'wx-badge imc';
+    } else {
+      badge.textContent = '--';
+      badge.className = 'wx-badge';
+    }
   }
 }
 
@@ -1555,7 +1578,9 @@ function renderRouteSummary(data, origin, destination, general) {
     return;
   }
 
-  const fixes = Array.isArray(data.navlog.fix) ? data.navlog.fix : [data.navlog.fix];
+  let fixes = data.navlog.fix;
+  if (!Array.isArray(fixes)) fixes = [fixes];
+  
   const tocIndex = fixes.findIndex((f) => (f.ident || '').toUpperCase().includes('TOC'));
   const todIndex = fixes.findIndex((f) => (f.ident || '').toUpperCase().includes('TOD'));
 
