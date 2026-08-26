@@ -3,8 +3,8 @@
 */
 
 let currentFlightId = null;
-let currentAirportsData = []; 
-let cdmInterval = null; 
+let currentAirportsData = []; // Array per contenere i dati strutturati degli aeroporti
+let cdmInterval = null; // Variabile globale per l'auto-refresh del CDM
 
 // Trackers per notifiche
 let prevCdmState = { tobt: "", tsat: "", ctot: "" };
@@ -38,16 +38,19 @@ const MOON_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" s
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light');
   const btn = document.getElementById('theme-toggle');
-  btn.innerHTML = theme === 'dark' ? MOON_ICON : SUN_ICON;
+  if (btn) btn.innerHTML = theme === 'dark' ? MOON_ICON : SUN_ICON;
 }
 
 function initTheme() {
   applyTheme(getTheme());
-  document.getElementById('theme-toggle').addEventListener('click', () => {
-    const next = getTheme() === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    applyTheme(next);
-  });
+  const btn = document.getElementById('theme-toggle');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      const next = getTheme() === 'dark' ? 'light' : 'dark';
+      setTheme(next);
+      applyTheme(next);
+    });
+  }
 }
 
 /* ---------- ROUTING ---------- */
@@ -67,14 +70,29 @@ function showHome() {
     clearInterval(cdmInterval);
     cdmInterval = null;
   }
-  document.getElementById('view-home').style.display = 'flex';
-  document.getElementById('view-dashboard').style.display = 'none';
-  document.getElementById('view-briefing').style.display = 'none';
-  document.getElementById('view-navlog').style.display = 'none';
-  document.getElementById('topbar-title').textContent = 'My Flights';
-  document.getElementById('home-nav-btn').style.visibility = 'hidden';
-  document.getElementById('flight-info-bar').style.display = 'none';
-  document.querySelector('.bottombar').style.display = 'none';
+  
+  const viewHome = document.getElementById('view-home');
+  const viewDash = document.getElementById('view-dashboard');
+  const viewBrf = document.getElementById('view-briefing');
+  const viewNav = document.getElementById('view-navlog'); // Potrebbe non esistere se HTML vecchio
+
+  if (viewHome) viewHome.style.display = 'flex';
+  if (viewDash) viewDash.style.display = 'none';
+  if (viewBrf) viewBrf.style.display = 'none';
+  if (viewNav) viewNav.style.display = 'none'; // Salvataggio anticrash
+  
+  const title = document.getElementById('topbar-title');
+  if (title) title.textContent = 'My Flights';
+  
+  const homeBtn = document.getElementById('home-nav-btn');
+  if (homeBtn) homeBtn.style.visibility = 'hidden';
+  
+  const infoBar = document.getElementById('flight-info-bar');
+  if (infoBar) infoBar.style.display = 'none';
+  
+  const bottomBar = document.querySelector('.bottombar');
+  if (bottomBar) bottomBar.style.display = 'none';
+  
   document.body.classList.remove('in-flight');
   renderFlightsList();
 }
@@ -84,24 +102,42 @@ function showDashboard(id) {
   isFirstCdmFetch = true;
 
   const flight = getFlight(id);
-  document.getElementById('view-home').style.display = 'none';
-  document.getElementById('view-dashboard').style.display = 'flex';
-  document.getElementById('view-briefing').style.display = 'none';
-  document.getElementById('view-navlog').style.display = 'none';
-  document.getElementById('home-nav-btn').style.visibility = 'visible';
-  document.querySelector('.bottombar').style.display = 'flex';
+  
+  const viewHome = document.getElementById('view-home');
+  const viewDash = document.getElementById('view-dashboard');
+  const viewBrf = document.getElementById('view-briefing');
+  const viewNav = document.getElementById('view-navlog');
+
+  if (viewHome) viewHome.style.display = 'none';
+  if (viewDash) viewDash.style.display = 'flex';
+  if (viewBrf) viewBrf.style.display = 'none';
+  if (viewNav) viewNav.style.display = 'none'; // Salvataggio anticrash
+  
+  const homeBtn = document.getElementById('home-nav-btn');
+  if (homeBtn) homeBtn.style.visibility = 'visible';
+  
+  const bottomBar = document.querySelector('.bottombar');
+  if (bottomBar) bottomBar.style.display = 'flex';
+  
   document.body.classList.add('in-flight');
   
   document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
-  document.querySelector('.tab-btn[data-tab="dashboard"]').classList.add('active');
+  const dashTab = document.querySelector('.tab-btn[data-tab="dashboard"]');
+  if (dashTab) dashTab.classList.add('active');
 
   if (!flight) {
-    document.getElementById('topbar-title').textContent = 'Volo non trovato';
-    document.getElementById('flight-info-bar').style.display = 'none';
+    const title = document.getElementById('topbar-title');
+    if (title) title.textContent = 'Volo non trovato';
+    const infoBar = document.getElementById('flight-info-bar');
+    if (infoBar) infoBar.style.display = 'none';
     return;
   }
-  document.getElementById('topbar-title').textContent = 'Dashboard';
-  document.getElementById('flight-info-bar').style.display = 'flex';
+  
+  const title = document.getElementById('topbar-title');
+  if (title) title.textContent = 'Dashboard';
+  
+  const infoBar = document.getElementById('flight-info-bar');
+  if (infoBar) infoBar.style.display = 'flex';
   
   if (!flight.state.flaggedNotams) {
     flight.state.flaggedNotams = [];
@@ -110,6 +146,7 @@ function showDashboard(id) {
   
   extractAirportsData(flight.raw); 
   renderBriefingMenu(); 
+
   renderFlightInfoBar(flight);
   renderDashboard(flight);
   resetPager();
@@ -136,8 +173,10 @@ function renderFlightInfoBar(flight) {
 
   const isAccepted = flight.state && flight.state.accepted;
   const badge = document.getElementById('fib-status');
-  badge.textContent = isAccepted ? 'CONFIRMED' : 'NOT ACCEPTED';
-  badge.className = isAccepted ? 'status-badge accepted' : 'status-badge not-accepted';
+  if (badge) {
+    badge.textContent = isAccepted ? 'CONFIRMED' : 'NOT ACCEPTED';
+    badge.className = isAccepted ? 'status-badge accepted' : 'status-badge not-accepted';
+  }
 }
 
 /* ---------- HOME: LISTA VOLI ---------- */
@@ -146,12 +185,14 @@ function renderFlightsList() {
   const ids = Object.keys(all);
   const list = document.getElementById('flights-list');
   const empty = document.getElementById('empty-state');
+  if(!list) return;
+
   list.innerHTML = '';
   if (ids.length === 0) {
-    empty.style.display = 'block';
+    if(empty) empty.style.display = 'block';
     return;
   }
-  empty.style.display = 'none';
+  if(empty) empty.style.display = 'none';
 
   ids
     .sort((a, b) => (all[b].fetchedAt || 0) - (all[a].fetchedAt || 0))
@@ -181,6 +222,8 @@ function renderFlightsList() {
 async function handleRefresh() {
   const input = document.getElementById('sb-username');
   const status = document.getElementById('sb-status');
+  if (!input || !status) return;
+
   const username = input.value.trim();
 
   if (!username) {
@@ -205,33 +248,52 @@ async function handleRefresh() {
   }
 }
 
-/* ---------- FUNZIONI VATSIM (A-CDM VIA VERCEL SERVERLESS FUNCTION) ---------- */
+/* ---------- FUNZIONI VATSIM (A-CDM VIA MULTI-PROXY ANTICACHE) ---------- */
 async function fetchVatsimCDM(cid) {
   if (!cid) return null;
-  try {
-    const response = await fetch(`/api/cdm/${cid}`);
-    if (!response.ok) return null;
-    const data = await response.json();
-    
-    let ctot = null;
-    let tsat = null;
-    let tobt = null;
-    
-    let rawCtot = (data.cdmData && data.cdmData.ctot) ? data.cdmData.ctot : data.ctot;
-    let rawTsat = (data.cdmData && data.cdmData.tsat) ? data.cdmData.tsat : data.tsat;
-    let rawTobt = (data.cdmData && data.cdmData.tobt) ? data.cdmData.tobt : (data.obt || data.tobt);
+  
+  const url = `https://vatsim-radar.com/api/data/vatsim/pilot/${cid}/ipfs?_t=${Date.now()}`;
+  let data = null;
 
-    if (rawCtot && String(rawCtot).trim() !== "") ctot = String(rawCtot).trim().substring(0, 4);
-    if (rawTsat && String(rawTsat).trim() !== "") tsat = String(rawTsat).trim().substring(0, 4);
-    if (rawTobt && String(rawTobt).trim() !== "") tobt = String(rawTobt).trim().substring(0, 4);
-    
-    return { ctot, tsat, tobt };
-  } catch (err) {
-    console.error("Errore fetch CDM (Vercel API Route):", err);
-    return null;
+  try {
+    const resDirect = await fetch(url, { cache: 'no-store' });
+    if (resDirect.ok) data = await resDirect.json();
+  } catch (e) { }
+
+  if (!data) {
+    try {
+      const proxyUrl1 = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+      const resProxy1 = await fetch(proxyUrl1, { cache: 'no-store' });
+      if (resProxy1.ok) data = await resProxy1.json();
+    } catch (e) { }
   }
+
+  if (!data) {
+    try {
+      const proxyUrl2 = 'https://corsproxy.io/?' + encodeURIComponent(url);
+      const resProxy2 = await fetch(proxyUrl2, { cache: 'no-store' });
+      if (resProxy2.ok) data = await resProxy2.json();
+    } catch (e) { }
+  }
+
+  if (!data) return null;
+  
+  let ctot = null;
+  let tsat = null;
+  let tobt = null;
+  
+  let rawCtot = (data.cdmData && data.cdmData.ctot) ? data.cdmData.ctot : data.ctot;
+  let rawTsat = (data.cdmData && data.cdmData.tsat) ? data.cdmData.tsat : data.tsat;
+  let rawTobt = (data.cdmData && data.cdmData.tobt) ? data.cdmData.tobt : (data.obt || data.tobt);
+
+  if (rawCtot && String(rawCtot).trim() !== "") ctot = String(rawCtot).trim().substring(0, 4);
+  if (rawTsat && String(rawTsat).trim() !== "") tsat = String(rawTsat).trim().substring(0, 4);
+  if (rawTobt && String(rawTobt).trim() !== "") tobt = String(rawTobt).trim().substring(0, 4);
+  
+  return { ctot, tsat, tobt };
 }
 
+/* ---------- DASHBOARD: formattazione ---------- */
 function unixToHHMM(unixSeconds) {
   if (!unixSeconds) return '--:--';
   const d = new Date(Number(unixSeconds) * 1000);
@@ -274,6 +336,35 @@ function getFirstAlternate(data) {
   return data.alternate;
 }
 
+function isoToUnix(isoString) {
+  if (!isoString) return null;
+  const t = Date.parse(isoString);
+  return isNaN(t) ? null : Math.floor(t / 1000);
+}
+
+function formatObsDateTime(isoString) {
+  const unix = isoToUnix(isoString);
+  if (!unix) return '--';
+  const d = new Date(unix * 1000);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const hh = String(d.getUTCHours()).padStart(2, '0');
+  const mm = String(d.getUTCMinutes()).padStart(2, '0');
+  return `${d.getUTCDate()} ${months[d.getUTCMonth()]}, ${hh}:${mm}z`;
+}
+
+function formatNotamDate(dtg) {
+  if (!dtg || dtg.length < 12) return 'UFN';
+  const y = parseInt(dtg.substring(0,4), 10);
+  const m = parseInt(dtg.substring(4,6), 10) - 1;
+  const d = parseInt(dtg.substring(6,8), 10);
+  const hh = parseInt(dtg.substring(8,10), 10);
+  const mm = parseInt(dtg.substring(10,12), 10);
+  const date = new Date(Date.UTC(y, m, d, hh, mm));
+  if (isNaN(date.getTime())) return 'UFN';
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${String(date.getUTCDate()).padStart(2,'0')} ${months[date.getUTCMonth()]} ${date.getUTCFullYear()}, ${String(date.getUTCHours()).padStart(2,'0')}:${String(date.getUTCMinutes()).padStart(2,'0')}z`;
+}
+
 function parseHHMM(str, baseUnixTimestamp) {
   if (!str || str.length !== 4) return null;
   const h = parseInt(str.slice(0, 2), 10);
@@ -292,17 +383,18 @@ function parseHHMM(str, baseUnixTimestamp) {
 
 /* ---------- NAVLOG DATA MAPPER ---------- */
 function mapSimbriefToNavLog(ofp) {
-  let fixes = ofp.navlog.fix; 
-  if (!Array.isArray(fixes)) fixes = [fixes]; // Previene crash per rotte a fix singolo
+  let fixes = (ofp.navlog && ofp.navlog.fix) ? ofp.navlog.fix : []; 
+  if (!Array.isArray(fixes)) fixes = [fixes]; 
 
-  const routeDistance = Number(ofp.general.route_distance) || 0;
-  const schedOutUnix = Number(ofp.times.sched_out) || 0; 
+  const routeDistance = Number(ofp.general?.route_distance) || 0;
+  const schedOutUnix = Number(ofp.times?.sched_out) || 0; 
   const altn = getFirstAlternate(ofp);
 
   const waypoints = [];
   let cumulativeDistance = 0;
 
   fixes.forEach((fix, idx) => {
+    if(!fix) return;
     const legDistance = Number(fix.distance) || 0;
     cumulativeDistance += legDistance;
     const dtdNm = Math.max(0, Math.round(routeDistance - cumulativeDistance));
@@ -322,8 +414,8 @@ function mapSimbriefToNavLog(ofp) {
     }
 
     waypoints.push({
-      id: fix.ident,
-      name: (fix.type === "apt" || fix.type === "vor" || fix.type === "ndb") ? fix.name : "", // Nome esteso
+      id: fix.ident || '?',
+      name: (fix.type === "apt" || fix.type === "vor" || fix.type === "ndb") ? fix.name : "",
       isBoundary,
       isAirwayInfo: false,
       dtdNm,
@@ -352,11 +444,15 @@ function renderNavLog(flightId) {
   if (!flight) return;
   const nlData = mapSimbriefToNavLog(flight.raw);
   
-  document.getElementById('nl-orig-icao').textContent = nlData.originIcao;
-  document.getElementById('nl-dest-icao').textContent = nlData.destIcao;
+  const origEl = document.getElementById('nl-orig-icao');
+  const destEl = document.getElementById('nl-dest-icao');
+  if(origEl) origEl.textContent = nlData.originIcao;
+  if(destEl) destEl.textContent = nlData.destIcao;
 
   function renderFuelBar() {
     const realWps = nlData.waypoints.filter(w => !w.isAirwayInfo);
+    if(realWps.length === 0) return;
+    
     const lastPlanned = realWps[realWps.length - 1];
     
     let lastEnteredIdx = -1;
@@ -399,11 +495,13 @@ function renderNavLog(flightId) {
         </div>
       </div>
     `;
-    document.getElementById('nl-fuel-bar-container').innerHTML = fbHtml;
+    const container = document.getElementById('nl-fuel-bar-container');
+    if(container) container.innerHTML = fbHtml;
   }
 
   function renderWaypoints() {
     const container = document.getElementById('nl-waypoints-container');
+    if(!container) return;
     container.innerHTML = '';
     
     nlData.waypoints.forEach(wp => {
@@ -449,7 +547,6 @@ function renderNavLog(flightId) {
       container.appendChild(row);
     });
 
-    // Aggiunta Listeners Input Navlog
     container.querySelectorAll('.wp-time-input').forEach(inp => {
       inp.addEventListener('input', (e) => {
         const wpid = e.target.dataset.wpid;
@@ -525,7 +622,7 @@ function renderDashboard(flight) {
     }
 
     const ctotVal = document.getElementById('fi-ctot');
-    ctotVal.textContent = '-'; 
+    if(ctotVal) ctotVal.textContent = '-'; 
     
     const stdUnix = Number(times.sched_out);
     const staUnix = Number(times.sched_in);
@@ -557,35 +654,36 @@ function renderDashboard(flight) {
             prevCdmState = { tobt: newTobt, tsat: newTsat, ctot: newCtot };
           }
 
-          if (newCtot) {
-            ctotVal.textContent = `${newCtot.substring(0,2)}:${newCtot.substring(2,4)}z`;
-          } else {
-            ctotVal.textContent = '-';
+          if(ctotVal) {
+            if (newCtot) {
+              ctotVal.textContent = `${newCtot.substring(0,2)}:${newCtot.substring(2,4)}z`;
+            } else {
+              ctotVal.textContent = '-';
+            }
           }
 
           let effectiveEtdUnix = stdUnix; 
           if (newTsat) {
             effectiveEtdUnix = parseHHMM(newTsat, stdUnix);
           } else if (newCtot) {
-            // Nota: 15min default taxi = 900s
             effectiveEtdUnix = parseHHMM(newCtot, stdUnix) - 900;
           } else if (newTobt) {
             effectiveEtdUnix = parseHHMM(newTobt, stdUnix);
           }
 
-          etdEl.textContent = unixToHHMM(effectiveEtdUnix);
+          if(etdEl) etdEl.textContent = unixToHHMM(effectiveEtdUnix);
           
           const delaySecs = effectiveEtdUnix - stdUnix;
           const newEtaUnix = staUnix + delaySecs;
           
-          etaEl.textContent = unixToHHMM(newEtaUnix);
+          if(etaEl) etaEl.textContent = unixToHHMM(newEtaUnix);
           updateDelta(staUnix, newEtaUnix);
         }
       });
     }
 
-    etdEl.textContent = unixToHHMM(times.est_out || times.sched_out);
-    etaEl.textContent = unixToHHMM(times.est_in || times.sched_in);
+    if(etdEl) etdEl.textContent = unixToHHMM(times.est_out || times.sched_out);
+    if(etaEl) etaEl.textContent = unixToHHMM(times.est_in || times.sched_in);
     updateDelta(times.sched_in, (times.est_in || times.sched_in));
 
     refreshCDM();
@@ -677,13 +775,8 @@ function renderGeneralSection(flight) {
   const atc = data.atc || {};
   const toc = findTocFix(data);
 
-  const origIcao = origin.icao_code || '----';
-  const origIata = origin.iata_code ? origin.iata_code : '';
-  document.getElementById('gen-dep').textContent = origIata ? `${origIcao}/${origIata}` : origIcao;
-
-  const destIcao = destination.icao_code || '----';
-  const destIata = destination.iata_code ? destination.iata_code : '';
-  document.getElementById('gen-arr').textContent = destIata ? `${destIcao}/${destIata}` : destIcao;
+  document.getElementById('gen-dep').textContent = origin.iata_code ? `${origin.icao_code}/${origin.iata_code}` : (origin.icao_code || '----');
+  document.getElementById('gen-arr').textContent = destination.iata_code ? `${destination.icao_code}/${destination.iata_code}` : (destination.icao_code || '----');
 
   document.getElementById('gen-callsign').textContent = atc.callsign || '—';
   document.getElementById('gen-std').textContent = `${unixToHHMM(times.sched_out)}/${unixToHHMM(times.sched_off)}`;
@@ -889,7 +982,6 @@ function renderFuelSection(flight) {
     document.getElementById('brf-f-minblock-fuel').textContent = minBlockFuel;
 
     let discFuel = Number(document.getElementById('brf-disc-fuel-input').value) || 0;
-    // ROUNDING FIX: Math.ceil per arrotondare al NEXT hundred
     let calcBlockFuel = Math.ceil((minBlockFuel + discFuel) / 100) * 100;
 
     const blockInputEl = document.getElementById('brf-block-input');
@@ -897,7 +989,6 @@ function renderFuelSection(flight) {
       blockInputEl.value = calcBlockFuel;
     }
 
-    // Estimated Landing Fuel prelevato direttamente dall'XML per esattezza
     const estLndFuel = fuel.plan_landing || '---';
     document.getElementById('brf-f-estlnd-fuel').textContent = estLndFuel;
 
@@ -911,7 +1002,6 @@ function renderFuelSection(flight) {
     orderBtnEl.textContent = 'ORDER';
   }
 
-  // Clona e sostituisci per evitare doppi listener sul Select
   const newSel = sel.cloneNode(true);
   sel.parentNode.replaceChild(newSel, sel);
   newSel.addEventListener('change', () => {
@@ -919,7 +1009,6 @@ function renderFuelSection(flight) {
     updateFuelCalcs();
   });
   
-  // Clona e sostituisci Discretionary
   const newDisc = discInput.cloneNode(true);
   discInput.parentNode.replaceChild(newDisc, discInput);
   newDisc.value = '';
@@ -938,7 +1027,6 @@ function renderFuelSection(flight) {
     updateFuelCalcs();
   });
 
-  // Clona e sostituisci Block Input
   const newBlockInput = blockInput.cloneNode(true);
   blockInput.parentNode.replaceChild(newBlockInput, blockInput);
   newBlockInput.addEventListener('input', () => {
@@ -946,7 +1034,6 @@ function renderFuelSection(flight) {
     updateFuelCalcs();
   });
 
-  // Clona e sostituisci pulsante Order
   const newOrderBtn = orderBtn.cloneNode(true);
   orderBtn.parentNode.replaceChild(newOrderBtn, orderBtn);
   newOrderBtn.addEventListener('click', () => {
@@ -954,7 +1041,6 @@ function renderFuelSection(flight) {
     newOrderBtn.textContent = 'ORDER SENT';
   });
 
-  // WIDGET OPERATIONAL IMPACTS
   const impacts = data.impacts || {};
 
   function formatImpact(imp) {
@@ -1436,24 +1522,31 @@ function renderRouteMap(data) {
   const url = findMapUrl(data, 'route');
 
   if (!url) {
-    img.style.display = 'none';
-    fallback.style.display = 'block';
-    fallback.innerHTML = 'Mappa rotta non disponibile. Controlla che "Maps" sia attivo tra le opzioni del dispatch su SimBrief.';
+    if(img) img.style.display = 'none';
+    if(fallback) {
+      fallback.style.display = 'block';
+      fallback.innerHTML = 'Mappa rotta non disponibile. Controlla che "Maps" sia attivo tra le opzioni del dispatch su SimBrief.';
+    }
     return;
   }
 
-  img.onload = () => { fallback.style.display = 'none'; };
-  img.onerror = () => {
-    img.style.display = 'none';
-    fallback.style.display = 'block';
-    fallback.innerHTML = `Impossibile mostrare la mappa qui dentro. <a href="${url}" target="_blank" rel="noopener">Aprila in una nuova scheda</a>.`;
-  };
-  img.style.display = 'block';
-  img.src = url;
+  if(img) {
+    img.onload = () => { if(fallback) fallback.style.display = 'none'; };
+    img.onerror = () => {
+      img.style.display = 'none';
+      if(fallback) {
+        fallback.style.display = 'block';
+        fallback.innerHTML = `Impossibile mostrare la mappa qui dentro. <a href="${url}" target="_blank" rel="noopener">Aprila in una nuova scheda</a>.`;
+      }
+    };
+    img.style.display = 'block';
+    img.src = url;
+  }
 }
 
 function renderRouteSummary(data, origin, destination, general) {
   const el = document.getElementById('route-summary');
+  if(!el) return;
   const route = general.route || '';
   const routeArray = route.split(' ');
 
@@ -1507,6 +1600,7 @@ function resetPager() {
 function initPager() {
   const scroller = document.getElementById('pager-scroll');
   const dots = document.querySelectorAll('.pager-dot');
+  if(!scroller) return;
 
   dots.forEach((dot) => {
     dot.addEventListener('click', () => {
@@ -1532,6 +1626,7 @@ function initSignaturePad() {
   ctx = canvas.getContext('2d');
   
   function resizeCanvas() {
+    if(!canvas.parentElement) return;
     const rect = canvas.parentElement.getBoundingClientRect();
     canvas.width = rect.width;
     canvas.height = rect.height;
@@ -1583,12 +1678,15 @@ function initSignaturePad() {
 
 function clearSignature() {
   if(ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
-  document.getElementById('acceptance-checkbox').checked = false;
+  const cb = document.getElementById('acceptance-checkbox');
+  if(cb) cb.checked = false;
 }
 
 function openSignatureModal() {
-  document.getElementById('signature-modal-overlay').classList.add('open');
-  document.getElementById('signature-modal').classList.add('open');
+  const overlay = document.getElementById('signature-modal-overlay');
+  const modal = document.getElementById('signature-modal');
+  if(overlay) overlay.classList.add('open');
+  if(modal) modal.classList.add('open');
   setTimeout(() => {
     const resize = initSignaturePad();
     if(resize) resize();
@@ -1596,19 +1694,24 @@ function openSignatureModal() {
 }
 
 function closeSignatureModal() {
-  document.getElementById('signature-modal-overlay').classList.remove('open');
-  document.getElementById('signature-modal').classList.remove('open');
+  const overlay = document.getElementById('signature-modal-overlay');
+  const modal = document.getElementById('signature-modal');
+  if(overlay) overlay.classList.remove('open');
+  if(modal) modal.classList.remove('open');
 }
 
 function setupAcceptanceLogic() {
-  document.getElementById('accept-flight-btn').addEventListener('click', openSignatureModal);
+  const btn = document.getElementById('accept-flight-btn');
+  if(btn) btn.addEventListener('click', openSignatureModal);
   
-  document.getElementById('sig-cancel-btn').addEventListener('click', () => {
+  const cancelBtn = document.getElementById('sig-cancel-btn');
+  if(cancelBtn) cancelBtn.addEventListener('click', () => {
     clearSignature();
     closeSignatureModal();
   });
   
-  document.getElementById('sig-save-btn').addEventListener('click', () => {
+  const saveBtn = document.getElementById('sig-save-btn');
+  if(saveBtn) saveBtn.addEventListener('click', () => {
     if (currentFlightId) {
       updateFlightState(currentFlightId, { accepted: true });
     }
@@ -1622,15 +1725,19 @@ function applyAcceptanceUI(isAccepted) {
   const badge = document.getElementById('fib-status');
   
   if (isAccepted) {
-    btn.textContent = 'Flight Accepted';
-    btn.classList.add('btn-accepted');
+    if(btn) {
+      btn.textContent = 'Flight Accepted';
+      btn.classList.add('btn-accepted');
+    }
     if(badge) {
       badge.textContent = 'CONFIRMED';
       badge.className = 'status-badge accepted';
     }
   } else {
-    btn.textContent = 'Accept Flight';
-    btn.classList.remove('btn-accepted');
+    if(btn) {
+      btn.textContent = 'Accept Flight';
+      btn.classList.remove('btn-accepted');
+    }
     if(badge) {
       badge.textContent = 'NOT ACCEPTED';
       badge.className = 'status-badge not-accepted';
@@ -1656,42 +1763,44 @@ function bindBriefingTabs() {
       const airportContainer = document.getElementById('briefing-airport-container');
       const placeholder = document.getElementById('briefing-placeholder');
 
-      ofpContainer.style.display = 'none';
-      generalContainer.style.display = 'none';
-      fuelContainer.style.display = 'none';
-      atcContainer.style.display = 'none';
-      dispatchContainer.style.display = 'none';
-      airportContainer.style.display = 'none';
-      placeholder.style.display = 'none';
+      if(ofpContainer) ofpContainer.style.display = 'none';
+      if(generalContainer) generalContainer.style.display = 'none';
+      if(fuelContainer) fuelContainer.style.display = 'none';
+      if(atcContainer) atcContainer.style.display = 'none';
+      if(dispatchContainer) dispatchContainer.style.display = 'none';
+      if(airportContainer) airportContainer.style.display = 'none';
+      if(placeholder) placeholder.style.display = 'none';
 
       if (newItem.dataset.section) {
-        document.getElementById('topbar-title').textContent = newItem.dataset.section;
+        const title = document.getElementById('topbar-title');
+        if(title) title.textContent = newItem.dataset.section;
         
         if (newItem.dataset.section === 'Classic OFP') {
-          ofpContainer.style.display = 'flex';
+          if(ofpContainer) ofpContainer.style.display = 'flex';
         } else if (newItem.dataset.section === 'General') {
-          generalContainer.style.display = 'flex';
+          if(generalContainer) generalContainer.style.display = 'flex';
           renderGeneralSection(getFlight(currentFlightId));
         } else if (newItem.dataset.section === 'Fuel') {
-          fuelContainer.style.display = 'flex';
+          if(fuelContainer) fuelContainer.style.display = 'flex';
           renderFuelSection(getFlight(currentFlightId));
         } else if (newItem.dataset.section === 'ATC') {
-          atcContainer.style.display = 'flex';
+          if(atcContainer) atcContainer.style.display = 'flex';
           renderAtcSection(getFlight(currentFlightId));
         } else if (newItem.dataset.section === 'Dispatch Info') {
-          dispatchContainer.style.display = 'flex';
+          if(dispatchContainer) dispatchContainer.style.display = 'flex';
           renderDispatchSection(getFlight(currentFlightId));
         } else {
-          placeholder.style.display = 'block';
+          if(placeholder) placeholder.style.display = 'block';
         }
       } 
       else if (newItem.dataset.aptIndex !== undefined) {
-        airportContainer.style.display = 'flex';
+        if(airportContainer) airportContainer.style.display = 'flex';
         const apt = currentAirportsData[newItem.dataset.aptIndex];
-        let title = apt.icao || '????';
-        if (apt.iata) title += `/${apt.iata}`;
-        if (apt.name) title += ` - ${apt.name}`;
-        document.getElementById('topbar-title').textContent = title;
+        let titleText = apt.icao || '????';
+        if (apt.iata) titleText += `/${apt.iata}`;
+        if (apt.name) titleText += ` - ${apt.name}`;
+        const title = document.getElementById('topbar-title');
+        if(title) title.textContent = titleText;
         renderAirportSection(newItem.dataset.aptIndex);
       }
     });
@@ -1704,50 +1813,70 @@ function initBriefingInteractions() {
 
 /* ---------- INTERAZIONI GENERALI ---------- */
 function openDrawer() {
-  document.getElementById('side-drawer').classList.add('open');
-  document.getElementById('drawer-overlay').classList.add('open');
+  const sd = document.getElementById('side-drawer');
+  const overlay = document.getElementById('drawer-overlay');
+  if(sd) sd.classList.add('open');
+  if(overlay) overlay.classList.add('open');
 }
 
 function closeDrawer() {
-  document.getElementById('side-drawer').classList.remove('open');
-  document.getElementById('drawer-overlay').classList.remove('open');
+  const sd = document.getElementById('side-drawer');
+  const overlay = document.getElementById('drawer-overlay');
+  if(sd) sd.classList.remove('open');
+  if(overlay) overlay.classList.remove('open');
 }
 
 function initInteractions() {
   const lastId = localStorage.getItem('mbriefing_sb_id');
-  if (lastId) document.getElementById('sb-username').value = lastId;
+  const sbUsername = document.getElementById('sb-username');
+  if (lastId && sbUsername) sbUsername.value = lastId;
   
   const lastCid = localStorage.getItem('mbriefing_vt_cid');
-  if (lastCid) document.getElementById('vt-cid').value = lastCid;
+  const vtCid = document.getElementById('vt-cid');
+  if (lastCid && vtCid) vtCid.value = lastCid;
 
-  document.getElementById('menu-toggle').addEventListener('click', openDrawer);
-  document.getElementById('drawer-close').addEventListener('click', closeDrawer);
-  document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
+  const menuToggle = document.getElementById('menu-toggle');
+  if(menuToggle) menuToggle.addEventListener('click', openDrawer);
   
-  document.getElementById('sb-refresh').addEventListener('click', async () => {
-    localStorage.setItem('mbriefing_sb_id', document.getElementById('sb-username').value.trim());
-    localStorage.setItem('mbriefing_vt_cid', document.getElementById('vt-cid').value.trim());
-    await handleRefresh();
-  });
+  const drawerClose = document.getElementById('drawer-close');
+  if(drawerClose) drawerClose.addEventListener('click', closeDrawer);
+  
+  const drawerOverlay = document.getElementById('drawer-overlay');
+  if(drawerOverlay) drawerOverlay.addEventListener('click', closeDrawer);
+  
+  const sbRefresh = document.getElementById('sb-refresh');
+  if(sbRefresh) {
+    sbRefresh.addEventListener('click', async () => {
+      if(sbUsername) localStorage.setItem('mbriefing_sb_id', sbUsername.value.trim());
+      if(vtCid) localStorage.setItem('mbriefing_vt_cid', vtCid.value.trim());
+      await handleRefresh();
+    });
+  }
 
-  document.getElementById('content-refresh-btn').addEventListener('click', async () => {
-    const saved = localStorage.getItem('mbriefing_sb_id');
-    const savedCid = localStorage.getItem('mbriefing_vt_cid');
-    
-    if (!saved) {
-      openDrawer();
-      return;
-    }
-    
-    document.getElementById('sb-username').value = saved;
-    if (savedCid) document.getElementById('vt-cid').value = savedCid;
-    
-    await handleRefresh();
-  });
+  const contentRefresh = document.getElementById('content-refresh-btn');
+  if(contentRefresh) {
+    contentRefresh.addEventListener('click', async () => {
+      const saved = localStorage.getItem('mbriefing_sb_id');
+      const savedCid = localStorage.getItem('mbriefing_vt_cid');
+      
+      if (!saved) {
+        openDrawer();
+        return;
+      }
+      
+      if(sbUsername) sbUsername.value = saved;
+      if (savedCid && vtCid) vtCid.value = savedCid;
+      
+      await handleRefresh();
+    });
+  }
 
-  document.getElementById('home-nav-btn').addEventListener('click', () => {
-    window.location.hash = '#/home';
-  });
+  const homeBtn = document.getElementById('home-nav-btn');
+  if(homeBtn) {
+    homeBtn.addEventListener('click', () => {
+      window.location.hash = '#/home';
+    });
+  }
 
   initPager();
   setupAcceptanceLogic();
@@ -1760,32 +1889,50 @@ function initInteractions() {
       
       const tab = btn.dataset.tab;
       
-      document.getElementById('view-dashboard').style.display = tab === 'dashboard' ? 'flex' : 'none';
-      document.getElementById('view-briefing').style.display = tab === 'briefing' ? 'flex' : 'none';
-      document.getElementById('view-navlog').style.display = tab === 'navlog' ? 'flex' : 'none';
+      const viewDash = document.getElementById('view-dashboard');
+      const viewBrf = document.getElementById('view-briefing');
+      const viewNav = document.getElementById('view-navlog');
+      const viewMap = document.getElementById('view-map');
+      
+      if(viewDash) viewDash.style.display = tab === 'dashboard' ? 'flex' : 'none';
+      if(viewBrf) viewBrf.style.display = tab === 'briefing' ? 'flex' : 'none';
+      if(viewNav) viewNav.style.display = tab === 'navlog' ? 'flex' : 'none';
+      if(viewMap) viewMap.style.display = tab === 'map' ? 'flex' : 'none';
+      
+      const title = document.getElementById('topbar-title');
       
       if (tab === 'dashboard') {
-        document.getElementById('topbar-title').textContent = 'Dashboard';
+        if(title) title.textContent = 'Dashboard';
       } else if (tab === 'briefing') {
         const activeItem = document.querySelector('.briefing-item.active');
         if (activeItem) {
           if (activeItem.dataset.section) {
-            document.getElementById('topbar-title').textContent = activeItem.dataset.section;
+            if(title) title.textContent = activeItem.dataset.section;
           } else if (activeItem.dataset.aptIndex !== undefined) {
              const apt = currentAirportsData[activeItem.dataset.aptIndex];
-             let title = apt.icao || '????';
-             if (apt.iata) title += `/${apt.iata}`;
-             if (apt.name) title += ` - ${apt.name}`;
-             document.getElementById('topbar-title').textContent = title;
+             if(apt) {
+               let tText = apt.icao || '????';
+               if (apt.iata) tText += `/${apt.iata}`;
+               if (apt.name) tText += ` - ${apt.name}`;
+               if(title) title.textContent = tText;
+             }
           }
         } else {
-           document.getElementById('topbar-title').textContent = 'Briefing';
+           if(title) title.textContent = 'Briefing';
         }
       } else if (tab === 'navlog') {
-        document.getElementById('topbar-title').textContent = 'NavLog';
+        if(title) title.textContent = 'NavLog';
         if (currentFlightId) renderNavLog(currentFlightId);
+      } else if (tab === 'map') {
+        if(title) title.textContent = 'Map';
+        if (currentFlightId) {
+          const flight = getFlight(currentFlightId);
+          if (flight && flight.raw && typeof initRouteWeatherMap === 'function') {
+            initRouteWeatherMap('route-weather-map', flight.raw);
+          }
+        }
       } else {
-        document.getElementById('topbar-title').textContent = btn.textContent;
+        if(title) title.textContent = btn.textContent;
       }
     });
   });
