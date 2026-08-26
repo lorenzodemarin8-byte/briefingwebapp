@@ -65,7 +65,7 @@ body {
 }
 
 /* =========================================================
-   TOAST NOTIFICATIONS (NEW)
+   TOAST NOTIFICATIONS
    ========================================================= */
 #toast-container {
   position: fixed;
@@ -1287,7 +1287,7 @@ canvas#signature-pad {
 /* FUEL SECTION STYLES */
 .brf-fuel-table td {
   border-bottom: none !important;
-  font-weight: 500; /* Ridotto spessore grassetti normali */
+  font-weight: 500;
 }
 
 .brf-row-separator td {
@@ -1297,7 +1297,7 @@ canvas#signature-pad {
 }
 
 .brf-row-bold td {
-  font-weight: 600 !important; /* Leggermente meno spesso di prima */
+  font-weight: 600 !important;
   color: var(--text) !important;
 }
 
@@ -1465,7 +1465,7 @@ canvas#signature-pad {
   padding: 6px 14px;
 }
 .brf-impacts-table td.imp-bold {
-  font-weight: 600 !important; /* Grassetto leggero */
+  font-weight: 600 !important;
 }
 
 /* ATC WIDGET */
@@ -1523,7 +1523,7 @@ canvas#signature-pad {
 }
 .notam-category-title {
   text-transform: uppercase;
-  font-weight: 500; /* Leggermente più spesso */
+  font-weight: 500;
   font-size: 13px;
   color: var(--text-secondary);
   margin: 16px 0 8px 0;
@@ -1548,7 +1548,7 @@ canvas#signature-pad {
 }
 .notam-badge {
   display: inline-block;
-  background: #5a82b5; /* Blu LIDO Muted */
+  background: #5a82b5;
   color: #ffffff;      
   padding: 4px 8px;
   border-radius: 4px;
@@ -1562,7 +1562,7 @@ canvas#signature-pad {
   background: none;
   border: none;
   cursor: pointer;
-  color: #cbd5e1; /* Grigio chiaro spento */
+  color: #cbd5e1;
   padding: 0;
   display: flex;
   align-items: center;
@@ -1571,7 +1571,7 @@ canvas#signature-pad {
 }
 .notam-flag:focus { outline: none; }
 .notam-flag.flagged {
-  color: #eab308; /* Giallo Ambra */
+  color: #eab308;
 }
 
 .notam-header {
@@ -1608,3 +1608,141 @@ canvas#signature-pad {
   overflow: hidden;
   min-height: 0;
 }
+
+/* =========================================================
+   NAVLOG STYLES (NEW)
+   ========================================================= */
+.navlog-route-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+
+.navlog-fuel-bar {
+  width: 100%;
+  user-select: none;
+}
+.navlog-fuel-track {
+  position: relative;
+  height: 12px;
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: #2563eb; /* blue-600 */
+}
+.navlog-fuel-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  opacity: 0.9;
+  background-image: repeating-linear-gradient(45deg, #dc2626 0, #dc2626 4px, #f87171 4px, #f87171 8px);
+}
+.navlog-marker-finres {
+  position: absolute;
+  top: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #9333ea; /* purple-600 */
+  border: 1px solid #ffffff;
+  z-index: 2;
+}
+.navlog-marker-totres {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background-color: #f59e0b; /* amber-500 */
+  z-index: 2;
+}
+.navlog-marker-landing {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  z-index: 3;
+}
+.bg-amber-400 { background-color: #fbbf24; }
+.bg-emerald-500 { background-color: #10b981; }
+
+.navlog-fuel-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.navlog-legend-item { display: flex; align-items: center; gap: 4px; }
+.navlog-legend-dot-finres { width: 8px; height: 8px; border-radius: 50%; background-color: #9333ea; }
+.navlog-legend-line-totres { width: 2px; height: 12px; background-color: #f59e0b; }
+.navlog-legend-line-land { width: 2px; height: 12px; }
+.text-amber-600 { color: #d97706; }
+.text-emerald-600 { color: #059669; }
+
+.navlog-col-header {
+  display: grid;
+  grid-template-columns: 1.4fr 0.7fr 0.8fr 0.9fr 0.8fr 0.9fr 0.9fr 0.8fr;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--dash-widget-border);
+  background: var(--dash-band-bg);
+}
+.navlog-col-header div { text-align: center; }
+.navlog-col-header div:first-child { text-align: left; }
+
+.navlog-row-wp {
+  display: grid;
+  grid-template-columns: 1.4fr 0.7fr 0.8fr 0.9fr 0.8fr 0.9fr 0.9fr 0.8fr;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--widget-bg);
+  border-left: 4px solid #2563eb;
+  border-bottom: 1px solid var(--dash-widget-border);
+}
+.navlog-row-wp.is-boundary {
+  border: 2px dashed #10b981;
+  border-left: 4px solid #10b981;
+}
+.navlog-row-wp div {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text);
+}
+.navlog-row-wp div:first-child {
+  text-align: left;
+}
+.navlog-wp-ident { font-weight: 700; font-size: 15px; line-height: 1.1; }
+.navlog-wp-name { font-size: 11px; color: var(--text-secondary); }
+
+.navlog-input {
+  width: 60px;
+  text-align: center;
+  font-size: 13px;
+  padding: 4px;
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  background: var(--input-bg);
+  color: var(--text);
+  margin: 0 auto;
+  display: block;
+}
+.navlog-input:focus { outline: none; border-color: #2563eb; }
+
+.navlog-row-aw {
+  display: grid;
+  grid-template-columns: 1.4fr 0.7fr 0.8fr 0.9fr 0.8fr 0.9fr 0.9fr 0.8fr;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--dash-bg);
+  border-left: 4px solid transparent;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.navlog-row-aw div { text-align: center; }
+.navlog-row-aw div:first-child { text-align: left; font-weight: 600; }
