@@ -399,43 +399,66 @@ function mapSimbriefToNavLog(ofp) {
 
   const routeDistance = (ofp.general && ofp.general.route_distance) ? Number(ofp.general.route_distance) : 0;
   const schedOutUnix = (ofp.times && ofp.times.sched_out) ? Number(ofp.times.sched_out) : 0; 
+  const fuel = ofp.fuel || {};
   const altn = getFirstAlternate(ofp);
 
   const waypoints = [];
   let cumulativeDistance = 0;
+
+  // Aggiungiamo sempre l'aeroporto di origine come primo punto
+  waypoints.push({
+    id: (ofp.origin && ofp.origin.icao_code) ? ofp.origin.icao_code : 'ORIG',
+    name: (ofp.origin && ofp.origin.name) ? ofp.origin.name : '',
+    isOrigin: true,
+    isAirwayInfo: false,
+    isFirRow: false,
+    dtdNm: routeDistance,
+    plannedTimeUnix: schedOutUnix,
+    plannedEfobKg: Math.round(Number(fuel.plan_ramp) || 0)
+  });
 
   fixes.forEach((fix, idx) => {
     if(!fix) return;
     const legDistance = Number(fix.distance) || 0;
     cumulativeDistance += legDistance;
     const dtdNm = Math.max(0, Math.round(routeDistance - cumulativeDistance));
-    const isBoundary = !!(fix.fir_crossing && fix.fir_crossing.fir);
+    
+    // Airway Info
+    waypoints.push({
+      id: fix.ident + '_aw',
+      isAirwayInfo: true,
+      via: fix.via_airway || "DCT",
+      trackStr: (fix.track_true && fix.track_mag) ? `${fix.track_true}T/${fix.track_mag}M` : "",
+      dtwNm: legDistance,
+      ttwMin: Number(fix.time_leg) / 60,
+      ftwKg: Math.round(Number(fix.fuel_leg) || 0),
+      flPlanned: Math.round((Number(fix.altitude_feet) || 0) / 100),
+      mora: fix.mora || '---'
+    });
 
-    if (idx > 0) {
+    // Controllo FIR Crossing e aggiunta riga separata
+    if (fix.fir_crossing && fix.fir_crossing.fir) {
       waypoints.push({
-        id: fix.ident + '_aw',
-        isAirwayInfo: true,
-        via: fix.via_airway || "DCT",
-        trackStr: (fix.track_true && fix.track_mag) ? `${fix.track_true}T/${fix.track_mag}M` : "",
-        dtwNm: legDistance,
-        ttwMin: Number(fix.time_leg) / 60,
-        ftwKg: Math.round(Number(fix.fuel_leg) || 0),
-        flPlanned: Math.round((Number(fix.altitude_feet) || 0) / 100),
+        id: 'fir_' + fix.fir_crossing.fir,
+        isFirRow: true,
+        icao: fix.fir_crossing.fir,
+        name: fix.fir_crossing.name || ''
       });
     }
 
+    // NavLog Fix
     waypoints.push({
       id: fix.ident || '?',
       name: (fix.type === "apt" || fix.type === "vor" || fix.type === "ndb") ? fix.name : "",
-      isBoundary,
+      isBoundary: false,
       isAirwayInfo: false,
+      isFirRow: false,
       dtdNm,
-      plannedTimeMin: Number(fix.time_total) / 60,
+      plannedTimeUnix: schedOutUnix + Number(fix.time_total),
       plannedEfobKg: Math.round(Number(fix.fuel_plan_onboard) || 0),
     });
   });
 
-  const fuel = ofp.fuel || {};
   return {
     originIcao: (ofp.origin && ofp.origin.icao_code) ? ofp.origin.icao_code : "",
     destIcao: (ofp.destination && ofp.destination.icao_code) ? ofp.destination.icao_code : "",
@@ -462,7 +485,7 @@ function renderNavLog(flightId) {
     if(destEl) destEl.textContent = nlData.destIcao;
 
     function renderFuelBar() {
-      const realWps = nlData.waypoints.filter(w => !w.isAirwayInfo);
+      const realWps = nlData.waypoints.filter(w => !w.isAirwayInfo && !w.isFirRow);
       if(realWps.length === 0) return;
       
       const lastPlanned = realWps[realWps.length - 1];
@@ -493,10 +516,10 @@ function renderNavLog(flightId) {
       const fbHtml = `
         <div class="navlog-fuel-bar">
           <div class="navlog-fuel-track">
+            <div class="navlog-fuel-finres-zone" style="width: ${finresPct}%;"></div>
             <div class="navlog-fuel-fill" style="width: ${progressPct}%;"></div>
             <div class="navlog-marker-totres" style="left: ${totalResPct}%;"></div>
             <div class="navlog-marker-landing ${landingLow ? 'bg-amber-400' : 'bg-emerald-500'}" style="left: ${landingPct}%;"></div>
-            <div class="navlog-marker-finres" style="left: calc(${finresPct}% - 4px);"></div>
           </div>
           <div class="navlog-fuel-legend">
             <span class="navlog-legend-item"><span class="navlog-legend-dot-finres"></span> FINRES ${nlData.finalReserveKg}</span>
@@ -509,6 +532,41 @@ function renderNavLog(flightId) {
       `;
       const container = document.getElementById('nl-fuel-bar-container');
       if(container) container.innerHTML = fbHtml;
+    }
+
+    // Questa funzione ricalcola e aggiorna ESCLUSIVAMENTE i testi delta, senza toccare gli input
+    function updateRowCalculations(wpid) {
+      const wp = nlData.waypoints.find(w => w.id === wpid);
+      if(!wp) return;
+      const actual = navlogActuals[wpid] || { time: "", afob: "" };
+
+      // Time Delta
+      const timeDeltaEl = document.getElementById(`time-delta-${wpid}`);
+      if(timeDeltaEl) {
+        const actUnix = parseHHMM(actual.time, nlData.schedOutUnix);
+        if (actUnix) {
+          const timeDeltaMin = Math.round((actUnix - wp.plannedTimeUnix) / 60);
+          timeDeltaEl.textContent = `${timeDeltaMin > 0 ? '+' : ''}${timeDeltaMin} min`;
+          timeDeltaEl.style.color = timeDeltaMin <= 0 ? "#059669" : "#d97706";
+        } else {
+          timeDeltaEl.textContent = '—';
+          timeDeltaEl.style.color = "#9ca3af";
+        }
+      }
+
+      // Fuel Delta
+      const fuelDeltaEl = document.getElementById(`fuel-delta-${wpid}`);
+      if(fuelDeltaEl) {
+        const afobKg = actual.afob !== "" ? Number(actual.afob) : null;
+        if (afobKg !== null && !isNaN(afobKg)) {
+          const fuelDeltaKg = afobKg - wp.plannedEfobKg;
+          fuelDeltaEl.textContent = `${fuelDeltaKg > 0 ? '+' : ''}${Math.round(fuelDeltaKg)}`;
+          fuelDeltaEl.style.color = fuelDeltaKg >= 0 ? "#059669" : "#d97706";
+        } else {
+          fuelDeltaEl.textContent = '—';
+          fuelDeltaEl.style.color = "#9ca3af";
+        }
+      }
     }
 
     function renderWaypoints() {
@@ -528,14 +586,17 @@ function renderNavLog(flightId) {
             <div></div><div></div>
             <div>FTW ${wp.ftwKg}</div>
             <div>FL ${wp.flPlanned}</div>
-            <div></div>
+            <div>MSA ${wp.mora || '---'}</div>
           `;
+        } else if (wp.isFirRow) {
+          row.className = 'navlog-row-fir';
+          row.innerHTML = `FIR BOUNDARY: ${wp.icao} - ${wp.name}`;
         } else {
-          row.className = `navlog-row-wp ${wp.isBoundary ? 'is-boundary' : ''}`;
+          row.className = 'navlog-row-wp';
           
           const actual = navlogActuals[wp.id] || { time: "", afob: "" };
-          const actTimeMin = hhmmToMin(actual.time);
-          const timeDeltaMin = actTimeMin !== null ? actTimeMin - wp.plannedTimeMin : null;
+          const actUnix = parseHHMM(actual.time, nlData.schedOutUnix);
+          const timeDeltaMin = actUnix ? Math.round((actUnix - wp.plannedTimeUnix) / 60) : null;
           const afobKg = actual.afob !== "" ? Number(actual.afob) : null;
           const fuelDeltaKg = afobKg !== null && !isNaN(afobKg) ? afobKg - wp.plannedEfobKg : null;
 
@@ -548,31 +609,33 @@ function renderNavLog(flightId) {
               ${wp.name ? `<div class="navlog-wp-name">${wp.name}</div>` : ''}
             </div>
             <div>${wp.dtdNm}</div>
-            <div style="color:#6b7280;">${minToHHMM(wp.plannedTimeMin)}</div>
+            <div style="color:#6b7280;">${unixToHHMM(wp.plannedTimeUnix)}</div>
             <div><input type="text" placeholder="--:--" class="navlog-input wp-time-input" data-wpid="${wp.id}" value="${actual.time}"></div>
-            <div style="${timeColor} font-weight:600;">${timeDeltaMin === null ? '—' : `${timeDeltaMin > 0 ? '+' : ''}${timeDeltaMin} min`}</div>
+            <div id="time-delta-${wp.id}" style="${timeColor} font-weight:600;">${timeDeltaMin === null ? '—' : `${timeDeltaMin > 0 ? '+' : ''}${timeDeltaMin} min`}</div>
             <div style="color:#6b7280;">${wp.plannedEfobKg}</div>
             <div><input type="number" placeholder="AFOB" class="navlog-input wp-afob-input" data-wpid="${wp.id}" value="${actual.afob}"></div>
-            <div style="${fuelColor} font-weight:600;">${fuelDeltaKg === null ? '—' : `${fuelDeltaKg > 0 ? '+' : ''}${Math.round(fuelDeltaKg)}`}</div>
+            <div id="fuel-delta-${wp.id}" style="${fuelColor} font-weight:600;">${fuelDeltaKg === null ? '—' : `${fuelDeltaKg > 0 ? '+' : ''}${Math.round(fuelDeltaKg)}`}</div>
           `;
         }
         container.appendChild(row);
       });
 
+      // Aggiungiamo i listener una sola volta
       container.querySelectorAll('.wp-time-input').forEach(inp => {
         inp.addEventListener('input', (e) => {
           const wpid = e.target.dataset.wpid;
           if(!navlogActuals[wpid]) navlogActuals[wpid] = { time:"", afob:"" };
           navlogActuals[wpid].time = e.target.value;
-          renderWaypoints(); 
+          updateRowCalculations(wpid); 
         });
       });
+
       container.querySelectorAll('.wp-afob-input').forEach(inp => {
         inp.addEventListener('input', (e) => {
           const wpid = e.target.dataset.wpid;
           if(!navlogActuals[wpid]) navlogActuals[wpid] = { time:"", afob:"" };
           navlogActuals[wpid].afob = e.target.value;
-          renderWaypoints(); 
+          updateRowCalculations(wpid); 
           renderFuelBar(); 
         });
       });
@@ -822,7 +885,7 @@ function renderGeneralSection(flight) {
   setT('gen-callsign', atc.callsign || '—');
   setT('gen-std', `${unixToHHMM(times.sched_out)}/${unixToHHMM(times.sched_off)}`);
   setT('gen-sta', `${unixToHHMM(times.sched_on)}/${unixToHHMM(times.sched_in)}`);
-  setT('gen-actype', aircraft.name || aircraft.icaocode || '—');
+  setT('gen-actype', aircraft.name || aircraft.icaocode || '—';
   setT('gen-reg', aircraft.reg || '—');
   setT('gen-crzsys', general.cruise_profile || (general.costindex ? `CI ${general.costindex}` : '—'));
   setT('gen-gnddist', general.route_distance ? `${general.route_distance}NM` : '—');
@@ -1231,6 +1294,48 @@ function extractAirportsData(data) {
       if (alt && alt.icao_code) {
         currentAirportsData.push({
           type: 'Arrival Alternate',
+          icao: alt.icao_code,
+          iata: alt.iata_code,
+          name: alt.name,
+          metar: alt.metar,
+          metar_time: alt.metar_time,
+          metar_category: alt.metar_category,
+          taf: alt.taf,
+          taf_time: alt.taf_time,
+          runways: null,
+          notams: getAptNotams(alt.icao_code)
+        });
+      }
+    });
+  }
+
+  if (data.takeoff_altn) {
+    let toAltns = Array.isArray(data.takeoff_altn) ? data.takeoff_altn : [data.takeoff_altn];
+    toAltns.forEach(alt => {
+      if (alt && alt.icao_code) {
+        currentAirportsData.push({
+          type: 'Takeoff Alternate',
+          icao: alt.icao_code,
+          iata: alt.iata_code,
+          name: alt.name,
+          metar: alt.metar,
+          metar_time: alt.metar_time,
+          metar_category: alt.metar_category,
+          taf: alt.taf,
+          taf_time: alt.taf_time,
+          runways: null,
+          notams: getAptNotams(alt.icao_code)
+        });
+      }
+    });
+  }
+
+  if (data.enroute_altn) {
+    let erAltns = Array.isArray(data.enroute_altn) ? data.enroute_altn : [data.enroute_altn];
+    erAltns.forEach(alt => {
+      if (alt && alt.icao_code) {
+        currentAirportsData.push({
+          type: 'Enroute Alternate',
           icao: alt.icao_code,
           iata: alt.iata_code,
           name: alt.name,
