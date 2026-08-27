@@ -259,49 +259,37 @@ async function handleRefresh() {
   }
 }
 
-/* ---------- FUNZIONI VATSIM (A-CDM VIA MULTI-PROXY ANTICACHE) ---------- */
-async function fetchVatsimCDM(cid) {
-  if (!cid) return null;
+/* ---------- FUNZIONI VATSIM (A-CDM VIA API UFFICIALE) ---------- */
+async function fetchVatsimCDM(callsign) {
+  if (!callsign) return null;
   
-  const url = `https://vatsim-radar.com/api/data/vatsim/pilot/${cid}/ipfs?_t=${Date.now()}`;
-  let data = null;
-
+  // Endpoint ufficiale, diretto e senza blocchi CORS!
+  const url = `https://api.viffsys.com/ifps/callsign?callsign=${callsign}`;
+  
   try {
-    const resDirect = await fetch(url, { cache: 'no-store' });
-    if (resDirect.ok) data = await resDirect.json();
-  } catch (e) { }
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    if (!data) return null;
+    
+    let ctot = null;
+    let tsat = null;
+    let tobt = null;
+    
+    let rawCtot = (data.cdmData && data.cdmData.ctot) ? data.cdmData.ctot : data.ctot;
+    let rawTsat = (data.cdmData && data.cdmData.tsat) ? data.cdmData.tsat : data.tsat;
+    let rawTobt = (data.cdmData && data.cdmData.tobt) ? data.cdmData.tobt : (data.obt || data.tobt);
 
-  if (!data) {
-    try {
-      const proxyUrl1 = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-      const resProxy1 = await fetch(proxyUrl1, { cache: 'no-store' });
-      if (resProxy1.ok) data = await resProxy1.json();
-    } catch (e) { }
+    if (rawCtot && String(rawCtot).trim() !== "") ctot = String(rawCtot).trim().substring(0, 4);
+    if (rawTsat && String(rawTsat).trim() !== "") tsat = String(rawTsat).trim().substring(0, 4);
+    if (rawTobt && String(rawTobt).trim() !== "") tobt = String(rawTobt).trim().substring(0, 4);
+    
+    return { ctot, tsat, tobt };
+  } catch (err) {
+    console.error("Errore fetch CDM ufficiale:", err);
+    return null;
   }
-
-  if (!data) {
-    try {
-      const proxyUrl2 = 'https://corsproxy.io/?' + encodeURIComponent(url);
-      const resProxy2 = await fetch(proxyUrl2, { cache: 'no-store' });
-      if (resProxy2.ok) data = await resProxy2.json();
-    } catch (e) { }
-  }
-
-  if (!data) return null;
-  
-  let ctot = null;
-  let tsat = null;
-  let tobt = null;
-  
-  let rawCtot = (data.cdmData && data.cdmData.ctot) ? data.cdmData.ctot : data.ctot;
-  let rawTsat = (data.cdmData && data.cdmData.tsat) ? data.cdmData.tsat : data.tsat;
-  let rawTobt = (data.cdmData && data.cdmData.tobt) ? data.cdmData.tobt : (data.obt || data.tobt);
-
-  if (rawCtot && String(rawCtot).trim() !== "") ctot = String(rawCtot).trim().substring(0, 4);
-  if (rawTsat && String(rawTsat).trim() !== "") tsat = String(rawTsat).trim().substring(0, 4);
-  if (rawTobt && String(rawTobt).trim() !== "") tobt = String(rawTobt).trim().substring(0, 4);
-  
-  return { ctot, tsat, tobt };
 }
 
 /* ---------- DASHBOARD: formattazione ---------- */
@@ -405,7 +393,6 @@ function mapSimbriefToNavLog(ofp) {
   const waypoints = [];
   let cumulativeDistance = 0;
 
-  // Aggiungiamo sempre l'aeroporto di origine come primo punto
   waypoints.push({
     id: (ofp.origin && ofp.origin.icao_code) ? ofp.origin.icao_code : 'ORIG',
     name: (ofp.origin && ofp.origin.name) ? ofp.origin.name : '',
@@ -423,7 +410,6 @@ function mapSimbriefToNavLog(ofp) {
     cumulativeDistance += legDistance;
     const dtdNm = Math.max(0, Math.round(routeDistance - cumulativeDistance));
     
-    // Airway Info
     waypoints.push({
       id: fix.ident + '_aw',
       isAirwayInfo: true,
@@ -436,7 +422,6 @@ function mapSimbriefToNavLog(ofp) {
       mora: fix.mora || '---'
     });
 
-    // Controllo FIR Crossing e aggiunta riga separata
     if (fix.fir_crossing && fix.fir_crossing.fir) {
       waypoints.push({
         id: 'fir_' + fix.fir_crossing.fir,
@@ -446,7 +431,6 @@ function mapSimbriefToNavLog(ofp) {
       });
     }
 
-    // NavLog Fix
     waypoints.push({
       id: fix.ident || '?',
       name: (fix.type === "apt" || fix.type === "vor" || fix.type === "ndb") ? fix.name : "",
@@ -534,7 +518,6 @@ function renderNavLog(flightId) {
       if(container) container.innerHTML = fbHtml;
     }
 
-    // Questa funzione ricalcola e aggiorna ESCLUSIVAMENTE i testi delta, senza toccare gli input
     function updateRowCalculations(wpid) {
       const wp = nlData.waypoints.find(w => w.id === wpid);
       if(!wp) return;
@@ -620,7 +603,6 @@ function renderNavLog(flightId) {
         container.appendChild(row);
       });
 
-      // Aggiungiamo i listener una sola volta
       container.querySelectorAll('.wp-time-input').forEach(inp => {
         inp.addEventListener('input', (e) => {
           const wpid = e.target.dataset.wpid;
@@ -724,12 +706,11 @@ function renderDashboard(flight) {
     const staUnix = Number(times.sched_in);
 
     function refreshCDM() {
-      let cid = localStorage.getItem('mbriefing_vt_cid');
-      const cidInput = document.getElementById('vt-cid');
-      if (!cid && cidInput && cidInput.value.trim() !== '') cid = cidInput.value.trim();
-      if (!cid) return; 
+      // Estraiamo in modo dinamico e pulito il callsign dal piano di volo!
+      const callsign = extractCallsign(data);
+      if (!callsign) return; 
 
-      fetchVatsimCDM(cid).then(cdmDataObj => {
+      fetchVatsimCDM(callsign).then(cdmDataObj => {
         if (cdmDataObj) {
           const cleanTime = (t) => (t && String(t).trim().length >= 4) ? String(t).trim().substring(0, 4) : "";
           
@@ -885,7 +866,7 @@ function renderGeneralSection(flight) {
   setT('gen-callsign', atc.callsign || '—');
   setT('gen-std', `${unixToHHMM(times.sched_out)}/${unixToHHMM(times.sched_off)}`);
   setT('gen-sta', `${unixToHHMM(times.sched_on)}/${unixToHHMM(times.sched_in)}`);
-  setT('gen-actype', aircraft.name || aircraft.icaocode || '—';
+  setT('gen-actype', aircraft.name || aircraft.icaocode || '—');
   setT('gen-reg', aircraft.reg || '—');
   setT('gen-crzsys', general.cruise_profile || (general.costindex ? `CI ${general.costindex}` : '—'));
   setT('gen-gnddist', general.route_distance ? `${general.route_distance}NM` : '—');
