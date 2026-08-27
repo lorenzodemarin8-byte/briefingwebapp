@@ -9,8 +9,9 @@ let cdmInterval = null;
 let prevCdmState = { tobt: "", tsat: "", ctot: "" };
 let isFirstCdmFetch = true;
 let navlogActuals = {}; 
+let notificationsList = [];
 
-/* ---------- TOAST NOTIFICATIONS ---------- */
+/* ---------- TOAST & NOTIFICATIONS ---------- */
 function showToast(message) {
   let container = document.getElementById('toast-container');
   if (!container) {
@@ -26,6 +27,34 @@ function showToast(message) {
     toast.classList.add('fade-out');
     setTimeout(() => toast.remove(), 400);
   }, 6000);
+}
+
+function addNotification(msg) {
+  notificationsList.unshift({ text: msg, time: new Date() });
+  updateNotifUI();
+  showToast(msg);
+}
+
+function updateNotifUI() {
+  const badge = document.getElementById('notif-badge');
+  if(badge) {
+    badge.style.display = notificationsList.length > 0 ? 'flex' : 'none';
+    badge.textContent = notificationsList.length;
+  }
+  const container = document.getElementById('notif-list');
+  if(!container) return;
+  container.innerHTML = '';
+  if(notificationsList.length === 0) {
+    container.innerHTML = '<p class="hint" style="text-align:center; margin-top:20px;">Nessuna notifica.</p>';
+    return;
+  }
+  notificationsList.forEach(n => {
+    const el = document.createElement('div');
+    el.className = 'notif-item';
+    const timeStr = n.time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', timeZone: 'UTC'}) + 'z';
+    el.innerHTML = `<div class="notif-time">${timeStr}</div><div>${n.text.replace(/\n/g, '<br>')}</div>`;
+    container.appendChild(el);
+  });
 }
 
 /* ---------- THEME ---------- */
@@ -150,7 +179,6 @@ function showDashboard(id) {
     resetPager();
 
   } catch (error) {
-    alert("CRASH IN SHOWDASHBOARD: " + error.message);
     console.error(error);
   }
 }
@@ -259,37 +287,35 @@ async function handleRefresh() {
   }
 }
 
-/* ---------- FUNZIONI VATSIM (A-CDM VIA API UFFICIALE) ---------- */
-async function fetchVatsimCDM(callsign) {
+/* ---------- FUNZIONI VATSIM API ---------- */
+async function fetchCdmData(callsign) {
   if (!callsign) return null;
-  
-  // Endpoint ufficiale, diretto e senza blocchi CORS!
-  const url = `https://api.viffsys.com/ifps/callsign?callsign=${callsign}`;
-  
   try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    
-    const data = await response.json();
-    if (!data) return null;
-    
-    let ctot = null;
-    let tsat = null;
-    let tobt = null;
-    
-    let rawCtot = (data.cdmData && data.cdmData.ctot) ? data.cdmData.ctot : data.ctot;
-    let rawTsat = (data.cdmData && data.cdmData.tsat) ? data.cdmData.tsat : data.tsat;
-    let rawTobt = (data.cdmData && data.cdmData.tobt) ? data.cdmData.tobt : (data.obt || data.tobt);
-
-    if (rawCtot && String(rawCtot).trim() !== "") ctot = String(rawCtot).trim().substring(0, 4);
-    if (rawTsat && String(rawTsat).trim() !== "") tsat = String(rawTsat).trim().substring(0, 4);
-    if (rawTobt && String(rawTobt).trim() !== "") tobt = String(rawTobt).trim().substring(0, 4);
-    
-    return { ctot, tsat, tobt };
+    const res = await fetch(`https://api.viffsys.com/ifps/callsign?callsign=${callsign}`, { cache: 'no-store' });
+    if (!res.ok) return null; 
+    return await res.json();
   } catch (err) {
     console.error("Errore fetch CDM ufficiale:", err);
     return null;
   }
+}
+
+/* ---------- NAVIGRAPH ---------- */
+function buildNavigraphImportUrl(ofp) {
+  if(!ofp || !ofp.origin || !ofp.destination || !ofp.general) return '';
+  const origin = `${ofp.origin.icao_code}/${ofp.origin.plan_rwy}`;
+  const dest = `${ofp.destination.icao_code}/${ofp.destination.plan_rwy}`;
+  const route = `${origin} ${ofp.general.route} ${dest}`;
+
+  const rulesMap = { I: "IFR", V: "VFR", Y: "IFR/VFR", Z: "VFR/IFR" };
+  const rules = rulesMap[ofp.atc.flight_rules] || "IFR";
+
+  const title = `${ofp.general.icao_airline || ''}${ofp.general.flight_number || ''}`;
+  const cruisingAltitude = ofp.atc.initial_alt || ""; 
+  const alternate = (ofp.alternate && ofp.alternate.icao_code) ? ofp.alternate.icao_code : "";
+
+  const params = new URLSearchParams({ route, title, rules, cruisingAltitude, alternate });
+  return `https://charts.navigraph.com/flights/import?${params.toString()}`;
 }
 
 /* ---------- DASHBOARD: formattazione ---------- */
@@ -398,7 +424,6 @@ function mapSimbriefToNavLog(ofp) {
     name: (ofp.origin && ofp.origin.name) ? ofp.origin.name : '',
     isOrigin: true,
     isAirwayInfo: false,
-    isFirRow: false,
     dtdNm: routeDistance,
     plannedTimeUnix: schedOutUnix,
     plannedEfobKg: Math.round(Number(fuel.plan_ramp) || 0)
@@ -422,21 +447,10 @@ function mapSimbriefToNavLog(ofp) {
       mora: fix.mora || '---'
     });
 
-    if (fix.fir_crossing && fix.fir_crossing.fir) {
-      waypoints.push({
-        id: 'fir_' + fix.fir_crossing.fir,
-        isFirRow: true,
-        icao: fix.fir_crossing.fir,
-        name: fix.fir_crossing.name || ''
-      });
-    }
-
     waypoints.push({
       id: fix.ident || '?',
       name: (fix.type === "apt" || fix.type === "vor" || fix.type === "ndb") ? fix.name : "",
-      isBoundary: false,
       isAirwayInfo: false,
-      isFirRow: false,
       dtdNm,
       plannedTimeUnix: schedOutUnix + Number(fix.time_total),
       plannedEfobKg: Math.round(Number(fix.fuel_plan_onboard) || 0),
@@ -469,7 +483,7 @@ function renderNavLog(flightId) {
     if(destEl) destEl.textContent = nlData.destIcao;
 
     function renderFuelBar() {
-      const realWps = nlData.waypoints.filter(w => !w.isAirwayInfo && !w.isFirRow);
+      const realWps = nlData.waypoints.filter(w => !w.isAirwayInfo);
       if(realWps.length === 0) return;
       
       const lastPlanned = realWps[realWps.length - 1];
@@ -503,13 +517,13 @@ function renderNavLog(flightId) {
             <div class="navlog-fuel-finres-zone" style="width: ${finresPct}%;"></div>
             <div class="navlog-fuel-fill" style="width: ${progressPct}%;"></div>
             <div class="navlog-marker-totres" style="left: ${totalResPct}%;"></div>
-            <div class="navlog-marker-landing ${landingLow ? 'bg-amber-400' : 'bg-emerald-500'}" style="left: ${landingPct}%;"></div>
+            <div class="navlog-marker-landing ${landingLow ? 'bg-red-500' : 'bg-emerald-500'}" style="left: ${landingPct}%;"></div>
           </div>
           <div class="navlog-fuel-legend">
             <span class="navlog-legend-item"><span class="navlog-legend-dot-finres"></span> FINRES ${nlData.finalReserveKg}</span>
             <span class="navlog-legend-item"><span class="navlog-legend-line-totres"></span> TOTAL RESERVE ${nlData.totalReserveKg} ${nlData.altnIcao ? `(${nlData.altnIcao})` : ''}</span>
-            <span class="navlog-legend-item font-medium ${landingLow ? 'text-amber-600' : 'text-emerald-600'}">
-              <span class="navlog-legend-line-land ${landingLow ? 'bg-amber-400' : 'bg-emerald-500'}"></span> LANDING ${Math.round(expLandingKg)}
+            <span class="navlog-legend-item font-medium ${landingLow ? 'text-red-500' : 'text-emerald-600'}">
+              <span class="navlog-legend-line-land ${landingLow ? 'bg-red-500' : 'bg-emerald-500'}"></span> LANDING ${Math.round(expLandingKg)}
             </span>
           </div>
         </div>
@@ -523,7 +537,6 @@ function renderNavLog(flightId) {
       if(!wp) return;
       const actual = navlogActuals[wpid] || { time: "", afob: "" };
 
-      // Time Delta
       const timeDeltaEl = document.getElementById(`time-delta-${wpid}`);
       if(timeDeltaEl) {
         const actUnix = parseHHMM(actual.time, nlData.schedOutUnix);
@@ -537,7 +550,6 @@ function renderNavLog(flightId) {
         }
       }
 
-      // Fuel Delta
       const fuelDeltaEl = document.getElementById(`fuel-delta-${wpid}`);
       if(fuelDeltaEl) {
         const afobKg = actual.afob !== "" ? Number(actual.afob) : null;
@@ -571,9 +583,6 @@ function renderNavLog(flightId) {
             <div>FL ${wp.flPlanned}</div>
             <div>MSA ${wp.mora || '---'}</div>
           `;
-        } else if (wp.isFirRow) {
-          row.className = 'navlog-row-fir';
-          row.innerHTML = `FIR BOUNDARY: ${wp.icao} - ${wp.name}`;
         } else {
           row.className = 'navlog-row-wp';
           
@@ -603,6 +612,7 @@ function renderNavLog(flightId) {
         container.appendChild(row);
       });
 
+      // Evitiamo che il DOM venga distrutto se l'utente digita (salviamo i dati in RAM e ricalcoliamo solo le label text!)
       container.querySelectorAll('.wp-time-input').forEach(inp => {
         inp.addEventListener('input', (e) => {
           const wpid = e.target.dataset.wpid;
@@ -627,7 +637,6 @@ function renderNavLog(flightId) {
     renderWaypoints();
 
   } catch (error) {
-    alert("CRASH IN NAVLOG: " + error.message);
     console.error(error);
   }
 }
@@ -706,27 +715,34 @@ function renderDashboard(flight) {
     const staUnix = Number(times.sched_in);
 
     function refreshCDM() {
-      // Estraiamo in modo dinamico e pulito il callsign dal piano di volo!
-      const callsign = extractCallsign(data);
+      const callsign = (data.atc && data.atc.callsign) || (data.general && data.general.atc_callsign);
       if (!callsign) return; 
 
-      fetchVatsimCDM(callsign).then(cdmDataObj => {
+      fetchCdmData(callsign).then(cdmDataObj => {
         if (cdmDataObj) {
           const cleanTime = (t) => (t && String(t).trim().length >= 4) ? String(t).trim().substring(0, 4) : "";
           
-          const newTobt = cleanTime(cdmDataObj.tobt);
-          const newTsat = cleanTime(cdmDataObj.tsat);
-          const newCtot = cleanTime(cdmDataObj.ctot);
+          let rawCtot = (cdmDataObj.cdmData && cdmDataObj.cdmData.ctot) ? cdmDataObj.cdmData.ctot : cdmDataObj.ctot;
+          let rawTsat = (cdmDataObj.cdmData && cdmDataObj.cdmData.tsat) ? cdmDataObj.cdmData.tsat : cdmDataObj.tsat;
+          let rawTobt = (cdmDataObj.cdmData && cdmDataObj.cdmData.tobt) ? cdmDataObj.cdmData.tobt : (cdmDataObj.obt || cdmDataObj.tobt);
+
+          const newTobt = cleanTime(rawTobt);
+          const newTsat = cleanTime(rawTsat);
+          const newCtot = cleanTime(rawCtot);
 
           if (isFirstCdmFetch) {
             prevCdmState = { tobt: newTobt, tsat: newTsat, ctot: newCtot };
             isFirstCdmFetch = false;
           } else {
             const fmt = (t) => t ? `${t.substring(0, 2)}:${t.substring(2, 4)}z` : "";
-            if (newCtot && newCtot !== prevCdmState.ctot) showToast(`SLOT notification: you have a new CTOT at ${fmt(newCtot)}`);
-            if (prevCdmState.ctot && !newCtot) showToast(`SLOT notification: your CTOT has been cancelled`);
-            if (newTsat && newTsat !== prevCdmState.tsat) showToast(`TSAT notification: new TSAT at ${fmt(newTsat)}`);
-            if (newTobt && newTobt !== prevCdmState.tobt) showToast(`TOBT notification: new TOBT at ${fmt(newTobt)}`);
+            
+            let reason = cdmDataObj.mostPenalizingAirspace || (cdmDataObj.cdmData && cdmDataObj.cdmData.reason) || "";
+            let reasonText = reason ? `\nReason: ${reason}` : "";
+
+            if (newCtot && newCtot !== prevCdmState.ctot) addNotification(`SLOT notification: you have a new CTOT at ${fmt(newCtot)}${reasonText}`);
+            if (prevCdmState.ctot && !newCtot) addNotification(`SLOT notification: your CTOT has been cancelled`);
+            if (newTsat && newTsat !== prevCdmState.tsat) addNotification(`TSAT notification: new TSAT at ${fmt(newTsat)}`);
+            if (newTobt && newTobt !== prevCdmState.tobt) addNotification(`TOBT notification: new TOBT at ${fmt(newTobt)}`);
             
             prevCdmState = { tobt: newTobt, tsat: newTsat, ctot: newCtot };
           }
@@ -748,7 +764,14 @@ function renderDashboard(flight) {
             effectiveEtdUnix = parseHHMM(newTobt, stdUnix);
           }
 
-          if(etdEl) etdEl.textContent = unixToHHMM(effectiveEtdUnix);
+          if(etdEl) {
+            etdEl.textContent = unixToHHMM(effectiveEtdUnix);
+            if (effectiveEtdUnix > stdUnix) {
+              etdEl.style.color = "var(--orange-text)";
+            } else {
+              etdEl.style.color = "";
+            }
+          }
           
           const delaySecs = effectiveEtdUnix - stdUnix;
           const newEtaUnix = staUnix + delaySecs;
@@ -833,8 +856,18 @@ function renderDashboard(flight) {
     renderRouteSummary(data, origin, destination, general);
     renderClassicOfpText(data);
 
+    // ---- NAVIGRAPH BUTTON ----
+    const navBtn = document.getElementById('navigraph-btn');
+    if(navBtn) {
+        const newNavBtn = navBtn.cloneNode(true);
+        navBtn.parentNode.replaceChild(newNavBtn, navBtn);
+        newNavBtn.addEventListener('click', () => {
+            const url = buildNavigraphImportUrl(data);
+            if(url) window.open(url, "_blank", "noopener,noreferrer");
+        });
+    }
+
   } catch (err) {
-    alert("CRASH IN RENDER DASHBOARD: " + err.message);
     console.error('Errore nel rendering della Dashboard:', err);
   }
 }
@@ -1932,19 +1965,24 @@ function openDrawer() {
 
 function closeDrawer() {
   const sd = document.getElementById('side-drawer');
+  const nd = document.getElementById('notif-drawer');
   const overlay = document.getElementById('drawer-overlay');
   if(sd) sd.classList.remove('open');
+  if(nd) nd.classList.remove('open');
   if(overlay) overlay.classList.remove('open');
+}
+
+function openNotifDrawer() {
+  const nd = document.getElementById('notif-drawer');
+  const overlay = document.getElementById('drawer-overlay');
+  if(nd) nd.classList.add('open');
+  if(overlay) overlay.classList.add('open');
 }
 
 function initInteractions() {
   const lastId = localStorage.getItem('mbriefing_sb_id');
   const sbUsername = document.getElementById('sb-username');
   if (lastId && sbUsername) sbUsername.value = lastId;
-  
-  const lastCid = localStorage.getItem('mbriefing_vt_cid');
-  const vtCid = document.getElementById('vt-cid');
-  if (lastCid && vtCid) vtCid.value = lastCid;
 
   const menuToggle = document.getElementById('menu-toggle');
   if(menuToggle) menuToggle.addEventListener('click', openDrawer);
@@ -1954,12 +1992,25 @@ function initInteractions() {
   
   const drawerOverlay = document.getElementById('drawer-overlay');
   if(drawerOverlay) drawerOverlay.addEventListener('click', closeDrawer);
+
+  const notifToggle = document.getElementById('notif-toggle');
+  if(notifToggle) notifToggle.addEventListener('click', openNotifDrawer);
+
+  const notifClose = document.getElementById('notif-close');
+  if(notifClose) notifClose.addEventListener('click', closeDrawer);
+
+  const notifClearBtn = document.getElementById('notif-clear-btn');
+  if(notifClearBtn) {
+    notifClearBtn.addEventListener('click', () => {
+      notificationsList = [];
+      updateNotifUI();
+    });
+  }
   
   const sbRefresh = document.getElementById('sb-refresh');
   if(sbRefresh) {
     sbRefresh.addEventListener('click', async () => {
       if(sbUsername) localStorage.setItem('mbriefing_sb_id', sbUsername.value.trim());
-      if(vtCid) localStorage.setItem('mbriefing_vt_cid', vtCid.value.trim());
       await handleRefresh();
     });
   }
@@ -1968,7 +2019,6 @@ function initInteractions() {
   if(contentRefresh) {
     contentRefresh.addEventListener('click', async () => {
       const saved = localStorage.getItem('mbriefing_sb_id');
-      const savedCid = localStorage.getItem('mbriefing_vt_cid');
       
       if (!saved) {
         openDrawer();
@@ -1976,8 +2026,6 @@ function initInteractions() {
       }
       
       if(sbUsername) sbUsername.value = saved;
-      if (savedCid && vtCid) vtCid.value = savedCid;
-      
       await handleRefresh();
     });
   }
@@ -2003,12 +2051,10 @@ function initInteractions() {
       const viewDash = document.getElementById('view-dashboard');
       const viewBrf = document.getElementById('view-briefing');
       const viewNav = document.getElementById('view-navlog');
-      const viewMap = document.getElementById('view-map');
       
       if(viewDash) viewDash.style.display = tab === 'dashboard' ? 'flex' : 'none';
       if(viewBrf) viewBrf.style.display = tab === 'briefing' ? 'flex' : 'none';
       if(viewNav) viewNav.style.display = tab === 'navlog' ? 'flex' : 'none';
-      if(viewMap) viewMap.style.display = tab === 'map' ? 'flex' : 'none';
       
       const title = document.getElementById('topbar-title');
       
@@ -2034,14 +2080,6 @@ function initInteractions() {
       } else if (tab === 'navlog') {
         if(title) title.textContent = 'NavLog';
         if (currentFlightId) renderNavLog(currentFlightId);
-      } else if (tab === 'map') {
-        if(title) title.textContent = 'Map';
-        if (currentFlightId) {
-          const flight = getFlight(currentFlightId);
-          if (flight && flight.raw && typeof initRouteWeatherMap === 'function') {
-            initRouteWeatherMap('route-weather-map', flight.raw);
-          }
-        }
       } else {
         if(title) title.textContent = btn.textContent;
       }

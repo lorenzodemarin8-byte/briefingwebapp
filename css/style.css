@@ -17,7 +17,6 @@
   --input-bg: #f2f2f5;
   --input-border: #d4d4d8;
 
-  /* grigi dedicati alla pagina di dettaglio volo */
   --dash-bg: #f4f5f7;
   --dash-widget-border: #e6e9eb;
   --dash-band-bg: #e6e9eb;
@@ -47,221 +46,59 @@
 }
 
 * { box-sizing: border-box; }
-
-html, body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  background: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-}
-
-body {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
-}
+html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
 /* =========================================================
-   TOAST NOTIFICATIONS
+   TOAST E NOTIFICHE
    ========================================================= */
-#toast-container {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  pointer-events: none;
-}
+#toast-container { position: fixed; top: 16px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+.toast-message { background: #1e293b; color: #f8fafc; padding: 12px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); opacity: 1; transform: translateY(0); transition: opacity 0.4s ease, transform 0.4s ease; pointer-events: auto; border-left: 4px solid var(--accent); white-space: pre-wrap; line-height: 1.4; }
+[data-theme="dark"] .toast-message { background: #334155; border-left: 4px solid var(--accent); }
+.toast-message.fade-out { opacity: 0; transform: translateY(-15px); }
 
-.toast-message {
-  background: #1e293b;
-  color: #f8fafc;
-  padding: 12px 18px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity 0.4s ease, transform 0.4s ease;
-  pointer-events: auto;
-  border-left: 4px solid var(--accent);
-}
-
-[data-theme="dark"] .toast-message {
-  background: #334155;
-  border-left: 4px solid var(--accent);
-}
-
-.toast-message.fade-out {
-  opacity: 0;
-  transform: translateY(-15px);
-}
+.notif-badge { position: absolute; top: -2px; right: -4px; background: #dc2626; color: white; font-size: 10px; font-weight: bold; border-radius: 50%; width: 15px; height: 15px; display: flex; align-items: center; justify-content: center; }
+.notif-drawer-header { display: flex; justify-content: space-between; align-items: center; }
+.notif-trash-btn { color: #dc2626; background: none; border: none; cursor: pointer; padding: 0; }
+.notif-item { padding: 12px 16px; border-bottom: 1px solid var(--widget-border); font-size: 13px; line-height: 1.4; color: var(--text); }
+.notif-time { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; font-weight: 600; }
 
 /* =========================================================
    TOP BAR / BOTTOM BAR
    ========================================================= */
-.topbar {
-  display: flex;
-  flex-direction: column;
-  background: var(--bar-bg);
-  border-bottom: 1px solid var(--bar-border);
-  flex: 0 0 auto;
-  z-index: 10;
-}
+.topbar { display: flex; flex-direction: column; background: var(--bar-bg); border-bottom: 1px solid var(--bar-border); flex: 0 0 auto; z-index: 10; }
+.topbar-nav { display: flex; align-items: center; justify-content: space-between; padding: 2px 16px; height: 34px; width: 100%; }
+.topbar-title { flex: 1; text-align: center; font-size: 13px; font-weight: 600; }
+.topbar-right-group { display: flex; align-items: center; gap: 6px; }
+.bottombar { display: flex; align-items: center; justify-content: space-around; background: var(--bar-bg); border-top: 1px solid var(--bar-border); height: 38px; padding: 0 8px; flex: 0 0 auto; z-index: 10; }
+.icon-btn { background: none; border: none; cursor: pointer; color: var(--text-secondary); width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; padding: 0; }
+.tab-btn { background: none; border: none; color: var(--text-secondary); font-size: 11.5px; padding: 4px 10px; cursor: pointer; }
+.tab-btn.active { color: var(--accent); font-weight: 600; }
 
-.topbar-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 2px 16px;
-  height: 34px;
-  width: 100%;
-}
-
-.topbar-title {
-  flex: 1;
-  text-align: center;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.topbar-right-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.bottombar {
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  background: var(--bar-bg);
-  border-top: 1px solid var(--bar-border);
-  height: 38px;
-  padding: 0 8px;
-  flex: 0 0 auto;
-  z-index: 10;
-}
-
-.icon-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-secondary);
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-}
-
-.tab-btn {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 11.5px;
-  padding: 4px 10px;
-  cursor: pointer;
-}
-
-.tab-btn.active {
-  color: var(--accent);
-  font-weight: 600;
-}
-
-/* =========================================================
-   BARRA INFO VOLO
-   ========================================================= */
-.flight-info-bar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  background: var(--dash-band-bg);
-  border-radius: 6px;
-  margin: 4px 16px 0 16px;
-  padding: 4px 12px;
-  font-size: 11px;
-}
-
-.info-chip {
-  color: var(--text);
-  padding: 0 10px;
-  white-space: nowrap;
-  position: relative;
-  font-weight: 500;
-}
-
+.flight-info-bar { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; background: var(--dash-band-bg); border-radius: 6px; margin: 4px 16px 0 16px; padding: 4px 12px; font-size: 11px; }
+.info-chip { color: var(--text); padding: 0 10px; white-space: nowrap; position: relative; font-weight: 500; }
 #fib-ofpdate, #fib-route { font-weight: 400; }
 #fib-route strong { font-weight: 500; }
-
-.info-chip:not(:last-of-type)::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 15%;
-  bottom: 15%;
-  width: 1px;
-  background: #c7c7cc;
-}
-
-.status-badge {
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 700;
-  white-space: nowrap;
-  background: transparent;
-  margin-left: 6px;
-}
-
+.info-chip:not(:last-of-type)::after { content: ''; position: absolute; right: 0; top: 15%; bottom: 15%; width: 1px; background: #c7c7cc; }
+.status-badge { padding: 2px 8px; border-radius: 4px; font-weight: 700; white-space: nowrap; background: transparent; margin-left: 6px; }
 .status-badge.not-accepted { color: var(--orange-text); border: 1px solid var(--orange-text); }
 .status-badge.accepted { color: var(--green-text); border: 1px solid var(--green-text); }
 
 /* =========================================================
-   LAYOUT GENERALE
+   LAYOUT E WIDGET
    ========================================================= */
-.view {
-  padding: 16px;
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-}
-
+.view { padding: 16px; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
 #view-home { max-width: 1100px; margin: 0 auto; }
-
-.widget {
-  background: var(--widget-bg);
-  border: 1px solid var(--widget-border);
-  border-radius: 10px;
-  margin-bottom: 16px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.widget-header {
-  padding: 10px 14px;
-  font-weight: 600;
-  border-bottom: 1px solid var(--widget-border);
-  background: var(--bg);
-}
-
+.widget { background: var(--widget-bg); border: 1px solid var(--widget-border); border-radius: 10px; margin-bottom: 16px; overflow: hidden; display: flex; flex-direction: column; }
+.widget-header { padding: 10px 14px; font-weight: 600; border-bottom: 1px solid var(--widget-border); background: var(--bg); }
 .widget-body { padding: 14px; flex: 1; }
 
-/* DRAWER, HOME CARD ecc OMESSI PER BREVITA (Mantieni i tuoi originali) */
 .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); opacity: 0; pointer-events: none; transition: opacity .2s ease; z-index: 20; }
 .drawer-overlay.open { opacity: 1; pointer-events: auto; }
 .side-drawer { position: fixed; top: 0; left: 0; bottom: 0; width: 280px; max-width: 82vw; background: var(--widget-bg); border-right: 1px solid var(--widget-border); transform: translateX(-100%); transition: transform .22s ease; z-index: 21; display: flex; flex-direction: column; }
 .side-drawer.open { transform: translateX(0); }
+.right-drawer { left: auto; right: 0; border-right: none; border-left: 1px solid var(--widget-border); transform: translateX(100%); }
+.right-drawer.open { transform: translateX(0); }
 .drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--widget-border); font-weight: 600; }
 .drawer-body { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
 .drawer-label { font-size: 12px; color: var(--text-secondary); }
@@ -279,7 +116,7 @@ body {
 .flight-card .fc-meta { font-size: 13px; color: var(--text-secondary); }
 .empty-state { color: var(--text-secondary); text-align: center; margin-top: 40px; }
 
-/* DASHBOARD, WEIGHT/FUEL, WEATHER, BRIEFING OMESSI PER BREVITA (Mantieni i tuoi) */
+/* DASHBOARD */
 body.in-flight .topbar, body.in-flight .bottombar { background: var(--dash-bar); }
 #view-dashboard { background: var(--dash-bg); padding: 12px 20px; display: flex; flex-direction: column; height: 100%; }
 .dashboard-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; max-width: 1400px; width: 100%; margin: 0 auto; align-items: stretch; flex: 1; min-height: 0; height: 100%; }
@@ -325,8 +162,14 @@ body.in-flight .topbar, body.in-flight .bottombar { background: var(--dash-bar);
 .fi-actions .btn-primary.btn-accepted { background: var(--green-bg); color: var(--green-text); border: 1px solid var(--green-text); }
 .fi-actions .btn-secondary { background: #fdfdfd; color: #a3a3a3; border: 1px solid #e0e0e0; }
 .fi-actions .btn-secondary:disabled { opacity: .6; cursor: default; }
+
 .route-widget-tall { flex: 1; }
 .route-widget-tall .widget-body { flex: 1; overflow-y: auto; }
+.route-widget-footer { background: var(--dash-band-bg); padding: 8px 14px; display: flex; justify-content: center; border-top: 1px solid var(--dash-widget-border); }
+.btn-navigraph { background: #c7c7cc; color: #1c1c1e; border: none; border-radius: 4px; padding: 8px 16px; font-weight: 500; font-size: 13.5px; cursor: pointer; width: 100%; transition: opacity 0.2s; }
+.btn-navigraph:hover { opacity: 0.85; }
+[data-theme="dark"] .btn-navigraph { background: #38383a; color: #f2f2f7; }
+
 .pager-scroll { display: flex; overflow-x: auto; overflow-y: auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; border-radius: 8px; flex: 1; min-height: 0; }
 .pager-scroll::-webkit-scrollbar { display: none; }
 .pager-page { flex: 0 0 100%; scroll-snap-align: start; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
@@ -459,8 +302,17 @@ body.in-flight .topbar, body.in-flight .bottombar { background: var(--dash-bar);
 .briefing-content { flex: 1; background: var(--widget-bg); border-radius: 8px; border: 1px solid var(--dash-widget-border); display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 
 /* =========================================================
-   NAVLOG STYLES (NUOVI E AGGIORNATI)
+   NAVLOG STYLES 
    ========================================================= */
+.navlog-sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bar-bg);
+  border-bottom: 1px solid var(--bar-border);
+  padding: 12px 16px 0;
+}
+
 .navlog-route-header {
   display: flex;
   align-items: center;
@@ -474,45 +326,51 @@ body.in-flight .topbar, body.in-flight .bottombar { background: var(--dash-bar);
   width: 100%;
   user-select: none;
 }
+
 .navlog-fuel-track {
   position: relative;
   height: 12px;
   border-radius: 4px;
   overflow: hidden;
-  background-color: #2563eb; /* block fuel base color (blue) */
+  background-color: #6c8ab0; /* Muted blue */
 }
+
+/* Strisce blu e viola per la Final Reserve */
 .navlog-fuel-finres-zone {
   position: absolute;
   top: 0; bottom: 0; left: 0;
-  /* Strisce blu e viola per final reserve */
-  background: repeating-linear-gradient(45deg, #2563eb, #2563eb 8px, #9333ea 8px, #9333ea 16px);
+  background: repeating-linear-gradient(45deg, #6c8ab0, #6c8ab0 8px, #9333ea 8px, #9333ea 16px);
   z-index: 1;
 }
+
+/* Progresso volato traslucido rosso/nero per scurire/segnalare il consumato senza pattern Moiré */
 .navlog-fuel-fill {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  opacity: 0.9;
-  /* Progresso volato tratteggiato in rosso trasparente */
-  background-image: repeating-linear-gradient(45deg, rgba(220, 38, 38, 0.7) 0, rgba(220, 38, 38, 0.7) 4px, rgba(248, 113, 113, 0.7) 4px, rgba(248, 113, 113, 0.7) 8px);
+  top: 0; bottom: 0; left: 0;
+  background-color: rgba(220, 38, 38, 0.45); 
   z-index: 2;
 }
+
+/* Stanghetta ambra per la Total Reserve spessa e con ombra */
 .navlog-marker-totres {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background-color: #f59e0b; /* linea ambra fissa */
+  top: 0; bottom: 0;
+  width: 4px;
+  background-color: #f59e0b; /* Ambra intenso */
+  box-shadow: -1px 0 0 rgba(0,0,0,0.2), 1px 0 0 rgba(0,0,0,0.2);
   z-index: 3;
 }
+
+/* Marker dinamico Landing Fuel spesso e con ombra */
 .navlog-marker-landing {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 2px;
+  top: 0; bottom: 0;
+  width: 4px;
+  box-shadow: -1px 0 0 rgba(0,0,0,0.2), 1px 0 0 rgba(0,0,0,0.2);
   z-index: 4;
 }
+.bg-red-500 { background-color: #ef4444 !important; }
+.bg-emerald-500 { background-color: #10b981 !important; }
 
 .navlog-fuel-legend {
   display: flex;
@@ -524,21 +382,21 @@ body.in-flight .topbar, body.in-flight .bottombar { background: var(--dash-bar);
 }
 .navlog-legend-item { display: flex; align-items: center; gap: 4px; }
 .navlog-legend-dot-finres { width: 8px; height: 8px; border-radius: 50%; background-color: #9333ea; }
-.navlog-legend-line-totres { width: 2px; height: 12px; background-color: #f59e0b; }
-.navlog-legend-line-land { width: 2px; height: 12px; }
+.navlog-legend-line-totres { width: 4px; height: 12px; background-color: #f59e0b; }
+.navlog-legend-line-land { width: 4px; height: 12px; }
 .text-amber-600 { color: #d97706; }
+.text-red-500 { color: #ef4444; }
 .text-emerald-600 { color: #059669; }
-.bg-amber-400 { background-color: #fbbf24; }
-.bg-emerald-500 { background-color: #10b981; }
 
 .navlog-col-header {
   display: grid;
   grid-template-columns: 1.4fr 0.7fr 0.8fr 0.9fr 0.8fr 0.9fr 0.9fr 0.8fr;
-  padding: 8px 12px;
+  padding: 10px 12px;
   font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
-  border-bottom: 1px solid var(--dash-widget-border);
+  background: transparent;
+  border-bottom: none;
 }
 .navlog-col-header div { text-align: center; }
 .navlog-col-header div:first-child { text-align: left; }
@@ -548,7 +406,7 @@ body.in-flight .topbar, body.in-flight .bottombar { background: var(--dash-bar);
   grid-template-columns: 1.4fr 0.7fr 0.8fr 0.9fr 0.8fr 0.9fr 0.9fr 0.8fr;
   align-items: center;
   padding: 10px 12px;
-  background: var(--dash-bg); /* light gray */
+  background: var(--dash-widget-border); /* Sfondo grigio identico ai bordi */
   border-left: 4px solid #2563eb;
   border-radius: 6px;
   margin-bottom: 8px;
@@ -571,8 +429,8 @@ body.in-flight .topbar, body.in-flight .bottombar { background: var(--dash-bar);
   padding: 4px;
   border: 1px solid var(--input-border);
   border-radius: 4px;
-  background: var(--bg); /* white */
-  color: var(--text);
+  background: #ffffff !important; /* Bianco puro forzato */
+  color: #1c1c1e !important;      /* Testo scuro forzato */
   margin: 0 auto;
   display: block;
 }
@@ -589,22 +447,6 @@ body.in-flight .topbar, body.in-flight .bottombar { background: var(--dash-bar);
 }
 .navlog-row-aw div { text-align: center; }
 .navlog-row-aw div:first-child { text-align: left; font-weight: 600; }
-
-.navlog-row-fir {
-  background: #e0f2fe;
-  border-left: 4px solid #0284c7;
-  padding: 6px 12px;
-  margin-bottom: 8px;
-  border-radius: 6px;
-  font-size: 13px;
-  color: #0369a1;
-  font-weight: bold;
-  text-align: center;
-}
-[data-theme="dark"] .navlog-row-fir {
-  background: #082f49;
-  color: #7dd3fc;
-}
 
 /* MODAL */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); opacity: 0; pointer-events: none; transition: opacity 0.2s ease; z-index: 100; }
