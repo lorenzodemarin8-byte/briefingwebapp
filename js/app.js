@@ -10,6 +10,7 @@ let prevCdmState = { tobt: "", tsat: "", ctot: "" };
 let isFirstCdmFetch = true;
 let navlogActuals = {}; 
 let notificationsList = [];
+let flightToDeleteId = null;
 
 /* ---------- TOAST & NOTIFICATIONS ---------- */
 function showToast(message) {
@@ -166,10 +167,13 @@ function showDashboard(id) {
     const infoBar = document.getElementById('flight-info-bar');
     if (infoBar) infoBar.style.display = 'flex';
     
-    if (!flight.state.flaggedNotams) {
-      flight.state.flaggedNotams = [];
-      updateFlightState(id, { flaggedNotams: [] });
-    }
+    if (!flight.state) flight.state = {};
+    if (!flight.state.flaggedNotams) flight.state.flaggedNotams = [];
+    if (!flight.state.navlogActuals) flight.state.navlogActuals = {};
+    if (!flight.state.actualWeights) flight.state.actualWeights = {};
+    if (!flight.state.fuelState) flight.state.fuelState = {};
+
+    navlogActuals = flight.state.navlogActuals;
     
     extractAirportsData(flight.raw); 
     renderBriefingMenu(); 
@@ -218,7 +222,7 @@ function renderFlightInfoBar(flight) {
   }
 }
 
-/* ---------- HOME: LISTA VOLI ---------- */
+/* ---------- HOME: LISTA VOLI & CANCELLAZIONE ---------- */
 function renderFlightsList() {
   const all = getFlights();
   const ids = Object.keys(all);
@@ -249,12 +253,92 @@ function renderFlightsList() {
         <div class="fc-callsign">${callsign}</div>
         <div class="fc-route">${orig} → ${dest}</div>
         <div class="fc-meta">STD ${std} - ${flight.state && flight.state.accepted ? 'Accepted' : 'Not accepted'}</div>
+        <button class="fc-menu-btn" title="Options" data-flight-id="${id}">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <circle cx="12" cy="5" r="2.2"/>
+            <circle cx="12" cy="12" r="2.2"/>
+            <circle cx="12" cy="19" r="2.2"/>
+          </svg>
+        </button>
+        <div class="fc-dropdown" id="dropdown-${id}" style="display:none;">
+          <button class="fc-dropdown-item fc-delete-btn" data-flight-id="${id}">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            <span>Delete</span>
+          </button>
+        </div>
       `;
-      card.addEventListener('click', () => {
+
+      card.addEventListener('click', (e) => {
+        if (e.target.closest('.fc-menu-btn') || e.target.closest('.fc-dropdown')) {
+          return;
+        }
         window.location.hash = `#/flight/${id}`;
       });
+
+      const menuBtn = card.querySelector('.fc-menu-btn');
+      const dropdown = card.querySelector('.fc-dropdown');
+      const deleteBtn = card.querySelector('.fc-delete-btn');
+
+      menuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        document.querySelectorAll('.fc-dropdown').forEach(d => {
+          if (d !== dropdown) d.style.display = 'none';
+        });
+        dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+      });
+
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.style.display = 'none';
+        openConfirmDeleteModal(id);
+      });
+
       list.appendChild(card);
     });
+}
+
+function openConfirmDeleteModal(id) {
+  flightToDeleteId = id;
+  const overlay = document.getElementById('confirm-delete-modal-overlay');
+  const modal = document.getElementById('confirm-delete-modal');
+  if(overlay) overlay.classList.add('open');
+  if(modal) modal.classList.add('open');
+}
+
+function closeConfirmDeleteModal() {
+  flightToDeleteId = null;
+  const overlay = document.getElementById('confirm-delete-modal-overlay');
+  const modal = document.getElementById('confirm-delete-modal');
+  if(overlay) overlay.classList.remove('open');
+  if(modal) modal.classList.remove('open');
+}
+
+function initDeleteConfirmModal() {
+  const cancelBtn = document.getElementById('confirm-delete-cancel');
+  const confirmBtn = document.getElementById('confirm-delete-ok');
+  const overlay = document.getElementById('confirm-delete-modal-overlay');
+  
+  if(cancelBtn) cancelBtn.addEventListener('click', closeConfirmDeleteModal);
+  if(overlay) overlay.addEventListener('click', closeConfirmDeleteModal);
+  
+  if(confirmBtn) {
+    confirmBtn.addEventListener('click', () => {
+      if(flightToDeleteId) {
+        deleteFlight(flightToDeleteId);
+        closeConfirmDeleteModal();
+        renderFlightsList();
+      }
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.fc-menu-btn') && !e.target.closest('.fc-dropdown')) {
+      document.querySelectorAll('.fc-dropdown').forEach(d => d.style.display = 'none');
+    }
+  });
 }
 
 /* ---------- SIMBRIEF REFRESH ---------- */
@@ -277,7 +361,13 @@ async function handleRefresh() {
     saveFlight(id, {
       raw: data,
       fetchedAt: Date.now(),
-      state: (getFlight(id) && getFlight(id).state) || { accepted: false, fuelOrdered: false, flaggedNotams: [] }
+      state: (getFlight(id) && getFlight(id).state) || { 
+        accepted: false, 
+        flaggedNotams: [], 
+        navlogActuals: {}, 
+        actualWeights: {}, 
+        fuelState: {} 
+      }
     });
     status.textContent = `Volo importato: ${extractCallsign(data)} (${data.origin ? data.origin.icao_code : '?'} → ${data.destination ? data.destination.icao_code : '?'})`;
     renderFlightsList();
@@ -318,7 +408,7 @@ function buildNavigraphImportUrl(ofp) {
   return `https://charts.navigraph.com/flights/import?${params.toString()}`;
 }
 
-/* ---------- DASHBOARD: formattazione ---------- */
+/* ---------- DASHBOARD & GENERAL: formattazione ---------- */
 function unixToHHMM(unixSeconds) {
   if (!unixSeconds) return '--:--';
   const d = new Date(Number(unixSeconds) * 1000);
@@ -359,6 +449,11 @@ function getFirstAlternate(data) {
   if (!data.alternate) return {};
   if (Array.isArray(data.alternate)) return data.alternate[0] || {};
   return data.alternate;
+}
+
+function getAlternatesList(data) {
+  if (!data || !data.alternate) return [];
+  return Array.isArray(data.alternate) ? data.alternate : [data.alternate];
 }
 
 function isoToUnix(isoString) {
@@ -406,15 +501,137 @@ function parseHHMM(str, baseUnixTimestamp) {
   return Math.floor(d.getTime() / 1000);
 }
 
+/* ---------- MOTORE CALCOLO CARBURANTE, RISERVE, PESI REATTIVI & COLLO DI BOTTIGLIA ---------- */
+function getFuelCalculations(data, state) {
+  const fuel = data.fuel || {};
+  const times = data.times || {};
+  const weights = data.weights || {};
+  const savedFuel = (state && state.fuelState) || {};
+  const alternates = getAlternatesList(data);
+
+  const tripFuel = Number(fuel.enroute_burn) || 0;
+  const contFuel = Number(fuel.contingency) || 0;
+  const finresFuel = Number(fuel.reserve) || 0;
+  const taxiFuel = Number(fuel.taxi) || 0;
+
+  const tripTime = Number(times.est_time_enroute) || 0;
+  const contTime = Number(times.contfuel_time) || 0;
+  const finresTime = Number(times.reserve_time) || 0;
+  const taxiTime = Number(times.taxi_out) || 0;
+
+  let altnIdx = savedFuel.altnIndex !== undefined ? parseInt(savedFuel.altnIndex, 10) : 0;
+  let activeAltn = alternates[altnIdx] || alternates[0] || {};
+  let defaultAltn = alternates[0] || {};
+
+  let altnFuel = Number(activeAltn.burn) || Number(fuel.alternate_burn) || 0;
+  let altnTime = Number(activeAltn.ete) || Number(times.alternate_time) || 0;
+  let altnIcao = activeAltn.icao_code || (getFirstAlternate(data) && getFirstAlternate(data).icao_code) || '';
+
+  let defaultAltnBurn = Number(defaultAltn.burn) || Number(fuel.alternate_burn) || 0;
+  let deltaAltnFuel = altnFuel - defaultAltnBurn;
+
+  const tkofFuel = tripFuel + contFuel + altnFuel + finresFuel;
+  const tkofTime = tripTime + contTime + altnTime + finresTime;
+  const minBlockFuel = tkofFuel + taxiFuel;
+
+  let discFuel = Number(savedFuel.discFuel) || 0;
+  let calcBlockFuel = Math.ceil((minBlockFuel + discFuel) / 100) * 100;
+
+  let actualBlockFuel = (savedFuel.blockFuel !== undefined && savedFuel.blockFuel !== "") 
+    ? Number(savedFuel.blockFuel) 
+    : calcBlockFuel;
+
+  let extraFuel = Math.max(0, actualBlockFuel - minBlockFuel);
+
+  // Holding Fuel Flow: Final Reserve copre 30 min (0.5 h) -> Holding FF = Final Reserve * 2[cite: 20]
+  const holdingFuelFlow = finresFuel > 0 ? (finresFuel * 2) : 2400;
+
+  let discTimeSecs = 0;
+  if (discFuel > 0 && holdingFuelFlow > 0) {
+    discTimeSecs = Math.round((discFuel / holdingFuelFlow) * 3600);
+  }
+
+  const totalReserveFuel = contFuel + altnFuel + finresFuel;
+  const totalReserveTime = contTime + altnTime + finresTime;
+
+  // Estimated Landing Fuel sincronizzato[cite: 20]
+  const basePlanLanding = Number(fuel.plan_landing) || (totalReserveFuel);
+  const estimatedLandingFuel = basePlanLanding + deltaAltnFuel + extraFuel;
+
+  let estLndTimeSecs = 0;
+  if (estimatedLandingFuel > 0 && holdingFuelFlow > 0) {
+    estLndTimeSecs = Math.round((estimatedLandingFuel / holdingFuelFlow) * 3600);
+  }
+
+  // Pesi aggiornati in funzione dell'extra fuel e dell'alternato[cite: 20, 21]
+  const deltaTotalFuel = deltaAltnFuel + extraFuel;
+  const baseEstZfw = Number(weights.est_zfw) || 0;
+  const baseEstTow = Number(weights.est_tow) || (baseEstZfw + tkofFuel);
+  const baseEstLdw = Number(weights.est_ldw) || (baseEstZfw + estimatedLandingFuel);
+
+  const updatedTow = baseEstTow + deltaTotalFuel;
+  const updatedLw = baseEstLdw + deltaTotalFuel;
+
+  // Limiti strutturali e operativi da TLR[cite: 20]
+  const maxTowStruct = Number(weights.max_tow_struct || weights.max_tow) || Infinity;
+  const maxLdwStruct = Number(weights.max_ldw) || Infinity;
+  const maxTankCap = Number(fuel.max_tanks || (data.aircraft && data.aircraft.max_fuel)) || Infinity;
+
+  let opTow = Infinity;
+  if (data.tlr && data.tlr.takeoff && data.tlr.takeoff.runway) {
+    let rwyList = Array.isArray(data.tlr.takeoff.runway) ? data.tlr.takeoff.runway : [data.tlr.takeoff.runway];
+    let r = rwyList.find(rw => String(rw.identifier).padStart(2, '0') === String(data.origin && data.origin.plan_rwy).padStart(2, '0'));
+    if (r && r.max_weight) opTow = Number(r.max_weight);
+  }
+
+  let opLdw = Infinity;
+  if (data.tlr && data.tlr.landing && data.tlr.landing.runway) {
+    let rwyList = Array.isArray(data.tlr.landing.runway) ? data.tlr.landing.runway : [data.tlr.landing.runway];
+    let r = rwyList.find(rw => String(rw.identifier).padStart(2, '0') === String(data.destination && data.destination.plan_rwy).padStart(2, '0'));
+    if (r && r.max_weight) opLdw = Number(r.max_weight);
+  }
+
+  const effectiveMaxTow = Math.min(maxTowStruct, opTow);
+  const effectiveMaxLdw = Math.min(maxLdwStruct, opLdw);
+
+  const marginTow = effectiveMaxTow - (baseEstZfw + tkofFuel);
+  const marginLdw = effectiveMaxLdw - (baseEstZfw + (tkofFuel - tripFuel));
+  const marginTank = maxTankCap - minBlockFuel;
+
+  let maxDiscKg = Math.max(0, Math.floor(Math.min(marginTow, marginLdw, marginTank)));
+  let bottleneckReason = "LAND";
+  if (maxDiscKg === Math.max(0, Math.floor(marginTank))) bottleneckReason = "TANK";
+  else if (maxDiscKg === Math.max(0, Math.floor(marginTow))) bottleneckReason = "TOW";
+
+  return {
+    tripFuel, tripTime,
+    contFuel, contTime,
+    finresFuel, finresTime,
+    taxiFuel, taxiTime,
+    altnFuel, altnTime, altnIcao, altnIdx,
+    tkofFuel, tkofTime,
+    minBlockFuel,
+    discFuel, discTimeSecs,
+    actualBlockFuel, extraFuel,
+    totalReserveFuel, totalReserveTime,
+    estimatedLandingFuel, estLndTimeSecs,
+    maxDiscKg, bottleneckReason,
+    holdingFuelFlow,
+    effectiveMaxTow, effectiveMaxLdw, maxTankCap,
+    zfw: baseEstZfw,
+    updatedTow, updatedLw, maxTowStruct, maxLdwStruct, opTow, opLdw
+  };
+}
+
 /* ---------- NAVLOG DATA MAPPER ---------- */
-function mapSimbriefToNavLog(ofp) {
+function mapSimbriefToNavLog(ofp, flightState) {
   let fixes = (ofp.navlog && ofp.navlog.fix) ? ofp.navlog.fix : []; 
   if (!Array.isArray(fixes)) fixes = [fixes]; 
 
   const routeDistance = (ofp.general && ofp.general.route_distance) ? Number(ofp.general.route_distance) : 0;
   const schedOutUnix = (ofp.times && ofp.times.sched_out) ? Number(ofp.times.sched_out) : 0; 
-  const fuel = ofp.fuel || {};
-  const altn = getFirstAlternate(ofp);
+  
+  const calcs = getFuelCalculations(ofp, flightState);
 
   const waypoints = [];
   let cumulativeDistance = 0;
@@ -426,10 +643,10 @@ function mapSimbriefToNavLog(ofp) {
     isAirwayInfo: false,
     dtdNm: routeDistance,
     plannedTimeUnix: schedOutUnix,
-    plannedEfobKg: Math.round(Number(fuel.plan_ramp) || 0)
+    plannedEfobKg: calcs.actualBlockFuel
   });
 
-  fixes.forEach((fix, idx) => {
+  fixes.forEach((fix) => {
     if(!fix) return;
     const legDistance = Number(fix.distance) || 0;
     cumulativeDistance += legDistance;
@@ -460,11 +677,11 @@ function mapSimbriefToNavLog(ofp) {
   return {
     originIcao: (ofp.origin && ofp.origin.icao_code) ? ofp.origin.icao_code : "",
     destIcao: (ofp.destination && ofp.destination.icao_code) ? ofp.destination.icao_code : "",
-    altnIcao: (altn && altn.icao_code) ? altn.icao_code : "",
-    rampFuelKg: Number(fuel.plan_ramp) || 0,
-    finalReserveKg: Number(fuel.reserve) || 0,
-    totalReserveKg: (Number(fuel.reserve) || 0) + (Number(fuel.alternate_burn) || 0) + (Number(fuel.contingency) || 0),
-    plannedLandingFuelKg: Number(fuel.plan_landing) || 0,
+    altnIcao: calcs.altnIcao,
+    rampFuelKg: calcs.actualBlockFuel,
+    finalReserveKg: calcs.finresFuel,
+    totalReserveKg: calcs.totalReserveFuel,
+    plannedLandingFuelKg: calcs.estimatedLandingFuel,
     schedOutUnix,
     waypoints,
   };
@@ -475,8 +692,10 @@ function renderNavLog(flightId) {
   try {
     const flight = getFlight(flightId);
     if (!flight) return;
-    const nlData = mapSimbriefToNavLog(flight.raw);
+    const nlData = mapSimbriefToNavLog(flight.raw, flight.state);
     
+    navlogActuals = (flight.state && flight.state.navlogActuals) || {};
+
     const origEl = document.getElementById('nl-orig-icao');
     const destEl = document.getElementById('nl-dest-icao');
     if(origEl) origEl.textContent = nlData.originIcao;
@@ -521,7 +740,7 @@ function renderNavLog(flightId) {
           </div>
           <div class="navlog-fuel-legend">
             <span class="navlog-legend-item"><span class="navlog-legend-dot-finres"></span> FINRES ${nlData.finalReserveKg}</span>
-            <span class="navlog-legend-item"><span class="navlog-legend-line-totres"></span> TOTAL RESERVE ${nlData.totalReserveKg} ${nlData.altnIcao ? `(${nlData.altnIcao})` : ''}</span>
+            <span class="navlog-legend-item"><span class="navlog-legend-line-totres"></span> TOTAL RESERVE ${Math.round(nlData.totalReserveKg)} ${nlData.altnIcao ? `(${nlData.altnIcao})` : ''}</span>
             <span class="navlog-legend-item font-medium ${landingLow ? 'text-red-500' : 'text-emerald-600'}">
               <span class="navlog-legend-line-land ${landingLow ? 'bg-red-500' : 'bg-emerald-500'}"></span> LANDING ${Math.round(expLandingKg)}
             </span>
@@ -574,6 +793,10 @@ function renderNavLog(flightId) {
         
         if (wp.isAirwayInfo) {
           row.className = 'navlog-row-aw';
+          
+          let moraVal = parseInt(wp.mora, 10);
+          let moraStyle = (!isNaN(moraVal) && moraVal > 10000) ? 'color:#ef4444; font-weight:700;' : '';
+
           row.innerHTML = `
             <div>${wp.via} ${wp.trackStr ? `<span style="color:#9ca3af;">${wp.trackStr}</span>` : ''}</div>
             <div>DTW ${wp.dtwNm}</div>
@@ -581,7 +804,7 @@ function renderNavLog(flightId) {
             <div></div><div></div>
             <div>FTW ${wp.ftwKg}</div>
             <div>FL ${wp.flPlanned}</div>
-            <div>MSA ${wp.mora || '---'}</div>
+            <div style="${moraStyle}">MSA ${wp.mora || '---'}</div>
           `;
         } else {
           row.className = 'navlog-row-wp';
@@ -612,13 +835,13 @@ function renderNavLog(flightId) {
         container.appendChild(row);
       });
 
-      // Evitiamo che il DOM venga distrutto se l'utente digita (salviamo i dati in RAM e ricalcoliamo solo le label text!)
       container.querySelectorAll('.wp-time-input').forEach(inp => {
         inp.addEventListener('input', (e) => {
           const wpid = e.target.dataset.wpid;
           if(!navlogActuals[wpid]) navlogActuals[wpid] = { time:"", afob:"" };
           navlogActuals[wpid].time = e.target.value;
-          updateRowCalculations(wpid); 
+          updateRowCalculations(wpid);
+          updateFlightState(currentFlightId, { navlogActuals });
         });
       });
 
@@ -629,6 +852,7 @@ function renderNavLog(flightId) {
           navlogActuals[wpid].afob = e.target.value;
           updateRowCalculations(wpid); 
           renderFuelBar(); 
+          updateFlightState(currentFlightId, { navlogActuals });
         });
       });
     }
@@ -651,7 +875,7 @@ function renderDashboard(flight) {
     const times = data.times || {};
     const aircraft = data.aircraft || {};
 
-    const altn = getFirstAlternate(data);
+    const calcs = getFuelCalculations(data, flight.state);
 
     const elActype = document.getElementById('fi-header-actype');
     const elFlightnum = document.getElementById('fi-header-flightnum');
@@ -675,7 +899,9 @@ function renderDashboard(flight) {
     if(elReg) elReg.textContent = aircraft.reg || '----';
     if(elOrig) elOrig.textContent = origin.icao_code || '----';
     if(elDest) elDest.textContent = destination.icao_code || '----';
-    if(elAltn) elAltn.textContent = altn.icao_code ? `(${altn.icao_code})` : '';
+    
+    // Aggiorna l'alternato sincrono
+    if(elAltn) elAltn.textContent = calcs.altnIcao ? `(${calcs.altnIcao})` : '';
 
     if(elFlighttime) elFlighttime.textContent = formatHHMM(times.est_time_enroute || times.sched_time_enroute);
     if(elBlocktime) elBlocktime.textContent = formatHHMM(times.est_block || times.sched_block);
@@ -796,47 +1022,51 @@ function renderDashboard(flight) {
 
     applyAcceptanceUI(flight.state && flight.state.accepted);
 
-    // ---- WEIGHT ----
+    // ---- WEIGHT REATTIVI ANCHE IN DASHBOARD ----
     const w = data.weights || {};
     const setW = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = (val != null) ? val : '---'; };
     setW('w-dow', w.oew);
     setW('w-load', w.payload);
     setW('w-zfw', w.est_zfw);
     setW('w-zfw-limit', w.max_zfw);
-    setW('w-tow', w.est_tow);
+    setW('w-tow', Math.round(calcs.updatedTow));
     setW('w-tow-limit', w.max_tow);
-    setW('w-lw', w.est_ldw);
+    setW('w-lw', Math.round(calcs.updatedLw));
     setW('w-lw-limit', w.max_ldw);
 
-    // ---- FUEL ----
-    const f = data.fuel || {};
+    // ---- FUEL SULLA DASHBOARD SINCRONIZZATO ----
     const tripSec = Number(times.est_time_enroute) || 0;
-    const contSec = Number(times.contfuel_time) || 0;
-    const finresSec = Number(times.reserve_time) || 0;
-    const altnSec = Number(altn.ete) || 0;
     const taxiOutSec = Number(times.taxi_out) || 0;
-    const minTakeoffSec = tripSec + contSec + finresSec + altnSec;
 
-    setW('f-trip-kg', f.enroute_burn);
-    setW('f-mtow-kg', f.min_takeoff);
-    setW('f-taxi-kg', f.taxi);
-    setW('f-block-kg', f.plan_ramp);
-    setW('f-landing-kg', f.plan_landing);
+    setW('f-trip-kg', calcs.tripFuel);
+    setW('f-mtow-kg', calcs.tkofFuel);
+    setW('f-taxi-kg', calcs.taxiFuel);
+    setW('f-block-kg', calcs.actualBlockFuel);
+    
+    // TEMPO DI ATTERRAGGIO INCLUSO IN DASHBOARD!
+    setW('f-landing-time', calcs.estLndTimeSecs > 0 ? formatHHMM(calcs.estLndTimeSecs) : '--:--');
+    setW('f-landing-kg', Math.round(calcs.estimatedLandingFuel));
 
     const elTripTime = document.getElementById('f-trip-time');
     if(elTripTime) elTripTime.textContent = formatHHMM(tripSec);
     const elMtowTime = document.getElementById('f-mtow-time');
-    if(elMtowTime) elMtowTime.textContent = minTakeoffSec ? formatHHMM(minTakeoffSec) : '--:--';
+    if(elMtowTime) elMtowTime.textContent = calcs.tkofTime ? formatHHMM(calcs.tkofTime) : '--:--';
     const elTaxiTime = document.getElementById('f-taxi-time');
     if(elTaxiTime) elTaxiTime.textContent = taxiOutSec ? formatHHMM(taxiOutSec) : '--:--';
     
     setW('f-block-time', '--:--');
-    setW('f-landing-time', '--:--');
-    setW('f-disc-time', '--:--');
-    setW('f-disc-kg', (w.max_ldw != null && w.est_ldw != null) ? (w.max_ldw - w.est_ldw) : '---');
+    
+    let discTimeMaxSecs = calcs.maxDiscKg > 0 ? Math.round((calcs.maxDiscKg / calcs.holdingFuelFlow) * 3600) : 0;
+    setW('f-disc-time', discTimeMaxSecs > 0 ? formatHHMM(discTimeMaxSecs) : '--:--');
+    setW('f-disc-kg', `${calcs.maxDiscKg} (${calcs.bottleneckReason})`);
 
     // ---- WEATHER ----
-    const wxAirports = { origin, destination, alternate: altn };
+    const wxAirports = { origin, destination, alternate: activeAltn() };
+    function activeAltn() {
+      const alts = getAlternatesList(data);
+      return alts[calcs.altnIdx] || getFirstAlternate(data);
+    }
+
     const wtabOrig = document.getElementById('wx-tab-origin');
     const wtabDest = document.getElementById('wx-tab-destination');
     if(wtabOrig) wtabOrig.textContent = origin.icao_code || 'ORIG';
@@ -872,7 +1102,7 @@ function renderDashboard(flight) {
   }
 }
 
-/* ---------- BRIEFING: GENERAL ---------- */
+/* ---------- BRIEFING: GENERAL & PESI ACTUAL ---------- */
 function findTocFix(data) {
   const list = data.navlog && data.navlog.fix;
   if (!list) return null;
@@ -905,6 +1135,12 @@ function renderGeneralSection(flight) {
   setT('gen-gnddist', general.route_distance ? `${general.route_distance}NM` : '—');
   setT('gen-airdist', general.air_distance ? `${general.air_distance}NM` : '—');
   setT('gen-tocwind', toc ? `${toc.wind_dir}°/${toc.wind_spd}KT` : '—');
+
+  let avgWindStr = '—';
+  if (general.avg_wind_dir && general.avg_wind_spd) {
+    avgWindStr = `${general.avg_wind_dir}°/${parseInt(general.avg_wind_spd, 10)}KT`;
+  }
+  setT('gen-avgwind', avgWindStr);
 
   let avgWcStr = '—';
   if (general.avg_wind_comp) {
@@ -948,51 +1184,23 @@ function renderGeneralSection(flight) {
   }
   
   setT('gen-tkofaltn', (data.takeoff_altn && data.takeoff_altn.icao_code) || '-');
-
-  // WIDGET PESI
-  setT('gen-w-dow-plan', data.weights.oew || '—');
-  setT('gen-w-load-plan', data.weights.payload || '—');
-  setT('gen-w-zfw-plan', data.weights.est_zfw || '—');
-  setT('gen-w-tow-plan', data.weights.est_tow || '—');
-  setT('gen-w-lw-plan', data.weights.est_ldw || '—');
-  setT('gen-w-zfw-struct', data.weights.max_zfw || '—');
-  setT('gen-w-tow-struct', data.weights.max_tow_struct || data.weights.max_tow || '—');
-  setT('gen-w-lw-struct', data.weights.max_ldw || '—');
-
-  let opTow = '—';
-  if (data.tlr && data.tlr.takeoff && data.tlr.takeoff.runway) {
-    let rwyList = Array.isArray(data.tlr.takeoff.runway) ? data.tlr.takeoff.runway : [data.tlr.takeoff.runway];
-    let rwy = rwyList.find(r => String(r.identifier).padStart(2, '0') === String(origin.plan_rwy).padStart(2, '0'));
-    if (rwy && rwy.max_weight) opTow = rwy.max_weight;
-  }
-  setT('gen-w-tow-op', opTow);
-
-  let opLw = '—';
-  if (data.tlr && data.tlr.landing && data.tlr.landing.runway) {
-    let rwyList = Array.isArray(data.tlr.landing.runway) ? data.tlr.landing.runway : [data.tlr.landing.runway];
-    let rwy = rwyList.find(r => String(r.identifier).padStart(2, '0') === String(destination.plan_rwy).padStart(2, '0'));
-    if (rwy) {
-      let cond = data.tlr.landing.conditions && data.tlr.landing.conditions.surface_condition;
-      if (cond === 'wet' && rwy.max_weight_wet) opLw = rwy.max_weight_wet;
-      else if (rwy.max_weight_dry) opLw = rwy.max_weight_dry;
-      else if (rwy.max_weight) opLw = rwy.max_weight;
-    }
-  }
-  setT('gen-w-lw-op', opLw);
-
-  setupWeightLimitCheck('gen-w-zfw-act', null, 'gen-w-zfw-struct');
-  setupWeightLimitCheck('gen-w-tow-act', 'gen-w-tow-op', 'gen-w-tow-struct');
-  setupWeightLimitCheck('gen-w-lw-act', 'gen-w-lw-op', 'gen-w-lw-struct');
 }
 
-function setupWeightLimitCheck(inputId, opId, structId) {
+function setupWeightLimitCheck(inputId, opId, structId, weightKey) {
   const inp = document.getElementById(inputId);
   if (!inp) return;
+  
+  const flight = getFlight(currentFlightId);
+  const savedWeights = (flight && flight.state && flight.state.actualWeights) || {};
   
   const newInp = inp.cloneNode(true);
   inp.parentNode.replaceChild(newInp, inp);
   
-  newInp.addEventListener('input', () => {
+  if (weightKey && savedWeights[weightKey]) {
+    newInp.value = savedWeights[weightKey];
+  }
+
+  const checkLimit = () => {
     newInp.classList.remove('limit-exceeded');
     const val = parseFloat(newInp.value);
     if (isNaN(val)) return;
@@ -1003,50 +1211,102 @@ function setupWeightLimitCheck(inputId, opId, structId) {
     if ((!isNaN(opLim) && val > opLim) || (!isNaN(strLim) && val > strLim)) {
       newInp.classList.add('limit-exceeded');
     }
+  };
+
+  checkLimit();
+  
+  newInp.addEventListener('input', (e) => {
+    checkLimit();
+    if (weightKey && flight) {
+      if (!flight.state) flight.state = {};
+      if (!flight.state.actualWeights) flight.state.actualWeights = {};
+      flight.state.actualWeights[weightKey] = e.target.value;
+      updateFlightState(currentFlightId, { actualWeights: flight.state.actualWeights });
+      
+      renderFuelSection(flight);
+    }
   });
 }
 
-/* ---------- BRIEFING: FUEL ---------- */
+/* ---------- BRIEFING: FUEL, CHECK LIMITI & OPERATIONAL IMPACTS ---------- */
 function renderFuelSection(flight) {
   if (!flight) return;
   const data = flight.raw || {};
-  const fuel = data.fuel || {};
-  const times = data.times || {};
   const dest = data.destination || {};
   const orig = data.origin || {};
-  const weights = data.weights || {};
-  const alternates = data.alternate ? (Array.isArray(data.alternate) ? data.alternate : [data.alternate]) : [];
+  const alternates = getAlternatesList(data);
 
+  const savedFuel = (flight.state && flight.state.fuelState) || {};
   const setT = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
 
+  const calcs = getFuelCalculations(data, flight.state);
+
+  // ---- WIDGET PESI IN CIMA A FUEL (AGGIORNATI REATTIVAMENTE) ----
+  setT('gen-w-dow-plan', data.weights.oew || '—');
+  setT('gen-w-load-plan', data.weights.payload || '—');
+  setT('gen-w-zfw-plan', data.weights.est_zfw || '—');
+  setT('gen-w-tow-plan', Math.round(calcs.updatedTow));
+  setT('gen-w-lw-plan', Math.round(calcs.updatedLw));
+  setT('gen-w-zfw-struct', data.weights.max_zfw || '—');
+  setT('gen-w-tow-struct', data.weights.max_tow_struct || data.weights.max_tow || '—');
+  setT('gen-w-lw-struct', data.weights.max_ldw || '—');
+
+  let opTow = '—';
+  if (data.tlr && data.tlr.takeoff && data.tlr.takeoff.runway) {
+    let rwyList = Array.isArray(data.tlr.takeoff.runway) ? data.tlr.takeoff.runway : [data.tlr.takeoff.runway];
+    let rwy = rwyList.find(r => String(r.identifier).padStart(2, '0') === String(data.origin && data.origin.plan_rwy).padStart(2, '0'));
+    if (rwy && rwy.max_weight) opTow = rwy.max_weight;
+  }
+  setT('gen-w-tow-op', opTow);
+
+  let opLw = '—';
+  if (data.tlr && data.tlr.landing && data.tlr.landing.runway) {
+    let rwyList = Array.isArray(data.tlr.landing.runway) ? data.tlr.landing.runway : [data.tlr.landing.runway];
+    let rwy = rwyList.find(r => String(r.identifier).padStart(2, '0') === String(data.destination && data.destination.plan_rwy).padStart(2, '0'));
+    if (rwy) {
+      let cond = data.tlr.landing.conditions && data.tlr.landing.conditions.surface_condition;
+      if (cond === 'wet' && rwy.max_weight_wet) opLw = rwy.max_weight_wet;
+      else if (rwy.max_weight_dry) opLw = rwy.max_weight_dry;
+      else if (rwy.max_weight) opLw = rwy.max_weight;
+    }
+  }
+  setT('gen-w-lw-op', opLw);
+
+  const savedWeights = (flight.state && flight.state.actualWeights) || {};
+  const loadInp = document.getElementById('gen-w-load-act');
+  if (loadInp) {
+    const newLoadInp = loadInp.cloneNode(true);
+    loadInp.parentNode.replaceChild(newLoadInp, loadInp);
+    newLoadInp.value = savedWeights.load || '';
+    newLoadInp.addEventListener('input', (e) => {
+      if (!flight.state) flight.state = {};
+      if (!flight.state.actualWeights) flight.state.actualWeights = {};
+      flight.state.actualWeights.load = e.target.value;
+      updateFlightState(currentFlightId, { actualWeights: flight.state.actualWeights });
+    });
+  }
+
+  setupWeightLimitCheck('gen-w-zfw-act', null, 'gen-w-zfw-struct', 'zfw');
+  setupWeightLimitCheck('gen-w-tow-act', 'gen-w-tow-op', 'gen-w-tow-struct', 'tow');
+  setupWeightLimitCheck('gen-w-lw-act', 'gen-w-lw-op', 'gen-w-lw-struct', 'lw');
+
+  // ---- DATI CARBURANTE ----
   setT('brf-f-dest', dest.icao_code || '');
   setT('brf-f-orig', orig.icao_code || '');
 
-  const tripFuel = Number(fuel.enroute_burn) || 0;
-  const contFuel = Number(fuel.contingency) || 0;
-  const finresFuel = Number(fuel.reserve) || 0;
-  const taxiFuel = Number(fuel.taxi) || 0;
-  const avgFF = Number(fuel.avg_fuel_flow) || 0;
+  setT('brf-f-trip-fuel', calcs.tripFuel);
+  setT('brf-f-trip-time', formatHHMM(calcs.tripTime));
+  setT('brf-f-cont-fuel', calcs.contFuel);
+  setT('brf-f-cont-time', formatHHMM(calcs.contTime));
+  setT('brf-f-finres-fuel', calcs.finresFuel);
+  setT('brf-f-finres-time', formatHHMM(calcs.finresTime));
+  setT('brf-f-taxi-fuel', calcs.taxiFuel);
+  setT('brf-f-taxi-time', formatHHMM(calcs.taxiTime));
 
-  const tripTime = Number(times.est_time_enroute) || 0;
-  const contTime = Number(times.contfuel_time) || 0;
-  const finresTime = Number(times.reserve_time) || 0;
-  const taxiTime = Number(times.taxi_out) || 0;
-
-  setT('brf-f-trip-fuel', tripFuel);
-  setT('brf-f-trip-time', formatHHMM(tripTime));
-  setT('brf-f-cont-fuel', contFuel);
-  setT('brf-f-cont-time', formatHHMM(contTime));
-  setT('brf-f-finres-fuel', finresFuel);
-  setT('brf-f-finres-time', formatHHMM(finresTime));
-  setT('brf-f-taxi-fuel', taxiFuel);
-  setT('brf-f-taxi-time', formatHHMM(taxiTime));
-
-  let maxDisc = '---';
-  if (weights.max_ldw != null && weights.est_ldw != null) {
-      maxDisc = weights.max_ldw - weights.est_ldw;
+  const discInfoContainer = document.getElementById('brf-f-max-disc-container');
+  if (discInfoContainer) {
+    discInfoContainer.innerHTML = `Maximum Discretionary: <strong>${calcs.maxDiscKg} kg</strong>, <strong>${calcs.bottleneckReason}</strong>`;
   }
-  setT('brf-f-max-disc', maxDisc);
 
   const sel = document.getElementById('brf-f-altn-select');
   if(sel) {
@@ -1064,6 +1324,9 @@ function renderFuelSection(flight) {
       opt.textContent = 'NONE';
       sel.appendChild(opt);
     }
+    if (savedFuel.altnIndex !== undefined) {
+      sel.value = savedFuel.altnIndex;
+    }
   }
 
   const blockInput = document.getElementById('brf-block-input');
@@ -1072,56 +1335,142 @@ function renderFuelSection(flight) {
   const discTimeVal = document.getElementById('brf-disc-time-val');
   const discReason = document.getElementById('brf-disc-reason-input');
 
-  let isBlockFuelManual = false;
+  let isBlockFuelManual = (savedFuel.blockFuel !== undefined && savedFuel.blockFuel !== "");
+
+  // CONTROLLO RIGOROSO LIMITI DI CARBURANTE SECONDO MANUALE LIDO
+  function checkFuelLimits() {
+    const curCalcs = getFuelCalculations(data, flight.state);
+    const alertBox = document.getElementById('fuel-limits-warning');
+    const alertText = document.getElementById('fuel-limits-warning-text');
+    if (!alertBox || !alertText) return true;
+
+    const actualZfw = (flight.state && flight.state.actualWeights && Number(flight.state.actualWeights.zfw)) || curCalcs.zfw;
+    const estTow = actualZfw + curCalcs.tkofFuel + curCalcs.extraFuel;
+    const estLdw = actualZfw + curCalcs.estimatedLandingFuel;
+    const estTaxiWeight = actualZfw + curCalcs.actualBlockFuel;
+
+    const weightsRaw = data.weights || {};
+    const maxTaxiWeight = Number(weightsRaw.max_ramp || weightsRaw.max_taxi) || (Number(weightsRaw.max_tow_struct || weightsRaw.max_tow) + curCalcs.taxiFuel);
+    const maxTowStruct = Number(weightsRaw.max_tow_struct || weightsRaw.max_tow) || Infinity;
+
+    let errors = [];
+
+    // 1. Block Fuel + ZFW <= Max Taxi Weight
+    if (estTaxiWeight > maxTaxiWeight) {
+      errors.push(`Taxi weight (${Math.round(estTaxiWeight)} kg) exceeds Maximum Taxi/Ramp Weight (${Math.round(maxTaxiWeight)} kg).`);
+    }
+
+    // 2. Takeoff Fuel + ZFW <= MTOW strutturale
+    if (estTow > maxTowStruct) {
+      errors.push(`Takeoff weight (${Math.round(estTow)} kg) exceeds Structural MTOW (${Math.round(maxTowStruct)} kg).`);
+    }
+
+    // 3. Takeoff Fuel + ZFW <= Restricted TOW (operativo TLR)
+    if (curCalcs.effectiveMaxTow < maxTowStruct && estTow > curCalcs.effectiveMaxTow) {
+      errors.push(`Takeoff weight (${Math.round(estTow)} kg) exceeds Runway Restricted TOW (${Math.round(curCalcs.effectiveMaxTow)} kg).`);
+    }
+
+    // 4. Takeoff Fuel + ZFW - Trip Fuel <= MLW
+    if (estLdw > curCalcs.effectiveMaxLdw) {
+      errors.push(`Landing weight (${Math.round(estLdw)} kg) exceeds Maximum Landing Weight (${Math.round(curCalcs.effectiveMaxLdw)} kg).`);
+    }
+
+    // 5. Block Fuel <= Tank Capacity
+    if (curCalcs.actualBlockFuel > curCalcs.maxTankCap) {
+      errors.push(`Block fuel (${curCalcs.actualBlockFuel} kg) exceeds Aircraft Tank Capacity (${curCalcs.maxTankCap} kg).`);
+    }
+
+    // 6. Block Fuel - Taxi Fuel >= Takeoff Fuel
+    if ((curCalcs.actualBlockFuel - curCalcs.taxiFuel) < curCalcs.tkofFuel) {
+      errors.push(`Block fuel is insufficient to cover Taxi and Takeoff fuel.`);
+    }
+
+    // 7. Discretionary Fuel: controllo motivazione obbligatoria
+    const reasonInput = document.getElementById('brf-disc-reason-input');
+    const reasonVal = reasonInput ? reasonInput.value.trim() : '';
+    if (curCalcs.discFuel > 0 && reasonVal === '') {
+      errors.push(`Discretionary fuel added (${curCalcs.discFuel} kg) but no Reason was specified.`);
+    }
+
+    // 8. Discretionary Fuel non superiore al Maximum Allowed
+    if (curCalcs.discFuel > curCalcs.maxDiscKg) {
+      errors.push(`Discretionary fuel (${curCalcs.discFuel} kg) exceeds Maximum Allowed Discretionary Fuel (${curCalcs.maxDiscKg} kg, limited by ${curCalcs.bottleneckReason}).`);
+    }
+
+    if (errors.length > 0) {
+      alertBox.style.display = 'flex';
+      alertText.textContent = `FUEL LIMIT ALERT: ${errors.join(' ')}`;
+      return false;
+    } else {
+      alertBox.style.display = 'none';
+      alertText.textContent = '';
+      return true;
+    }
+  }
+
+  function saveCurrentFuelState(isOrdered) {
+    const f = getFlight(currentFlightId);
+    if (!f) return;
+    if (!f.state) f.state = {};
+    if (!f.state.fuelState) f.state.fuelState = {};
+    
+    if (isOrdered !== undefined) {
+      f.state.fuelState.fuelOrdered = isOrdered;
+    }
+    const bInp = document.getElementById('brf-block-input');
+    const dInp = document.getElementById('brf-disc-fuel-input');
+    const rInp = document.getElementById('brf-disc-reason-input');
+    const aSel = document.getElementById('brf-f-altn-select');
+
+    if (bInp) f.state.fuelState.blockFuel = bInp.value;
+    if (dInp) f.state.fuelState.discFuel = dInp.value;
+    if (rInp) f.state.fuelState.discReason = rInp.value;
+    if (aSel) f.state.fuelState.altnIndex = aSel.value;
+    updateFlightState(currentFlightId, { fuelState: f.state.fuelState });
+
+    renderDashboard(f);
+  }
 
   function updateFuelCalcs() {
-    const activeSel = document.getElementById('brf-f-altn-select');
-    let altnFuel = 0;
-    let altnTime = 0;
-    if (activeSel) {
-        let idx = parseInt(activeSel.value, 10);
-        if (idx >= 0 && alternates[idx]) {
-          altnFuel = Number(alternates[idx].burn) || 0;
-          altnTime = Number(alternates[idx].ete) || 0;
-        }
-    }
+    const currentCalcs = getFuelCalculations(data, flight.state);
 
-    setT('brf-f-altn-fuel', altnFuel);
-    setT('brf-f-altn-time', formatHHMM(altnTime));
-
-    const tkofFuel = tripFuel + contFuel + altnFuel + finresFuel;
-    const tkofTime = tripTime + contTime + altnTime + finresTime;
-
-    setT('brf-f-tkof-fuel', tkofFuel);
-    setT('brf-f-tkof-time', formatHHMM(tkofTime));
-
-    const minBlockFuel = tkofFuel + taxiFuel;
-    setT('brf-f-minblock-fuel', minBlockFuel);
-
-    let discFuel = 0;
-    if(document.getElementById('brf-disc-fuel-input')) {
-      discFuel = Number(document.getElementById('brf-disc-fuel-input').value) || 0;
-    }
-    let calcBlockFuel = Math.ceil((minBlockFuel + discFuel) / 100) * 100;
+    setT('brf-f-altn-fuel', currentCalcs.altnFuel);
+    setT('brf-f-altn-time', formatHHMM(currentCalcs.altnTime));
+    setT('brf-f-tkof-fuel', currentCalcs.tkofFuel);
+    setT('brf-f-tkof-time', formatHHMM(currentCalcs.tkofTime));
+    setT('brf-f-minblock-fuel', currentCalcs.minBlockFuel);
 
     const blockInputEl = document.getElementById('brf-block-input');
     if (!isBlockFuelManual && blockInputEl) {
-      blockInputEl.value = calcBlockFuel;
+      blockInputEl.value = currentCalcs.actualBlockFuel;
     }
 
-    const estLndFuel = fuel.plan_landing || '---';
-    setT('brf-f-estlnd-fuel', estLndFuel);
+    setT('brf-f-estlnd-fuel', Math.round(currentCalcs.estimatedLandingFuel));
+    const estLndTimeEl = document.getElementById('brf-f-estlnd-time');
+    if (estLndTimeEl) {
+      estLndTimeEl.textContent = `(${formatHHMM(currentCalcs.estLndTimeSecs)})`;
+    }
 
-    let totFinresFuel = finresFuel + altnFuel;
-    let totFinresTime = finresTime + altnTime;
-    setT('brf-f-totfinres-fuel', totFinresFuel);
-    setT('brf-f-totfinres-time', '(' + formatHHMM(totFinresTime) + ')');
+    setT('brf-f-totfinres-fuel', Math.round(currentCalcs.totalReserveFuel));
+    setT('brf-f-totfinres-time', '(' + formatHHMM(currentCalcs.totalReserveTime) + ')');
+
+    // Aggiorna anche i campi TOW e LW nella tabella pesi subito sopra
+    setT('gen-w-tow-plan', Math.round(currentCalcs.updatedTow));
+    setT('gen-w-lw-plan', Math.round(currentCalcs.updatedLw));
 
     const orderBtnEl = document.getElementById('brf-order-btn');
+    const wasOrdered = flight.state && flight.state.fuelState && flight.state.fuelState.fuelOrdered;
     if(orderBtnEl) {
-      orderBtnEl.classList.remove('btn-ordered');
-      orderBtnEl.textContent = 'ORDER';
+      if (wasOrdered) {
+        orderBtnEl.classList.add('btn-ordered');
+        orderBtnEl.textContent = 'ORDER SENT';
+      } else {
+        orderBtnEl.classList.remove('btn-ordered');
+        orderBtnEl.textContent = 'ORDER';
+      }
     }
+
+    checkFuelLimits();
   }
 
   if(sel) {
@@ -1129,48 +1478,109 @@ function renderFuelSection(flight) {
     sel.parentNode.replaceChild(newSel, sel);
     newSel.addEventListener('change', () => {
       isBlockFuelManual = false;
+      if (!flight.state) flight.state = {};
+      if (!flight.state.fuelState) flight.state.fuelState = {};
+      flight.state.fuelState.altnIndex = newSel.value;
       updateFuelCalcs();
+      saveCurrentFuelState();
     });
   }
-  
+
   if(discInput) {
     const newDisc = discInput.cloneNode(true);
     discInput.parentNode.replaceChild(newDisc, discInput);
-    newDisc.value = '';
-    if(discTimeVal) discTimeVal.textContent = '--:--';
-    if(discReason) discReason.value = '';
+    newDisc.value = savedFuel.discFuel || '';
+    
+    if (calcs.discTimeSecs > 0) {
+      if(discTimeVal) discTimeVal.textContent = formatHHMM(calcs.discTimeSecs);
+    } else {
+      if(discTimeVal) discTimeVal.textContent = '--:--';
+    }
 
     newDisc.addEventListener('input', () => {
       let val = Number(newDisc.value);
-      if (val > 0 && avgFF > 0) {
-        let secs = Math.round((val / avgFF) * 3600);
+      if (val > 0 && calcs.holdingFuelFlow > 0) {
+        let secs = Math.round((val / calcs.holdingFuelFlow) * 3600);
         if(discTimeVal) discTimeVal.textContent = formatHHMM(secs);
       } else {
         if(discTimeVal) discTimeVal.textContent = '--:--';
       }
       isBlockFuelManual = false;
+      if (!flight.state) flight.state = {};
+      if (!flight.state.fuelState) flight.state.fuelState = {};
+      flight.state.fuelState.discFuel = newDisc.value;
       updateFuelCalcs();
+      saveCurrentFuelState();
+    });
+  }
+
+  if(discReason) {
+    const newReason = discReason.cloneNode(true);
+    discReason.parentNode.replaceChild(newReason, discReason);
+    newReason.value = savedFuel.discReason || '';
+    newReason.addEventListener('input', () => {
+      checkFuelLimits();
+      saveCurrentFuelState();
     });
   }
 
   if(blockInput) {
     const newBlockInput = blockInput.cloneNode(true);
     blockInput.parentNode.replaceChild(newBlockInput, blockInput);
+    if (savedFuel.blockFuel) {
+      newBlockInput.value = savedFuel.blockFuel;
+    }
     newBlockInput.addEventListener('input', () => {
       isBlockFuelManual = true;
+      if (!flight.state) flight.state = {};
+      if (!flight.state.fuelState) flight.state.fuelState = {};
+      flight.state.fuelState.blockFuel = newBlockInput.value;
       updateFuelCalcs();
+      saveCurrentFuelState();
     });
   }
 
   if(orderBtn) {
     const newOrderBtn = orderBtn.cloneNode(true);
     orderBtn.parentNode.replaceChild(newOrderBtn, orderBtn);
-    newOrderBtn.addEventListener('click', () => {
+    if (savedFuel.fuelOrdered) {
       newOrderBtn.classList.add('btn-ordered');
       newOrderBtn.textContent = 'ORDER SENT';
+    }
+    newOrderBtn.addEventListener('click', () => {
+      if (!checkFuelLimits()) {
+        showToast("Fuel limits check failed. Please adjust values before ordering.");
+        return;
+      }
+      newOrderBtn.classList.add('btn-ordered');
+      newOrderBtn.textContent = 'ORDER SENT';
+      saveCurrentFuelState(true);
     });
   }
 
+  // TASTO RESET IN FUEL
+  const resetBtn = document.getElementById('brf-fuel-reset-btn');
+  if (resetBtn) {
+    const newResetBtn = resetBtn.cloneNode(true);
+    resetBtn.parentNode.replaceChild(newResetBtn, resetBtn);
+    newResetBtn.addEventListener('click', () => {
+      if (!flight.state) flight.state = {};
+      flight.state.fuelState = {
+        altnIndex: 0,
+        discFuel: '',
+        discReason: '',
+        blockFuel: '',
+        fuelOrdered: false
+      };
+      isBlockFuelManual = false;
+      updateFlightState(currentFlightId, { fuelState: flight.state.fuelState });
+      renderFuelSection(flight);
+      renderDashboard(flight);
+      showToast("Fuel values reset to original OFP dispatch.");
+    });
+  }
+
+  // OPERATIONAL IMPACTS STRIP & POPUP MODAL
   const impacts = data.impacts || {};
 
   function formatImpact(imp) {
@@ -1181,7 +1591,6 @@ function renderFuelSection(flight) {
       
       bPrefix = bDiff < 0 ? 'M' : 'P';
       tPrefix = tDiff < 0 ? 'M' : 'P';
-      
       bVal = Math.abs(bDiff).toString().padStart(4, '0');
       
       let tSec = Math.abs(tDiff);
@@ -1193,6 +1602,21 @@ function renderFuelSection(flight) {
     return { burn: `${bPrefix} ${bVal}`, time: `${tPrefix} ${tVal}` };
   }
 
+  const wUp = impacts.zfw_plus_1000 || impacts.plus_1000 || impacts.weight_up || null;
+  const wDn = impacts.zfw_minus_1000 || impacts.minus_1000 || impacts.weight_down || null;
+  const fUp = impacts.plus_2000ft || impacts.plus_2000 || impacts.level_up || null;
+  const fDn = impacts.minus_2000ft || impacts.minus_2000 || impacts.level_down || null;
+  const sDn = impacts.lower_ci || impacts.speed_down || impacts.m54 || null;
+  const sUp = impacts.higher_ci || impacts.speed_up || impacts.p54 || null;
+
+  const fmtUp = formatImpact(wUp);
+  const fmtDn = formatImpact(wDn);
+
+  const summaryText = document.getElementById('brf-impacts-summary-text');
+  if (summaryText) {
+    summaryText.textContent = `ZFW INCR 1000 KG TKOF ${fmtUp.burn} KG / ZFW DECR 1000 KG TKOF ${fmtDn.burn} KG`;
+  }
+
   function rowHtml(col1, col2, imp) {
     const fmt = formatImpact(imp);
     return `<tr>
@@ -1202,13 +1626,6 @@ function renderFuelSection(flight) {
       <td>TIME ${fmt.time}</td>
     </tr>`;
   }
-
-  const wUp = impacts.zfw_plus_1000 || impacts.plus_1000 || impacts.weight_up || null;
-  const wDn = impacts.zfw_minus_1000 || impacts.minus_1000 || impacts.weight_down || null;
-  const fUp = impacts.plus_2000ft || impacts.plus_2000 || impacts.level_up || null;
-  const fDn = impacts.minus_2000ft || impacts.minus_2000 || impacts.level_down || null;
-  const sDn = impacts.lower_ci || impacts.speed_down || impacts.m54 || null;
-  const sUp = impacts.higher_ci || impacts.speed_up || impacts.p54 || null;
 
   let impHtml = '';
   impHtml += rowHtml('WEIGHT CHANGE', 'UP 1.0', wUp);
@@ -1222,6 +1639,35 @@ function renderFuelSection(flight) {
 
   const tBody = document.getElementById('brf-impacts-tbody');
   if(tBody) tBody.innerHTML = impHtml;
+
+  const openModalBtn = document.getElementById('brf-open-impacts-modal-btn');
+  const closeModalBtn = document.getElementById('impacts-modal-close');
+  const impactsModal = document.getElementById('impacts-modal');
+  const impactsOverlay = document.getElementById('impacts-modal-overlay');
+
+  if (openModalBtn) {
+    openModalBtn.onclick = () => {
+      if (impactsModal && impactsOverlay) {
+        impactsModal.classList.add('open');
+        impactsOverlay.classList.add('open');
+      }
+    };
+  }
+  if (closeModalBtn) {
+    closeModalBtn.onclick = () => {
+      if (impactsModal && impactsOverlay) {
+        impactsModal.classList.remove('open');
+        impactsOverlay.classList.remove('open');
+      }
+    };
+  }
+  if (impactsOverlay) {
+    impactsOverlay.onclick = () => {
+      if (impactsModal) impactsModal.classList.remove('open');
+      impactsOverlay.classList.remove('open');
+    };
+  }
+
   updateFuelCalcs();
 }
 
@@ -1389,6 +1835,48 @@ function renderBriefingMenu() {
   bindBriefingTabs();
 }
 
+/* ---------- CALCOLO VENTO PISTA DINAMICO DA METAR ---------- */
+function computeRunwayWind(r, metarText) {
+  if (!metarText) {
+    return {
+      hw: Number(r.headwind_component),
+      xw: Number(r.crosswind_component)
+    };
+  }
+
+  const match = metarText.match(/\b(\d{3}|VRB)(\d{2,3})(?:G\d{2,3})?KT\b/);
+  if (!match) {
+    return {
+      hw: Number(r.headwind_component),
+      xw: Number(r.crosswind_component)
+    };
+  }
+
+  let rwyHeading = parseFloat(r.magnetic_course || r.true_course);
+  if (isNaN(rwyHeading)) {
+    const num = parseInt(String(r.identifier).replace(/\D/g, ''), 10);
+    if (!isNaN(num)) rwyHeading = num * 10;
+    else rwyHeading = 0;
+  }
+
+  const spd = parseInt(match[2], 10);
+
+  if (match[1] === 'VRB') {
+    return { hw: 0, xw: spd };
+  }
+
+  const dir = parseInt(match[1], 10);
+  let diff = (dir - rwyHeading) % 360;
+  if (diff > 180) diff -= 360;
+  if (diff < -180) diff += 360;
+
+  const rad = diff * Math.PI / 180;
+  const hw = Math.round(spd * Math.cos(rad));
+  const xw = Math.round(Math.abs(spd * Math.sin(rad)));
+
+  return { hw, xw };
+}
+
 function renderAirportSection(index) {
   const flight = getFlight(currentFlightId);
   if (!flight) return;
@@ -1419,7 +1907,7 @@ function renderAirportSection(index) {
     }
   }
 
-  // RUNWAYS
+  // RUNWAYS CON CALCOLO VENTO RIGOROSO
   const rwyWidget = document.getElementById('brf-apt-rwy-widget');
   const rwyTbody = document.getElementById('brf-apt-rwy-tbody');
   
@@ -1437,7 +1925,8 @@ function renderAirportSection(index) {
       let rMag = r.magnetic_course || '---';
       let rTrue = r.true_course || '---';
       
-      let hwRaw = Number(r.headwind_component);
+      const windComps = computeRunwayWind(r, apt.metar);
+      let hwRaw = windComps.hw;
       let hwVal = '---';
       let hwClass = 'wind-green';
       let hwArrow = '';
@@ -1454,7 +1943,7 @@ function renderAirportSection(index) {
         }
       }
 
-      let xwRaw = Number(r.crosswind_component);
+      let xwRaw = windComps.xw;
       let xwVal = '---';
       let xwClass = 'wind-green';
       if (!isNaN(xwRaw)) {
@@ -2040,6 +2529,16 @@ function initInteractions() {
   initPager();
   setupAcceptanceLogic();
   initBriefingInteractions();
+  initDeleteConfirmModal();
+
+  // CHIUSURA AUTOMATICA TASTIERA SU IPAD (BLUR FUORI DAI CAMPI INPUT)
+  document.addEventListener('touchstart', (e) => {
+    if (!['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(e.target.tagName)) {
+      if (document.activeElement && ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+        document.activeElement.blur();
+      }
+    }
+  }, { passive: true });
 
   document.querySelectorAll('.tab-btn').forEach((btn) => {
     btn.addEventListener('click', () => {

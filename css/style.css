@@ -49,9 +49,7 @@
 html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
 body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
-/* =========================================================
-   TOAST E NOTIFICHE
-   ========================================================= */
+/* TOAST E NOTIFICHE */
 #toast-container { position: fixed; top: 16px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
 .toast-message { background: #1e293b; color: #f8fafc; padding: 12px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); opacity: 1; transform: translateY(0); transition: opacity 0.4s ease, transform 0.4s ease; pointer-events: auto; border-left: 4px solid var(--accent); white-space: pre-wrap; line-height: 1.4; }
 [data-theme="dark"] .toast-message { background: #334155; border-left: 4px solid var(--accent); }
@@ -63,9 +61,7 @@ body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 .notif-item { padding: 12px 16px; border-bottom: 1px solid var(--widget-border); font-size: 13px; line-height: 1.4; color: var(--text); }
 .notif-time { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; font-weight: 600; }
 
-/* =========================================================
-   TOP BAR / BOTTOM BAR
-   ========================================================= */
+/* TOP BAR / BOTTOM BAR */
 .topbar { display: flex; flex-direction: column; background: var(--bar-bg); border-bottom: 1px solid var(--bar-border); flex: 0 0 auto; z-index: 10; }
 .topbar-nav { display: flex; align-items: center; justify-content: space-between; padding: 2px 16px; height: 34px; width: 100%; }
 .topbar-title { flex: 1; text-align: center; font-size: 13px; font-weight: 600; }
@@ -84,9 +80,7 @@ body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 .status-badge.not-accepted { color: var(--orange-text); border: 1px solid var(--orange-text); }
 .status-badge.accepted { color: var(--green-text); border: 1px solid var(--green-text); }
 
-/* =========================================================
-   LAYOUT E WIDGET
-   ========================================================= */
+/* LAYOUT E WIDGET */
 .view { padding: 16px; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
 #view-home { max-width: 1100px; margin: 0 auto; }
 .widget { background: var(--widget-bg); border: 1px solid var(--widget-border); border-radius: 10px; margin-bottom: 16px; overflow: hidden; display: flex; flex-direction: column; }
@@ -109,11 +103,69 @@ body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 .content-toolbar { display: flex; justify-content: flex-end; margin-bottom: 10px; }
 .content-toolbar .icon-btn { width: 34px; height: 34px; border: 1px solid var(--widget-border); border-radius: 8px; color: var(--text); }
 .flights-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
-.flight-card { background: var(--widget-bg); border: 1px solid var(--widget-border); border-radius: 10px; padding: 14px; cursor: pointer; }
+
+/* FLIGHT CARD & MENU 3 PUNTINI */
+.flight-card { 
+  position: relative;
+  background: var(--widget-bg); 
+  border: 1px solid var(--widget-border); 
+  border-radius: 10px; 
+  padding: 14px; 
+  cursor: pointer; 
+  transition: border-color 0.15s ease;
+}
 .flight-card:hover { border-color: var(--accent); }
 .flight-card .fc-callsign { font-weight: 700; font-size: 16px; }
 .flight-card .fc-route { font-size: 22px; font-weight: 700; margin: 6px 0; }
 .flight-card .fc-meta { font-size: 13px; color: var(--text-secondary); }
+
+.fc-menu-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  padding: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.fc-menu-btn:hover { background: var(--input-bg); color: var(--text); }
+
+.fc-dropdown {
+  position: absolute;
+  top: 40px;
+  right: 10px;
+  background: var(--widget-bg);
+  border: 1px solid var(--widget-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  z-index: 15;
+  min-width: 110px;
+  overflow: hidden;
+}
+
+.fc-dropdown-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+.fc-delete-btn { color: #dc2626; }
+.fc-delete-btn:hover { background: rgba(220, 38, 38, 0.08); }
 .empty-state { color: var(--text-secondary); text-align: center; margin-top: 40px; }
 
 /* DASHBOARD */
@@ -206,6 +258,7 @@ body.in-flight .topbar, body.in-flight .bottombar { background: var(--dash-bar);
 .route-map-fallback a { color: var(--accent); }
 .route-summary { flex: 0 0 auto; font-size: 13px; line-height: 1.6; padding-top: 8px; border-top: 1px solid var(--dash-widget-border); text-align: center; }
 .route-summary strong { font-weight: 700; }
+
 #view-briefing { background: var(--dash-bg); padding: 12px 20px; height: 100%; display: flex; flex-direction: column; min-height: 0; }
 .briefing-container { display: flex; gap: 18px; max-width: 1400px; width: 100%; height: 100%; margin: 0 auto; align-items: stretch; min-height: 0; }
 .briefing-sidebar { flex: 0 0 280px; background: var(--widget-bg); border-radius: 8px; border: 1px solid var(--dash-widget-border); overflow-y: auto; display: flex; flex-direction: column; }
@@ -238,6 +291,7 @@ body.in-flight .topbar, body.in-flight .bottombar { background: var(--dash-bar);
 .gen-stat-value { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; }
 @media (max-width: 800px) { .gen-info-grid-5, .gen-info-grid-6 { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 500px) { .gen-info-grid-5, .gen-info-grid-6 { grid-template-columns: repeat(2, 1fr); } }
+
 .gen-data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .gen-data-table th { background: var(--dash-band-bg); padding: 10px 14px; font-weight: 500; color: var(--text-secondary); text-align: center; border-bottom: 1px solid var(--dash-widget-border); white-space: nowrap; font-size: 11px; }
 .gen-data-table th:first-child { text-align: left; }
@@ -249,6 +303,68 @@ body.in-flight .topbar, body.in-flight .bottombar { background: var(--dash-bar);
 .act-weight-input.limit-exceeded { color: #ef4444; }
 .act-weight-input::-webkit-outer-spin-button, .act-weight-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .act-weight-input[type=number] { -moz-appearance: textfield; }
+
+/* REQUISITI BLOCCO 1: STRIP IMPACTS INTERNA, RESET & LIMIT ALERT */
+.brf-reset-btn {
+  background: var(--dash-widget-border);
+  border: 1px solid var(--input-border);
+  color: var(--text);
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.brf-reset-btn:hover { background: #d4d4d8; }
+
+.brf-impacts-strip {
+  background: var(--dash-band-bg);
+  border-radius: 6px;
+  padding: 6px 14px;
+  margin: 10px 16px 4px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--dash-widget-border);
+  font-size: 12px;
+}
+.brf-impacts-strip-text {
+  font-weight: 400;
+  color: var(--text);
+  letter-spacing: 0.2px;
+}
+.brf-impacts-view-btn {
+  background: var(--dash-widget-border);
+  border: 1px solid var(--input-border);
+  color: var(--text);
+  padding: 3px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+}
+.brf-impacts-view-btn:hover { background: #d4d4d8; }
+
+.fuel-limit-alert {
+  background: #fef2f2;
+  border: 1px solid #f87171;
+  color: #b91c1c;
+  padding: 8px 14px;
+  margin: 10px 16px 0;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.4;
+}
+[data-theme="dark"] .fuel-limit-alert {
+  background: #3a1414;
+  border-color: #ef4444;
+  color: #fca5a5;
+}
+
 .brf-fuel-table td { border-bottom: none !important; font-weight: 500; }
 .brf-row-separator td { border-bottom: 1px solid var(--dash-widget-border) !important; padding: 0 !important; height: 1px; }
 .brf-row-bold td { font-weight: 600 !important; color: var(--text) !important; }
@@ -261,7 +377,7 @@ body.in-flight .topbar, body.in-flight .bottombar { background: var(--dash-bar);
 .brf-disc-val { font-size: 14px; font-weight: 600; color: var(--text); padding: 6px 0; }
 .brf-text-input { background: var(--input-bg); border: 1px solid transparent; border-radius: 4px; padding: 6px 8px; color: #3b82f6; font-family: inherit; font-size: 13px; font-weight: 600; width: 100%; }
 .brf-text-input:focus { outline: none; border-color: #3b82f6; }
-.brf-max-disc-info { font-size: 11px; color: var(--text-secondary); padding: 0 20px; }
+.brf-max-disc-info { font-size: 11px; color: var(--text-secondary); padding: 0 20px; font-weight: 500; }
 .brf-fuel-footer { padding: 14px 20px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--dash-widget-border); }
 .brf-ff-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .brf-ff-label { color: var(--text-secondary); }
@@ -301,9 +417,7 @@ body.in-flight .topbar, body.in-flight .bottombar { background: var(--dash-bar);
 .notam-hl-danger { color: #b91c1c; font-weight: 600; text-decoration: underline; }
 .briefing-content { flex: 1; background: var(--widget-bg); border-radius: 8px; border: 1px solid var(--dash-widget-border); display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 
-/* =========================================================
-   NAVLOG STYLES 
-   ========================================================= */
+/* NAVLOG STYLES */
 .navlog-sticky-header {
   position: sticky;
   top: 0;
@@ -325,48 +439,49 @@ body.in-flight .topbar, body.in-flight .bottombar { background: var(--dash-bar);
 .navlog-fuel-bar {
   width: 100%;
   user-select: none;
+  padding: 6px 0;
 }
 
 .navlog-fuel-track {
   position: relative;
   height: 12px;
   border-radius: 4px;
-  overflow: hidden;
-  background-color: #6c8ab0; /* Muted blue */
+  background-color: #6c8ab0;
+  overflow: visible;
 }
 
-/* Strisce blu e viola per la Final Reserve */
 .navlog-fuel-finres-zone {
   position: absolute;
   top: 0; bottom: 0; left: 0;
+  border-radius: 4px 0 0 4px;
   background: repeating-linear-gradient(45deg, #6c8ab0, #6c8ab0 8px, #9333ea 8px, #9333ea 16px);
   z-index: 1;
 }
 
-/* Progresso volato traslucido rosso/nero per scurire/segnalare il consumato senza pattern Moiré */
 .navlog-fuel-fill {
   position: absolute;
   top: 0; bottom: 0; left: 0;
+  border-radius: 4px 0 0 4px;
   background-color: rgba(220, 38, 38, 0.45); 
   z-index: 2;
 }
 
-/* Stanghetta ambra per la Total Reserve spessa e con ombra */
 .navlog-marker-totres {
   position: absolute;
-  top: 0; bottom: 0;
+  top: -3px; bottom: -3px;
   width: 4px;
-  background-color: #f59e0b; /* Ambra intenso */
-  box-shadow: -1px 0 0 rgba(0,0,0,0.2), 1px 0 0 rgba(0,0,0,0.2);
+  background-color: #f59e0b;
+  border-radius: 2px;
+  box-shadow: 0 0 2px rgba(0,0,0,0.4);
   z-index: 3;
 }
 
-/* Marker dinamico Landing Fuel spesso e con ombra */
 .navlog-marker-landing {
   position: absolute;
-  top: 0; bottom: 0;
+  top: -3px; bottom: -3px;
   width: 4px;
-  box-shadow: -1px 0 0 rgba(0,0,0,0.2), 1px 0 0 rgba(0,0,0,0.2);
+  border-radius: 2px;
+  box-shadow: 0 0 2px rgba(0,0,0,0.4);
   z-index: 4;
 }
 .bg-red-500 { background-color: #ef4444 !important; }
@@ -382,8 +497,8 @@ body.in-flight .topbar, body.in-flight .bottombar { background: var(--dash-bar);
 }
 .navlog-legend-item { display: flex; align-items: center; gap: 4px; }
 .navlog-legend-dot-finres { width: 8px; height: 8px; border-radius: 50%; background-color: #9333ea; }
-.navlog-legend-line-totres { width: 4px; height: 12px; background-color: #f59e0b; }
-.navlog-legend-line-land { width: 4px; height: 12px; }
+.navlog-legend-line-totres { width: 4px; height: 12px; background-color: #f59e0b; border-radius: 1px; }
+.navlog-legend-line-land { width: 4px; height: 12px; border-radius: 1px; }
 .text-amber-600 { color: #d97706; }
 .text-red-500 { color: #ef4444; }
 .text-emerald-600 { color: #059669; }
@@ -406,19 +521,13 @@ body.in-flight .topbar, body.in-flight .bottombar { background: var(--dash-bar);
   grid-template-columns: 1.4fr 0.7fr 0.8fr 0.9fr 0.8fr 0.9fr 0.9fr 0.8fr;
   align-items: center;
   padding: 10px 12px;
-  background: var(--dash-widget-border); /* Sfondo grigio identico ai bordi */
+  background: var(--dash-widget-border);
   border-left: 4px solid #2563eb;
   border-radius: 6px;
   margin-bottom: 8px;
 }
-.navlog-row-wp div {
-  text-align: center;
-  font-size: 13px;
-  color: var(--text);
-}
-.navlog-row-wp div:first-child {
-  text-align: left;
-}
+.navlog-row-wp div { text-align: center; font-size: 13px; color: var(--text); }
+.navlog-row-wp div:first-child { text-align: left; }
 .navlog-wp-ident { font-weight: 700; font-size: 15px; line-height: 1.1; }
 .navlog-wp-name { font-size: 11px; color: var(--text-secondary); }
 
@@ -429,8 +538,8 @@ body.in-flight .topbar, body.in-flight .bottombar { background: var(--dash-bar);
   padding: 4px;
   border: 1px solid var(--input-border);
   border-radius: 4px;
-  background: #ffffff !important; /* Bianco puro forzato */
-  color: #1c1c1e !important;      /* Testo scuro forzato */
+  background: #ffffff !important;
+  color: #1c1c1e !important;
   margin: 0 auto;
   display: block;
 }
