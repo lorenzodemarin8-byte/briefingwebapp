@@ -4,22 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>mBriefing</title>
-  <link rel="stylesheet" href="css/style.css?v=59">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=65">
 </head>
 <body>
-
   <!-- TOP BAR & INFO VOLO -->
   <header class="topbar">
     <div class="flight-info-bar" id="flight-info-bar" style="display:none;">
-      <span class="info-chip" id="fib-flightnum"> </span>
-      <span class="info-chip" id="fib-reg"> </span>
-      <span class="info-chip" id="fib-callsign"> </span>
-      <span class="info-chip" id="fib-route"> </span>
-      <span class="info-chip" id="fib-ofp"> </span>
-      <span class="info-chip" id="fib-ofpdate"> </span>
+      <span class="info-chip" id="fib-flightnum"></span>
+      <span class="info-chip" id="fib-reg"></span>
+      <span class="info-chip" id="fib-callsign"></span>
+      <span class="info-chip" id="fib-route"></span>
+      <span class="info-chip" id="fib-ofp"></span>
+      <span class="info-chip" id="fib-ofpdate"></span>
       <span class="status-badge" id="fib-status">NOT ACCEPTED</span>
     </div>
-
     <div class="topbar-nav">
       <button class="icon-btn" id="home-nav-btn" title="My Flights">
         <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -31,6 +32,14 @@
       </button>
       <span class="topbar-title" id="topbar-title">My Flights</span>
       <div class="topbar-right-group">
+        <button class="icon-btn" id="ofp-refresh-btn" title="Refresh OFP da SimBrief" style="display:none;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 2v6h-6"></path>
+            <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+            <path d="M3 22v-6h6"></path>
+            <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+          </svg>
+        </button>
         <button class="icon-btn" id="theme-toggle" title="Cambia tema"></button>
         <button class="icon-btn" id="notif-toggle" title="Notifiche" style="position: relative;">
           <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -55,7 +64,7 @@
   <aside class="side-drawer" id="side-drawer">
     <div class="drawer-header">
       <span>SimBrief</span>
-      <button class="icon-btn" id="drawer-close" title="Chiudi">✕</button>
+      <button class="icon-btn" id="drawer-close" title="Chiudi">&times;</button>
     </div>
     <div class="drawer-body">
       <label class="drawer-label" for="sb-username">Username o Pilot ID</label>
@@ -75,7 +84,7 @@
         </svg>
       </button>
       <span>Notifications</span>
-      <button class="icon-btn" id="notif-close" title="Chiudi">✕</button>
+      <button class="icon-btn" id="notif-close" title="Chiudi">&times;</button>
     </div>
     <div class="drawer-body" id="notif-list" style="padding: 0; overflow-y: auto;">
       <p class="hint" style="text-align:center; margin-top:20px;">Nessuna notifica.</p>
@@ -87,54 +96,64 @@
   <!-- HOME VIEW: MY FLIGHTS -->
   <main id="view-home" class="view">
     <div class="content-toolbar">
+      <div class="flights-segmented-control">
+        <button class="seg-btn active" id="tab-listed-btn">Listed (<span id="listed-count">0</span>)</button>
+        <button class="seg-btn" id="tab-submitted-btn">Submitted (<span id="submitted-count">0</span>)</button>
+      </div>
       <button class="icon-btn" id="content-refresh-btn" title="Importa ultimo volo SimBrief">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><polyline points="21 3 21 9 15 9"/></svg>
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><polyline points="21 3 21 9 15 9"/></svg>
       </button>
     </div>
     <section id="flights-list" class="flights-grid"></section>
-    <p class="empty-state" id="empty-state">Nessun volo importato. Apri il menu, inserisci il tuo username SimBrief e premi "Refresh da SimBrief".</p>
+    <section id="submitted-list" class="submitted-grid" style="display:none;"></section>
+    <p class="empty-state" id="empty-state">Nessun volo importato. Inserisci il tuo username SimBrief e premi "Refresh da SimBrief".</p>
   </main>
 
-  <!-- DASHBOARD VIEW -->
+  <!-- DASHBOARD VIEW (BLOCCO A) -->
   <main id="view-dashboard" class="view" style="display:none;">
     <div class="dashboard-grid">
       <!-- COLONNA SINISTRA -->
       <div class="dash-col">
         <div class="widget flight-info-widget">
           <div class="widget-header fi-widget-header">
-            <span class="fi-header-side" id="fi-header-actype"> </span>
-            <span class="fi-header-title" id="fi-header-flightnum"> </span>
-            <span class="fi-header-side" id="fi-header-reg"> </span>
+            <span class="fi-header-side" id="fi-header-actype">---</span>
+            <span class="fi-header-title" id="fi-header-flightnum">---</span>
+            <span class="fi-header-side" id="fi-header-reg">---</span>
           </div>
-          <div class="fi-row fi-header-row">
-            <div class="fi-side"><div class="fi-icao" id="fi-orig"> </div></div>
-            <div class="fi-mid"><span class="fi-arrow">→</span><span class="fi-altn" id="fi-altn"></span></div>
-            <div class="fi-side"><div class="fi-icao" id="fi-dest"> </div></div>
-          </div>
-          <div class="fi-strip">
-            <span><span class="fi-strip-label">Flight Time</span> <span class="fi-strip-value" id="fi-flighttime"> </span></span>
-            <span><span class="fi-strip-label">Block Time</span> <span class="fi-strip-value" id="fi-blocktime"> </span></span>
-          </div>
-          <div class="fi-row fi-details-row">
-            <div class="fi-side fi-side-dep">
-              <div class="fi-detail-combo">
-                <span class="fi-label">RWY</span><span class="fi-value" id="fi-rwy-dep"> </span>
-                <span class="fi-label">SID</span><span class="fi-value" id="fi-sid"> </span>
+          <div class="fi-card-inner">
+            <div class="fi-row fi-header-row">
+              <div class="fi-side"><div class="fi-icao" id="fi-orig">----</div></div>
+              <div class="fi-mid">
+                <span class="fi-arrow">&rarr;</span>
+                <span class="fi-altn" id="fi-altn"></span>
               </div>
-              <div class="fi-date" id="fi-date"> </div>
-              <div class="fi-time-line"><span class="fi-value" id="fi-std"> </span><span class="fi-label">STD</span></div>
-              <div class="fi-time-line"><span class="fi-value" id="fi-etd"> </span><span class="fi-label">ETD</span></div>
-              <div class="fi-time-line" id="fi-ctot-row"><span class="fi-value" id="fi-ctot">-</span><span class="fi-label">CTOT</span></div>
+              <div class="fi-side"><div class="fi-icao" id="fi-dest">----</div></div>
             </div>
-            <div class="fi-mid"></div>
-            <div class="fi-side fi-side-arr">
-              <div class="fi-detail-combo">
-                <span class="fi-label">RWY</span><span class="fi-value" id="fi-rwy-arr"> </span>
-                <span class="fi-label">STAR</span><span class="fi-value" id="fi-star"> </span>
+            <div class="fi-strip">
+              <span><span class="fi-strip-label">Flight Time</span> <span class="fi-strip-value" id="fi-flighttime">--:--</span></span>
+              <span><span class="fi-strip-label">Block Time</span> <span class="fi-strip-value" id="fi-blocktime">--:--</span></span>
+            </div>
+            <div class="fi-row fi-details-row">
+              <div class="fi-side fi-side-dep">
+                <div class="fi-detail-combo">
+                  <span class="fi-label">RWY</span><span class="fi-value" id="fi-rwy-dep">--</span>
+                  <span class="fi-label">SID</span><span class="fi-value" id="fi-sid">NONE</span>
+                </div>
+                <div class="fi-date" id="fi-date">--</div>
+                <div class="fi-time-line"><span class="fi-value" id="fi-std">--:--</span><span class="fi-label">STD</span></div>
+                <div class="fi-time-line"><span class="fi-value" id="fi-etd">--:--</span><span class="fi-label">ETD</span></div>
+                <div class="fi-time-line" id="fi-ctot-row"><span class="fi-value" id="fi-ctot">-</span><span class="fi-label">CTOT</span></div>
               </div>
-              <div class="fi-date" id="fi-date-arr"> </div>
-              <div class="fi-time-line"><span class="fi-label">STA</span><span class="fi-value" id="fi-sta"> </span></div>
-              <div class="fi-time-line"><span class="fi-label">ETA</span><span class="fi-value" id="fi-eta"> </span><span class="fi-delta" id="fi-eta-delta"></span></div>
+              <div class="fi-mid"></div>
+              <div class="fi-side fi-side-arr">
+                <div class="fi-detail-combo">
+                  <span class="fi-label">RWY</span><span class="fi-value" id="fi-rwy-arr">--</span>
+                  <span class="fi-label">STAR</span><span class="fi-value" id="fi-star">NONE</span>
+                </div>
+                <div class="fi-date" id="fi-date-arr">--</div>
+                <div class="fi-time-line"><span class="fi-label">STA</span><span class="fi-value" id="fi-sta">--:--</span></div>
+                <div class="fi-time-line"><span class="fi-label">ETA</span><span class="fi-value" id="fi-eta">--:--</span><span class="fi-delta" id="fi-eta-delta"></span></div>
+              </div>
             </div>
           </div>
           <div class="fi-actions">
@@ -142,6 +161,7 @@
             <button class="btn-secondary" id="submit-flight-btn" disabled>Submit Flight</button>
           </div>
         </div>
+
         <div class="widget checklist-widget">
           <div class="widget-header">Flight Checklist</div>
           <div class="widget-body"></div>
@@ -152,12 +172,12 @@
       <div class="dash-col">
         <div class="widget route-widget route-widget-tall">
           <div class="widget-header">Route</div>
-          <div class="widget-body route-widget-body" style="padding-bottom: 0;">
+          <div class="widget-body route-widget-body">
             <div class="route-map-area" id="route-map-area">
               <img id="route-map-img" class="route-map-img" alt="Route map" referrerpolicy="no-referrer" style="display:none;">
-              <p class="route-map-fallback" id="route-map-fallback"> </p>
+              <p class="route-map-fallback" id="route-map-fallback">Mappa rotta in caricamento...</p>
             </div>
-            <div class="route-summary" id="route-summary" style="margin-bottom: 8px;"> </div>
+            <div class="route-summary" id="route-summary"></div>
           </div>
           <div class="route-widget-footer">
             <button class="btn-navigraph" id="navigraph-btn">Send to Navigraph</button>
@@ -175,46 +195,48 @@
                 <table class="data-table">
                   <thead><tr><th></th><th>EST/ACT(kg)</th><th>Limit(kg)</th></tr></thead>
                   <tbody>
-                    <tr><td>DOW</td><td id="w-dow"> </td><td id="w-dow-limit"> </td></tr>
-                    <tr><td>LOAD</td><td id="w-load"> </td><td id="w-load-limit"> </td></tr>
-                    <tr><td>ZFW</td><td id="w-zfw"> </td><td id="w-zfw-limit"> </td></tr>
-                    <tr><td>TOW</td><td id="w-tow"> </td><td id="w-tow-limit"> </td></tr>
-                    <tr><td>LW</td><td id="w-lw"> </td><td id="w-lw-limit"> </td></tr>
+                    <tr><td>DOW</td><td id="w-dow">---</td><td id="w-dow-limit">---</td></tr>
+                    <tr><td>LOAD</td><td id="w-load">---</td><td id="w-load-limit">---</td></tr>
+                    <tr><td>ZFW</td><td id="w-zfw">---</td><td id="w-zfw-limit">---</td></tr>
+                    <tr><td>TOW</td><td id="w-tow">---</td><td id="w-tow-limit">---</td></tr>
+                    <tr><td>LW</td><td id="w-lw">---</td><td id="w-lw-limit">---</td></tr>
                   </tbody>
                 </table>
               </div>
             </div>
+
             <div class="widget fuel-widget">
               <div class="widget-header">Fuel</div>
               <div class="widget-body">
                 <table class="data-table">
                   <thead><tr><th></th><th>HH:MM</th><th>Fuel(kg)</th></tr></thead>
                   <tbody>
-                    <tr><td>Trip</td><td id="f-trip-time"> </td><td id="f-trip-kg"> </td></tr>
-                    <tr><td>Minimum TakeOff Fuel</td><td id="f-mtow-time"> </td><td id="f-mtow-kg"> </td></tr>
-                    <tr><td>Taxi Fuel</td><td id="f-taxi-time"> </td><td id="f-taxi-kg"> </td></tr>
-                    <tr><td>Block Fuel</td><td id="f-block-time"> </td><td id="f-block-kg"> </td></tr>
-                    <tr><td>Estimated Landing Fuel</td><td id="f-landing-time"> </td><td id="f-landing-kg"> </td></tr>
-                    <tr><td>Max Discretionary Fuel Cap (LAND)</td><td id="f-disc-time"> </td><td id="f-disc-kg"> </td></tr>
+                    <tr><td>Trip</td><td id="f-trip-time">--:--</td><td id="f-trip-kg">---</td></tr>
+                    <tr><td>Minimum TakeOff Fuel</td><td id="f-mtow-time">--:--</td><td id="f-mtow-kg">---</td></tr>
+                    <tr><td>Taxi Fuel</td><td id="f-taxi-time">--:--</td><td id="f-taxi-kg">---</td></tr>
+                    <tr><td>Block Fuel</td><td id="f-block-time">--:--</td><td id="f-block-kg">---</td></tr>
+                    <tr><td>Estimated Landing Fuel</td><td id="f-landing-time">--:--</td><td id="f-landing-kg">---</td></tr>
+                    <tr><td>Max Discretionary Fuel Cap (LAND)</td><td id="f-disc-time">--:--</td><td id="f-disc-kg">---</td></tr>
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
+
           <div class="pager-page" data-page="1">
             <div class="widget weather-widget">
               <div class="widget-header">Weather</div>
               <div class="widget-body">
                 <div class="wx-tabs">
-                  <button class="wx-tab active" data-wx="origin" id="wx-tab-origin"> </button>
-                  <button class="wx-tab" data-wx="destination" id="wx-tab-destination"> </button>
+                  <button class="wx-tab active" data-wx="origin" id="wx-tab-origin">ORIG</button>
+                  <button class="wx-tab" data-wx="destination" id="wx-tab-destination">DEST</button>
                   <button class="wx-tab" data-wx="alternate" id="wx-tab-alternate">ALTN</button>
                 </div>
-                <div class="wx-row-header"><span class="wx-row-title">METAR</span><span class="wx-row-age" id="wx-metar-age"></span><span class="wx-badge" id="wx-vmc-badge"> </span></div>
-                <div class="wx-text" id="wx-metar-text"> </div>
+                <div class="wx-row-header"><span class="wx-row-title">METAR</span><span class="wx-row-age" id="wx-metar-age"></span><span class="wx-badge" id="wx-vmc-badge">--</span></div>
+                <div class="wx-text" id="wx-metar-text"></div>
                 <div class="wx-divider"></div>
                 <div class="wx-row-header"><span class="wx-row-title">TAF</span><span class="wx-row-age" id="wx-taf-age"></span></div>
-                <div class="wx-text" id="wx-taf-text"> </div>
+                <div class="wx-text" id="wx-taf-text"></div>
               </div>
             </div>
           </div>
@@ -240,47 +262,46 @@
         <div class="briefing-item" data-section="Crew Alert and Bulletin">Crew Alert and Bulletin</div>
         <div class="briefing-item active" data-section="Classic OFP">Classic OFP</div>
         <div class="briefing-category">Journey Log</div>
+        <div class="briefing-item" data-section="Flight Times and Fuel">Flight Times and Fuel</div>
+        <div class="briefing-item" data-section="Duty Assignment & Delays">Duty Assignment &amp; Delays</div>
         <div class="briefing-category">WX/RAIM/NOTAM</div>
         <div id="brf-wx-menu-list"></div>
       </aside>
-
       <section class="briefing-content">
         <!-- GENERAL CONTAINER -->
         <div id="briefing-general-container" class="briefing-general-container" style="display:none;">
           <div class="widget gen-widget">
             <div class="widget-header gen-widget-header">
-              <span class="gen-header-text" id="gen-dep"> </span>
-              <span class="gen-header-plane">✈</span>
-              <span class="gen-header-text" id="gen-arr"> </span>
+              <span class="gen-header-text" id="gen-dep">----</span>
+              <span class="gen-header-plane">&rarr;</span>
+              <span class="gen-header-text" id="gen-arr">----</span>
             </div>
             <div class="gen-info-grid-5">
-              <div class="gen-stat"><span class="gen-stat-label">ATC</span><span class="gen-stat-value" id="gen-callsign"> </span></div>
-              <div class="gen-stat"><span class="gen-stat-label">STD</span><span class="gen-stat-value" id="gen-std"> </span></div>
-              <div class="gen-stat"><span class="gen-stat-label">STA</span><span class="gen-stat-value" id="gen-sta"> </span></div>
-              <div class="gen-stat"><span class="gen-stat-label">A/C TYPE</span><span class="gen-stat-value" id="gen-actype"> </span></div>
-              <div class="gen-stat"><span class="gen-stat-label">REG NO</span><span class="gen-stat-value" id="gen-reg"> </span></div>
+              <div class="gen-stat"><span class="gen-stat-label">ATC</span><span class="gen-stat-value" id="gen-callsign">---</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">STD</span><span class="gen-stat-value" id="gen-std">---</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">STA</span><span class="gen-stat-value" id="gen-sta">---</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">A/C TYPE</span><span class="gen-stat-value" id="gen-actype">---</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">REG NO</span><span class="gen-stat-value" id="gen-reg">---</span></div>
             </div>
             <div class="gen-divider"></div>
             <div class="gen-info-grid-6">
-              <div class="gen-stat"><span class="gen-stat-label">CRZ SYS</span><span class="gen-stat-value" id="gen-crzsys"> </span></div>
-              <div class="gen-stat"><span class="gen-stat-label">GND DIST</span><span class="gen-stat-value" id="gen-gnddist"> </span></div>
-              <div class="gen-stat"><span class="gen-stat-label">AIR DIST</span><span class="gen-stat-value" id="gen-airdist"> </span></div>
-              <div class="gen-stat"><span class="gen-stat-label">TOC WIND</span><span class="gen-stat-value" id="gen-tocwind"> </span></div>
-              <div class="gen-stat"><span class="gen-stat-label">AVG WIND</span><span class="gen-stat-value" id="gen-avgwind"> </span></div>
-              <div class="gen-stat"><span class="gen-stat-label">AVG W/C</span><span class="gen-stat-value" id="gen-avgwc"> </span></div>
-              <div class="gen-stat"><span class="gen-stat-label">ALT</span><span class="gen-stat-value" id="gen-alt"> </span></div>
-              <div class="gen-stat"><span class="gen-stat-label">TOC ISA</span><span class="gen-stat-value" id="gen-tocisa"> </span></div>
-              <div class="gen-stat"><span class="gen-stat-label">AVG FF KGS/HR</span><span class="gen-stat-value" id="gen-avgff"> </span></div>
-              <div class="gen-stat"><span class="gen-stat-label">FUEL BIAS</span><span class="gen-stat-value" id="gen-fuelbias"> </span></div>
-              <div class="gen-stat"><span class="gen-stat-label">TKOF ALTN</span><span class="gen-stat-value" id="gen-tkofaltn"> </span></div>
+              <div class="gen-stat"><span class="gen-stat-label">CRZ SYS</span><span class="gen-stat-value" id="gen-crzsys">---</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">GND DIST</span><span class="gen-stat-value" id="gen-gnddist">---</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">AIR DIST</span><span class="gen-stat-value" id="gen-airdist">---</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">TOC WIND</span><span class="gen-stat-value" id="gen-tocwind">---</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">AVG WIND</span><span class="gen-stat-value" id="gen-avgwind">---</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">AVG W/C</span><span class="gen-stat-value" id="gen-avgwc">---</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">ALT</span><span class="gen-stat-value" id="gen-alt">---</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">TOC ISA</span><span class="gen-stat-value" id="gen-tocisa">---</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">AVG FF KGS/HR</span><span class="gen-stat-value" id="gen-avgff">---</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">FUEL BIAS</span><span class="gen-stat-value" id="gen-fuelbias">---</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">TKOF ALTN</span><span class="gen-stat-value" id="gen-tkofaltn">-</span></div>
             </div>
           </div>
         </div>
 
         <!-- FUEL CONTAINER -->
         <div id="briefing-fuel-container" class="briefing-general-container" style="display:none;">
-          
-          <!-- WIDGET PESI SPOSTATO IN FUEL -->
           <div class="widget gen-weight-widget" style="margin-bottom: 14px;">
             <table class="gen-data-table">
               <thead><tr><th>Weight (kg)</th><th>Planned</th><th>Actual</th><th>Operational Limit</th><th>Structural Limit</th></tr></thead>
@@ -294,24 +315,21 @@
             </table>
           </div>
 
-          <!-- WIDGET FUEL -->
           <div class="widget briefing-fuel-widget">
             <div class="widget-header gen-widget-header" style="justify-content: space-between; padding: 8px 16px;">
               <span class="gen-header-text" style="text-transform: none;">Fuel</span>
               <button class="brf-reset-btn" id="brf-fuel-reset-btn">Reset</button>
             </div>
 
-            <!-- STRIP OPERATIONAL IMPACTS INTERNA AL WIDGET FUEL -->
             <div class="brf-impacts-strip">
               <div class="brf-impacts-strip-text" id="brf-impacts-summary-text">
                 ZFW INCR 1000 KG TKOF +0000 KG / ZFW DECR 1000 KG TKOF -0000 KG
               </div>
               <button class="brf-impacts-view-btn" id="brf-open-impacts-modal-btn">View</button>
             </div>
-            
-            <!-- ALERT BANNER LIMITI CARBURANTE -->
+
             <div id="fuel-limits-warning" class="fuel-limit-alert" style="display:none;">
-              <span class="fuel-limit-alert-icon">⚠️️</span>
+              <span class="fuel-limit-alert-icon">&#9888;</span>
               <span id="fuel-limits-warning-text" class="fuel-limit-alert-text"></span>
             </div>
 
@@ -328,7 +346,7 @@
                 <tr class="brf-row-bold"><td>Minimum Block Fuel</td><td></td><td></td><td id="brf-f-minblock-fuel"></td></tr>
               </tbody>
             </table>
-            
+
             <div class="brf-disc-wrapper">
               <div class="brf-disc-container">
                 <div class="brf-disc-col brf-disc-reason-col"><span class="brf-disc-label">DISCRETIONARY FUEL</span><input type="text" id="brf-disc-reason-input" class="brf-text-input" placeholder="Reason..."></div>
@@ -337,12 +355,12 @@
               </div>
               <div class="brf-max-disc-info" id="brf-f-max-disc-container">Maximum Discretionary: <span id="brf-f-max-disc">---</span> kg</div>
             </div>
-            
+
             <div class="brf-fuel-footer">
               <div class="brf-ff-row"><span class="brf-ff-label">Estimated Landing fuel:</span><span class="brf-ff-val" id="brf-f-estlnd-fuel">---</span> <span class="brf-ff-time" id="brf-f-estlnd-time"></span></div>
               <div class="brf-ff-row"><span class="brf-ff-label">Total Reserve Fuel:</span><span class="brf-ff-val" id="brf-f-totfinres-fuel">---</span><span class="brf-ff-time" id="brf-f-totfinres-time">(--:--)</span></div>
             </div>
-            
+
             <div class="brf-block-strip">
               <span class="brf-strip-title">Block Fuel</span>
               <div class="brf-strip-controls">
@@ -381,11 +399,11 @@
               <span class="gen-header-text" style="text-transform: none;">WX</span>
             </div>
             <div class="widget-body">
-              <div class="wx-row-header"><span class="wx-row-title">METAR</span><span class="wx-row-age" id="brf-apt-metar-age"></span><span class="wx-badge" id="brf-apt-vmc-badge"> </span></div>
-              <div class="wx-text" id="brf-apt-metar-text"> </div>
+              <div class="wx-row-header"><span class="wx-row-title">METAR</span><span class="wx-row-age" id="brf-apt-metar-age"></span><span class="wx-badge" id="brf-apt-vmc-badge">--</span></div>
+              <div class="wx-text" id="brf-apt-metar-text"></div>
               <div class="wx-divider"></div>
               <div class="wx-row-header"><span class="wx-row-title">TAF</span><span class="wx-row-age" id="brf-apt-taf-age"></span></div>
-              <div class="wx-text" id="brf-apt-taf-text"> </div>
+              <div class="wx-text" id="brf-apt-taf-text"></div>
             </div>
           </div>
           <div class="widget briefing-rwy-widget" id="brf-apt-rwy-widget" style="display:none;">
@@ -405,19 +423,222 @@
           </div>
         </div>
 
+        <!-- MEL/CDL CONTAINER -->
+        <div id="briefing-mel-container" class="briefing-general-container" style="display:none;">
+          <div class="widget">
+            <div class="widget-header gen-widget-header" style="justify-content: flex-start; padding: 12px 22px;">
+              <span class="gen-header-text" style="text-transform: none;">MEL / CDL Information</span>
+            </div>
+            <div class="widget-body" style="padding: 22px;">
+              <div class="mel-status-box">
+                <span class="mel-status-icon">&#10003;</span>
+                <div>
+                  <div style="font-weight:600; font-size:14px;">NO MEL / CDL ITEMS IN EFFECT</div>
+                  <div style="font-size:12px; color:var(--text-2); margin-top:3px;">Aircraft is fully serviceable. No operational limitations or fuel penalties applied.</div>
+                </div>
+              </div>
+              <table class="gen-data-table" style="margin-top:16px;">
+                <thead>
+                  <tr><th>ITEM</th><th>CATEGORY</th><th>DESCRIPTION</th><th>EXPIRY</th><th>OPERATIONAL IMPACT</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td colspan="5" style="text-align:center; color:var(--text-2); padding:16px;">Nil items recorded</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- CREW ALERT AND BULLETIN CONTAINER -->
+        <div id="briefing-crew-alert-container" class="briefing-general-container" style="display:none;">
+          <div class="widget">
+            <div class="widget-header gen-widget-header" style="justify-content: flex-start; padding: 12px 22px;">
+              <span class="gen-header-text" style="text-transform: none;">Crew Alert &amp; Operational Bulletins</span>
+            </div>
+            <div class="widget-body" style="padding: 22px;">
+              <div style="margin-bottom:16px;">
+                <div style="font-size:11.5px; font-weight:600; color:var(--text-2); text-transform:uppercase; margin-bottom:6px;">Dispatch Remarks</div>
+                <div id="brf-crew-alert-dx" class="dispatch-text" style="background:var(--input-bg); padding:12px; border-radius:6px; border:1px solid var(--panel-border);"></div>
+              </div>
+              <div>
+                <div style="font-size:11.5px; font-weight:600; color:var(--text-2); text-transform:uppercase; margin-bottom:6px;">Safety &amp; Route Advisories</div>
+                <div style="background:var(--input-bg); padding:12px; border-radius:6px; border:1px solid var(--panel-border); font-size:13px; color:var(--text); line-height:1.5;">
+                  Standard noise abatement departure procedures in effect for departure runway.<br>
+                  Ensure EFB charts and databases are up to date prior to pushback.<br>
+                  Verify fuel uplift with fuel receipt before block out.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- JOURNEY LOG - FLIGHT TIMES AND FUEL -->
+        <div id="briefing-journey-times-container" class="briefing-general-container" style="display:none;">
+          <div class="widget">
+            <div class="widget-header gen-widget-header" style="justify-content: flex-start; padding: 12px 22px;">
+              <span class="gen-header-text" style="text-transform: none;">Journey Log - Flight Times (OOOI)</span>
+            </div>
+            <div class="widget-body" style="padding: 16px;">
+              <table class="gen-data-table">
+                <thead>
+                  <tr><th>PHASE</th><th>SCHEDULED</th><th>ESTIMATED</th><th>ACTUAL (UTC)</th><th>TIME &Delta;</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>OUT</strong> (Off Blocks)</td>
+                    <td id="jl-sched-out">--:--</td>
+                    <td id="jl-est-out">--:--</td>
+                    <td><input type="text" id="jl-act-out" class="act-weight-input" placeholder="--:--" style="width:75px;"></td>
+                    <td id="jl-delta-out" style="font-weight:500;"></td>
+                  </tr>
+                  <tr>
+                    <td><strong>OFF</strong> (Takeoff)</td>
+                    <td id="jl-sched-off">--:--</td>
+                    <td id="jl-est-off">--:--</td>
+                    <td><input type="text" id="jl-act-off" class="act-weight-input" placeholder="--:--" style="width:75px;"></td>
+                    <td id="jl-delta-off" style="font-weight:500;"></td>
+                  </tr>
+                  <tr>
+                    <td><strong>ON</strong> (Touchdown)</td>
+                    <td id="jl-sched-on">--:--</td>
+                    <td id="jl-est-on">--:--</td>
+                    <td><input type="text" id="jl-act-on" class="act-weight-input" placeholder="--:--" style="width:75px;"></td>
+                    <td id="jl-delta-on" style="font-weight:500;"></td>
+                  </tr>
+                  <tr>
+                    <td><strong>IN</strong> (On Blocks)</td>
+                    <td id="jl-sched-in">--:--</td>
+                    <td id="jl-est-in">--:--</td>
+                    <td><input type="text" id="jl-act-in" class="act-weight-input" placeholder="--:--" style="width:75px;"></td>
+                    <td id="jl-delta-in" style="font-weight:500;"></td>
+                  </tr>
+                </tbody>
+              </table>
+              <div style="display:flex; justify-content:space-around; background:var(--panel); padding:10px 14px; border-radius:6px; margin-top:14px; font-size:13px;">
+                <span><strong>Flight Time:</strong> <span id="jl-total-flight-time">--:--</span></span>
+                <span><strong>Block Time:</strong> <span id="jl-total-block-time">--:--</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="widget" style="margin-top:14px;">
+            <div class="widget-header gen-widget-header" style="justify-content: flex-start; padding: 12px 22px;">
+              <span class="gen-header-text" style="text-transform: none;">Journey Log - Fuel on Board (kg)</span>
+            </div>
+            <div class="widget-body" style="padding: 16px;">
+              <table class="gen-data-table">
+                <thead>
+                  <tr><th>PHASE</th><th>PLANNED</th><th>ACTUAL</th><th>FUEL &Delta;</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Off Block (Ramp)</td>
+                    <td id="jl-fuel-plan-ramp">---</td>
+                    <td><input type="number" id="jl-fuel-act-ramp" class="act-weight-input" placeholder="0" style="width:85px;"></td>
+                    <td id="jl-fuel-delta-ramp"></td>
+                  </tr>
+                  <tr>
+                    <td>Takeoff</td>
+                    <td id="jl-fuel-plan-tkof">---</td>
+                    <td><input type="number" id="jl-fuel-act-tkof" class="act-weight-input" placeholder="0" style="width:85px;"></td>
+                    <td id="jl-fuel-delta-tkof"></td>
+                  </tr>
+                  <tr>
+                    <td>Landing</td>
+                    <td id="jl-fuel-plan-lnd">---</td>
+                    <td><input type="number" id="jl-fuel-act-lnd" class="act-weight-input" placeholder="0" style="width:85px;"></td>
+                    <td id="jl-fuel-delta-lnd"></td>
+                  </tr>
+                  <tr>
+                    <td>On Block</td>
+                    <td id="jl-fuel-plan-in">---</td>
+                    <td><input type="number" id="jl-fuel-act-in" class="act-weight-input" placeholder="0" style="width:85px;"></td>
+                    <td id="jl-fuel-delta-in"></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- JOURNEY LOG - DUTY ASSIGNMENT & DELAYS -->
+        <div id="briefing-journey-delays-container" class="briefing-general-container" style="display:none;">
+          <div class="widget">
+            <div class="widget-header gen-widget-header" style="justify-content: flex-start; padding: 12px 22px;">
+              <span class="gen-header-text" style="text-transform: none;">Duty Assignment (Crew)</span>
+            </div>
+            <div class="widget-body" style="padding: 16px;">
+              <table class="gen-data-table">
+                <thead>
+                  <tr><th>ROLE</th><th>NAME</th><th>ID / LICENSE</th></tr>
+                </thead>
+                <tbody id="jl-crew-tbody">
+                  <tr><td>Captain (CPT)</td><td id="jl-crew-cpt">J. DOE</td><td>LIC-487768</td></tr>
+                  <tr><td>First Officer (FO)</td><td id="jl-crew-fo">A. LEE</td><td>LIC-392104</td></tr>
+                  <tr><td>Dispatcher (DX)</td><td id="jl-crew-dx">OPS / DISPATCH</td><td>DX-CENTRAL</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="widget" style="margin-top:14px;">
+            <div class="widget-header gen-widget-header" style="justify-content: flex-start; padding: 12px 22px;">
+              <span class="gen-header-text" style="text-transform: none;">Delays &amp; Irregularities (IATA Delay Codes)</span>
+            </div>
+            <div class="widget-body" style="padding: 16px;">
+              <div style="display:grid; grid-template-columns: 2fr 1fr 2fr; gap:12px; margin-bottom:12px; align-items:end;">
+                <div>
+                  <label class="drawer-label" for="jl-delay-code-select">IATA Delay Code</label>
+                  <select id="jl-delay-code-select" class="brf-select" style="width:100%; height:36px;">
+                    <option value="">No delay reported (On time)</option>
+                    <option value="11">11 - Late check-in / Acceptance</option>
+                    <option value="12">12 - Late passenger boarding</option>
+                    <option value="15">15 - Baggage processing</option>
+                    <option value="21">21 - Cargo documentation / loading</option>
+                    <option value="41">41 - Aircraft defects / Maintenance</option>
+                    <option value="43">43 - Ramp handling equipment</option>
+                    <option value="44">44 - Late cabin cleaning</option>
+                    <option value="45">45 - Late fuelling / Fuel bowser delay</option>
+                    <option value="46">46 - Late catering</option>
+                    <option value="71">71 - Weather at departure</option>
+                    <option value="72">72 - Weather at destination</option>
+                    <option value="75">75 - De-icing / Anti-icing</option>
+                    <option value="81">81 - ATFM slot / Air traffic flow management</option>
+                    <option value="82">82 - ATC equipment failure</option>
+                    <option value="89">89 - ATC enroute restriction</option>
+                    <option value="93">93 - Aircraft rotation / Late incoming aircraft</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="drawer-label" for="jl-delay-min">Minutes</label>
+                  <input type="number" id="jl-delay-min" class="act-weight-input" placeholder="0" style="width:100%; height:36px;">
+                </div>
+                <div>
+                  <label class="drawer-label" for="jl-delay-remarks">Remarks</label>
+                  <input type="text" id="jl-delay-remarks" class="brf-text-input" placeholder="e.g. TSAT delayed due to slot" style="height:36px;">
+                </div>
+              </div>
+              <div style="text-align:right;">
+                <button class="btn-primary" id="jl-save-delay-btn" style="padding:8px 16px;">Save to Journey Log</button>
+              </div>
+              <div id="jl-saved-delays-list" style="margin-top:14px;"></div>
+            </div>
+          </div>
+        </div>
+
         <div id="classic-ofp-container" class="classic-ofp-container"></div>
-        <div id="briefing-placeholder" style="display:none; padding: 40px; color: var(--text-secondary); text-align: center;">Contenuto in fase di sviluppo...</div>
+        <div id="briefing-placeholder" style="display:none; padding: 40px; color: var(--text-2); text-align: center;">Contenuto in fase di sviluppo...</div>
       </section>
     </div>
   </main>
 
   <!-- NAVLOG VIEW -->
-  <main id="view-navlog" class="view" style="display:none; padding:0; background: var(--dash-bg);">
+  <main id="view-navlog" class="view" style="display:none; padding:0; background: var(--page);">
     <div class="navlog-sticky-header">
       <div class="navlog-route-header">
-        <span class="font-semibold" id="nl-orig-icao">----</span>
-        <span style="color: var(--text-secondary);">—</span>
-        <span class="font-semibold" id="nl-dest-icao">----</span>
+        <span id="nl-orig-icao">----</span>
+        <span style="color: var(--text-2);">&rarr;</span>
+        <span id="nl-dest-icao">----</span>
       </div>
       <div id="nl-fuel-bar-container" style="margin-bottom: 12px;"></div>
       <div class="navlog-col-header">
@@ -425,10 +646,10 @@
         <div>DTD (NM)</div>
         <div>Pln. Time</div>
         <div>Act. Time</div>
-        <div>Time Δ</div>
+        <div>Time &Delta;</div>
         <div>EFOB (kg)</div>
         <div>AFOB (kg)</div>
-        <div>Fuel Δ</div>
+        <div>Fuel &Delta;</div>
       </div>
     </div>
     <div style="width: 100%; max-width: 1400px; margin: 0 auto; padding: 12px 16px;">
@@ -438,12 +659,39 @@
 
   <!-- BOTTOM BAR -->
   <footer class="bottombar">
-    <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
-    <button class="tab-btn" data-tab="briefing">Briefing</button>
-    <button class="tab-btn" data-tab="navlog">NavLog</button>
+    <button class="tab-btn active" data-tab="dashboard">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"></rect>
+        <rect x="14" y="3" width="7" height="7"></rect>
+        <rect x="14" y="14" width="7" height="7"></rect>
+        <rect x="3" y="14" width="7" height="7"></rect>
+      </svg>
+      <span>Dashboard</span>
+    </button>
+    <button class="tab-btn" data-tab="briefing">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+        <line x1="16" y1="13" x2="8" y2="13"></line>
+        <line x1="16" y1="17" x2="8" y2="17"></line>
+        <polyline points="10 9 9 9 8 9"></polyline>
+      </svg>
+      <span>Briefing</span>
+    </button>
+    <button class="tab-btn" data-tab="navlog">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="8" y1="6" x2="21" y2="6"></line>
+        <line x1="8" y1="12" x2="21" y2="12"></line>
+        <line x1="8" y1="18" x2="21" y2="18"></line>
+        <line x1="3" y1="6" x2="3.01" y2="6"></line>
+        <line x1="3" y1="12" x2="3.01" y2="12"></line>
+        <line x1="3" y1="18" x2="3.01" y2="18"></line>
+      </svg>
+      <span>NavLog</span>
+    </button>
   </footer>
 
-  <!-- POPUP FIRMA -->
+  <!-- POPUP FIRMA ACCETTAZIONE -->
   <div class="modal-overlay" id="signature-modal-overlay"></div>
   <div class="modal" id="signature-modal">
     <div class="modal-header">
@@ -455,10 +703,30 @@
       <label class="acceptance-checkbox-container">
         <input type="checkbox" id="acceptance-checkbox">
         <span class="checkmark"></span>
-        <span class="acceptance-text">CHECK HERE TO CONFIRM OFP, COMPULSORY READS, NOTAMS & WEATHER CHECKED / LICENSES VALID / AFB REVIEWED (WHERE PUBLISHED) / EFB VALIDITY CHECKED</span>
+        <span class="acceptance-text">CHECK HERE TO CONFIRM OFP, COMPULSORY READS, NOTAMS &amp; WEATHER CHECKED / LICENSES VALID / AFB REVIEWED (WHERE PUBLISHED) / EFB VALIDITY CHECKED</span>
       </label>
       <div class="signature-pad-container">
         <canvas id="signature-pad"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- POPUP FIRMA SUBMIT FLIGHT -->
+  <div class="modal-overlay" id="submit-modal-overlay"></div>
+  <div class="modal" id="submit-modal">
+    <div class="modal-header">
+      <button class="modal-header-btn" id="submit-sig-cancel-btn">Cancel</button>
+      <span class="modal-title">Submit Flight &amp; Journey Log</span>
+      <button class="modal-header-btn" id="submit-sig-save-btn">Submit</button>
+    </div>
+    <div class="modal-body">
+      <label class="acceptance-checkbox-container">
+        <input type="checkbox" id="submit-acceptance-checkbox">
+        <span class="checkmark"></span>
+        <span class="acceptance-text">CHECK HERE TO CONFIRM COMPLETION OF FLIGHT, RECORDED OOOI TIMES, FINAL REMAINING FUEL AND DISPATCH / DELAY REPORTING.</span>
+      </label>
+      <div class="signature-pad-container">
+        <canvas id="submit-signature-pad"></canvas>
       </div>
     </div>
   </div>
@@ -484,16 +752,23 @@
       <span class="modal-title">Delete Flight</span>
     </div>
     <div class="modal-body" style="padding: 24px 20px; text-align: center;">
-      <p style="margin: 0 0 20px 0; font-size: 14.5px; color: var(--text); font-weight: 500;">Do you want to delete this flight?</p>
+      <p style="margin: 0 0 20px 0; font-size: 14.5px; color: var(--text); font-weight: 400;">Do you want to delete this flight?</p>
       <div style="display: flex; gap: 12px; justify-content: center;">
-        <button class="btn-secondary" id="confirm-delete-cancel" style="padding: 8px 20px; border-radius: 6px;">Cancel</button>
-        <button class="btn-primary" id="confirm-delete-ok" style="background: #dc2626; color: white; padding: 8px 20px; border-radius: 6px;">Confirm</button>
+        <button class="btn-secondary" id="confirm-delete-cancel" style="padding: 8px 20px; border-radius: 5px;">Cancel</button>
+        <button class="btn-primary" id="confirm-delete-ok" style="background: #dc2626; color: white; padding: 8px 20px; border-radius: 5px;">Confirm</button>
       </div>
     </div>
   </div>
 
-  <script src="js/storage.js?v=59"></script>
-  <script src="js/simbrief.js?v=59"></script>
-  <script src="js/app.js?v=59"></script>
+  <script src="js/storage.js?v=65"></script>
+  <script src="js/simbrief.js?v=65"></script>
+  <script src="js/utils.js?v=65"></script>
+  <script src="js/fuel-engine.js?v=65"></script>
+  <script src="js/myflights.js?v=65"></script>
+  <script src="js/dashboard.js?v=65"></script>
+  <script src="js/briefing.js?v=65"></script>
+  <script src="js/journeylog.js?v=65"></script>
+  <script src="js/navlog.js?v=65"></script>
+  <script src="js/app.js?v=65"></script>
 </body>
 </html>
