@@ -13,38 +13,33 @@
   --panel-border: #dadada;
   --card: #ffffff;
   --card-border: #e4e4e4;
+  --card-outline: #c8c8ca;
   --inner-divider: #e8e8e8;
-
   --seg-bg: #dcdcde;
   --seg-active: #ffffff;
   --seg-active-text: #1c1d1f;
-
   --text: #1c1d1f;
   --text-title: #303030;
   --text-2: #828282;
   --text-3: #6d6d6d;
-
   --tab-inactive: #858585;
   --tab-active: #132557;
-
   --btn: #132557;
   --btn-hover: #1b3478;
   --btn-text: #ffffff;
-  --btn-outline-bg: #ffffff;
-  --btn-outline-border: #cccccc;
-  --btn-outline-text: #1c1d1f;
-  --btn-outline-hover: #f5f5f5;
-
+  --btn-outline-bg: #f5f5f5;
+  --btn-outline-border: #e0e0e0;
+  --btn-outline-text: #2d2d2d;
+  --btn-outline-hover: #eaeaea;
   --pill-ok: #8fd14f;
   --pill-ok-text: #1e3a0a;
   --badge-final: #498c0b;
-
   --green-bg: #dcfce7;
   --green-text: #15803d;
   --orange-text: #d97706;
   --input-bg: #f5f5f5;
   --input-border: #d2d2d2;
-  --brf-sidebar-active-bg: #132557;
+  --brf-sidebar-active-bg: #849ac2;
   --brf-sidebar-active-text: #ffffff;
 }
 
@@ -58,39 +53,34 @@
   --panel-border: #2a2f35;
   --card: #363b41;
   --card-border: #2a2f35;
+  --card-outline: #434952;
   --inner-divider: #454b53;
-
   --seg-bg: #272a31;
   --seg-active: #4e5862;
   --seg-active-text: #fcffff;
-
   --text: #fcffff;
   --text-title: #fcffff;
   --text-2: #8b9097;
   --text-3: #9aa0a8;
-
   --tab-inactive: #b4b7be;
   --tab-active: #4d8fd6;
-
   --btn: #335986;
   --btn-hover: #3d699e;
   --btn-text: #ffffff;
-  --btn-outline-bg: #272b32;
-  --btn-outline-border: #4c525b;
-  --btn-outline-text: #fcffff;
-  --btn-outline-hover: #31363f;
-
+  --btn-outline-bg: #1c2127;
+  --btn-outline-border: #2f3239;
+  --btn-outline-text: #e4e6ec;
+  --btn-outline-hover: #252b33;
   --pill-ok: #80c13a;
   --pill-ok-text: #132604;
   --badge-final: #448108;
-
   --green-bg: #153821;
   --green-text: #4ade80;
   --orange-text: #f59e0b;
   --input-bg: #272a31;
   --input-border: #454b53;
-  --brf-sidebar-active-bg: #335986;
-  --brf-sidebar-active-text: #fcffff;
+  --brf-sidebar-active-bg: #849ac2;
+  --brf-sidebar-active-text: #ffffff;
 }
 
 *, *::before, *::after {
@@ -116,7 +106,6 @@ body {
   overflow: hidden;
 }
 
-/* Impedisce al browser di applicare 700 su tag semantici */
 strong, b {
   font-weight: 600;
 }
@@ -125,7 +114,8 @@ strong, b {
 .data-table, .gen-data-table, .fi-value, .fi-time-line, .fi-strip-value, .fi-delta,
 .fc-times-row, .fc-times-time, .fc-info-strip, .fc-info-val, .gen-stat-value,
 .navlog-row-wp, .navlog-row-aw, .info-chip, .act-weight-input, .navlog-input,
-.brf-block-input, .wind-box, .brf-ff-val, .brf-disc-val, .sub-date, .notam-header, .status-badge {
+.brf-block-input, .wind-box, .brf-ff-val, .brf-disc-val, .sub-date, .notam-header,
+.status-badge, .wx-param-val, .chk-sub, .dispatch-value {
   font-variant-numeric: tabular-nums;
 }
 
@@ -221,7 +211,6 @@ strong, b {
   z-index: 10;
 }
 
-/* Striscia superiore dati volo */
 .flight-info-bar {
   display: flex;
   align-items: center;
@@ -296,8 +285,8 @@ strong, b {
   border: 1px solid var(--badge-final);
 }
 
-/* Seconda riga topbar (Dashboard + icone) */
 .topbar-nav {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -308,18 +297,26 @@ strong, b {
 }
 
 .topbar-title {
-  flex: 1;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   text-align: center;
   font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text-title);
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: calc(100% - 260px);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .topbar-right-group {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-left: auto;
 }
 
 .icon-btn {
@@ -343,7 +340,6 @@ strong, b {
   background: rgba(128, 128, 128, 0.16);
 }
 
-/* Bottom Navigation Bar */
 .bottombar {
   display: flex;
   align-items: center;
@@ -400,7 +396,6 @@ strong, b {
   width: 100%;
 }
 
-/* Pannello Widget Base */
 .widget {
   background: var(--panel);
   border: 1px solid var(--panel-border);
@@ -504,9 +499,9 @@ strong, b {
 .btn-primary {
   background: var(--btn);
   color: var(--btn-text);
-  border: none;
-  border-radius: 4px;
-  padding: 9px 16px;
+  border: 1px solid var(--btn);
+  border-radius: 5px;
+  padding: 8px 16px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -517,7 +512,29 @@ strong, b {
   background: var(--btn-hover);
 }
 
+.btn-secondary {
+  background: var(--btn-outline-bg);
+  color: var(--btn-outline-text);
+  border: 1px solid var(--btn-outline-border);
+  border-radius: 5px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--btn-outline-hover);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .btn-block { width: 100%; margin-top: 10px; }
+
 .hint { margin: 0; font-size: 13px; font-weight: 400; color: var(--text-2); }
 
 /* =========================================================
@@ -563,7 +580,7 @@ strong, b {
   width: 32px;
   height: 32px;
   background: var(--card);
-  border: 1px solid var(--panel-border);
+  border: 1px solid var(--card-outline);
   border-radius: 5px;
   color: var(--text-title);
 }
@@ -587,7 +604,7 @@ strong, b {
 .flight-card {
   position: relative;
   background: var(--card);
-  border: 1px solid var(--panel-border);
+  border: 1px solid var(--card-outline);
   border-radius: 6px;
   padding: 0;
   cursor: pointer;
@@ -649,7 +666,7 @@ strong, b {
   padding: 8px 14px;
   font-size: 12px;
   border-bottom: 1px solid var(--inner-divider);
-  background: var(--panel);
+  background: var(--card);
 }
 
 .fc-info-strip div { display: flex; flex-direction: column; }
@@ -721,7 +738,7 @@ strong, b {
 
 .submitted-row {
   background: var(--card);
-  border: 1px solid var(--panel-border);
+  border: 1px solid var(--card-outline);
   border-radius: 6px;
   padding: 12px 18px;
   display: flex;
@@ -737,7 +754,7 @@ strong, b {
   background: var(--btn);
   color: var(--btn-text);
   border: none;
-  border-radius: 4px;
+  border-radius: 5px;
   padding: 7px 22px;
   font-weight: 500;
   font-size: 13px;
@@ -767,7 +784,7 @@ strong, b {
   top: 40px;
   right: 10px;
   background: var(--card);
-  border: 1px solid var(--panel-border);
+  border: 1px solid var(--card-outline);
   border-radius: 6px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
   z-index: 15;
@@ -795,23 +812,50 @@ strong, b {
 .empty-state { color: var(--text-2); text-align: center; margin-top: 40px; font-weight: 400; }
 
 /* =========================================================
-   BLOCCO A — DASHBOARD VIEW (STRUTTURA & TIPOGRAFIA LIDO)
+   BLOCCO B — DASHBOARD VIEW (PAGER A 2 PAGINE & WIDGET LIDO)
    ========================================================= */
 #view-dashboard {
   background: var(--page);
-  padding: 14px 16px;
+  padding: 14px 16px 10px;
   display: flex;
   flex-direction: column;
   height: 100%;
+  overflow: hidden;
+}
+
+.dash-pager-scroll {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  max-width: 1440px;
+  width: 100%;
+  margin: 0 auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.dash-pager-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.dash-pager-page {
+  flex: 0 0 100%;
+  width: 100%;
+  min-width: 100%;
+  height: 100%;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
-  max-width: 1440px;
   width: 100%;
-  margin: 0 auto;
   align-items: stretch;
   flex: 1;
   min-height: 0;
@@ -824,6 +868,7 @@ strong, b {
   gap: 14px;
   min-width: 0;
   min-height: 0;
+  height: 100%;
 }
 
 /* Pannello esterno Lido: padding 6px per creare la cornice attorno alla scheda interna */
@@ -834,6 +879,7 @@ strong, b {
   padding: 6px;
   margin-bottom: 0;
   min-width: 0;
+  min-height: 0;
 }
 
 /* Titolo scritto direttamente sul pannello esterno (peso 600) */
@@ -849,6 +895,7 @@ strong, b {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 /* Scheda interna arrotondata circondata dalla cornice --panel */
@@ -860,15 +907,87 @@ strong, b {
   min-width: 0;
 }
 
+/* --- PAGINA 1: COLONNA SINISTRA (FLIGHT INFO + CHECKLIST) --- */
 #view-dashboard .flight-info-widget {
-  flex: 1;
+  flex: 0 0 auto;
 }
 
-.checklist-widget { flex: 1; }
+.checklist-widget {
+  flex: 1;
+  min-height: 0;
+}
+
 .checklist-widget .widget-body {
   flex: 1;
   overflow-y: auto;
-  padding: 12px;
+  padding: 6px 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chk-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 4px;
+  border-bottom: 1px solid var(--inner-divider);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.chk-item:last-child {
+  border-bottom: none;
+}
+
+.chk-item:hover {
+  background: rgba(128, 128, 128, 0.06);
+}
+
+.chk-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.chk-icon.done {
+  background: var(--green-bg);
+  color: var(--green-text);
+  border: 1px solid var(--green-text);
+}
+
+.chk-icon.pending {
+  background: transparent;
+  color: var(--text-2);
+  border: 1.5px solid var(--card-outline);
+}
+
+.chk-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.chk-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.25;
+}
+
+.chk-sub {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-2);
+  line-height: 1.25;
 }
 
 /* Flight Info Widget */
@@ -877,7 +996,6 @@ strong, b {
   gap: 8px;
 }
 
-/* Tipo aeromobile e registrazione agli angoli: peso 500, piccoli, grigi */
 .fi-header-side {
   flex: 1;
   font-size: 11px;
@@ -886,10 +1004,10 @@ strong, b {
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
+
 .fi-header-side:first-child { text-align: left; }
 .fi-header-side:last-child { text-align: right; }
 
-/* Numero volo centrato: peso 600, ~1.2em */
 .fi-header-title {
   flex: 0 0 auto;
   font-weight: 600;
@@ -900,7 +1018,7 @@ strong, b {
 .fi-card-inner {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .fi-row { display: flex; align-items: flex-start; }
@@ -908,13 +1026,12 @@ strong, b {
 .fi-mid { flex: 0 0 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 
 .fi-header-row {
-  padding: 14px 12px 10px;
+  padding: 12px 12px 9px;
   align-items: center;
 }
 
-/* Codici aeroporto BER / ATL: grandi (2.3em) ma sottili (peso 400!) */
 .fi-icao {
-  font-size: 30px;
+  font-size: 24px;
   font-weight: 400;
   letter-spacing: 0.3px;
   text-align: center;
@@ -942,29 +1059,31 @@ strong, b {
   align-items: center;
   justify-content: center;
   gap: 28px;
-  padding: 6px 12px;
-  min-height: 30px;
+  padding: 5px 12px;
+  min-height: 28px;
   font-size: 12.5px;
-  border-top: 1px solid var(--inner-divider);
-  border-bottom: 1px solid var(--inner-divider);
+  background: var(--panel);
+  border-top: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--card-border);
+  margin-left: -1px;
+  margin-right: -1px;
 }
 
 .fi-strip-label { color: var(--text-2); margin-right: 4px; font-weight: 400; }
 .fi-strip-value { font-weight: 500; color: var(--text); }
 
 .fi-details-row {
-  padding: 10px 0 12px;
+  padding: 8px 0 10px;
 }
 
 .fi-side-dep { text-align: right; padding-right: 14px; }
 .fi-side-arr { text-align: left; padding-left: 14px; }
 
-/* Riga RWY / SID / STAR: intera riga peso 600, piccola, maiuscola, distinta solo da colore */
 .fi-detail-combo {
   font-size: 11.5px;
   font-weight: 600;
   text-transform: uppercase;
-  padding: 3px 0;
+  padding: 2px 0;
   line-height: 1.35;
 }
 
@@ -985,18 +1104,16 @@ strong, b {
   margin-right: 10px;
 }
 
-/* Date: peso 400, grigio */
 .fi-date {
   color: var(--text-3);
   font-size: 11.5px;
   font-weight: 400;
-  padding: 3px 0;
+  padding: 2px 0;
 }
 
-/* Righe orari: valori 600, etichette tecniche (STD/ETD/STA/ETA/CTOT) 500 maiuscolo piccole */
 .fi-time-line {
   font-size: 13.5px;
-  padding: 2.5px 0;
+  padding: 2px 0;
   line-height: 1.35;
 }
 
@@ -1016,7 +1133,6 @@ strong, b {
   margin: 0 3px;
 }
 
-/* Delta accanto a ETA (-03m): peso 500 */
 .fi-delta {
   font-size: 11.5px;
   font-weight: 500;
@@ -1042,22 +1158,27 @@ strong, b {
   background: var(--inner-divider);
 }
 
-/* Pulsanti Flight Info: peso 500 */
-.fi-actions {
+/* Pulsanti Footer dei Widget Dashboard */
+.fi-actions,
+.route-widget-footer,
+.dash-widget-footer {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 6px 0 0 0;
   background: transparent;
-  margin-top: auto;
   border: none;
+  flex-shrink: 0;
 }
 
 .fi-actions .btn-primary,
-.fi-actions .btn-secondary {
+.fi-actions .btn-secondary,
+.route-widget-footer .btn-secondary,
+.dash-widget-footer .btn-secondary {
   flex: 1;
+  width: 100%;
   margin-top: 0;
-  border-radius: 4px;
+  border-radius: 5px;
   padding: 8px 12px;
   font-size: 13px;
   font-weight: 500;
@@ -1082,20 +1203,16 @@ strong, b {
 }
 
 .fi-actions .btn-secondary,
-.btn-navigraph {
+.route-widget-footer .btn-secondary,
+.dash-widget-footer .btn-secondary {
   background: var(--btn-outline-bg);
   color: var(--btn-outline-text);
   border: 1px solid var(--btn-outline-border);
-  border-radius: 4px;
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 }
 
 .fi-actions .btn-secondary:hover:not(:disabled),
-.btn-navigraph:hover {
+.route-widget-footer .btn-secondary:hover,
+.dash-widget-footer .btn-secondary:hover {
   background: var(--btn-outline-hover);
 }
 
@@ -1104,8 +1221,8 @@ strong, b {
   cursor: default;
 }
 
-/* Colonna Centrale — Route Widget */
-.route-widget-tall { flex: 1; }
+/* --- PAGINA 1: COLONNA CENTRALE (ROUTE WIDGET) --- */
+.route-widget-tall { flex: 1; min-height: 0; }
 .route-widget-tall .widget-body {
   flex: 1;
   overflow: hidden;
@@ -1127,13 +1244,13 @@ strong, b {
   justify-content: center;
   background: var(--card);
   overflow: hidden;
-  padding: 0;
+  padding: 6px;
 }
 
 .route-map-img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .route-map-fallback {
@@ -1153,7 +1270,7 @@ strong, b {
   font-weight: 400;
   line-height: 1.5;
   padding: 10px 12px;
-  border-top: 1px solid var(--inner-divider);
+  border-top: none;
   text-align: left;
   color: var(--text);
   background: var(--card);
@@ -1161,111 +1278,17 @@ strong, b {
 
 .route-summary strong { font-weight: 600; }
 
-.route-widget-footer {
-  background: transparent;
-  padding: 6px 0 0 0;
-  display: flex;
-  justify-content: center;
-  border: none;
-}
-
-.btn-navigraph {
-  width: 100%;
-}
-
-/* Colonna Destra — Pager Weight / Fuel / Weather */
-.pager-scroll {
-  display: flex;
-  overflow-x: auto;
-  overflow-y: auto;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  border-radius: 6px;
+/* --- PAGINA 1: COLONNA DESTRA (WEATHER WIDGET 3 SOTTO-BLOCCHI) --- */
+.weather-widget {
   flex: 1;
   min-height: 0;
-  min-width: 0;
 }
 
-.pager-scroll::-webkit-scrollbar { display: none; }
-
-.pager-page {
-  flex: 0 0 100%;
-  scroll-snap-align: start;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-width: 0;
-}
-
-.pager-page[data-page="0"] .weight-widget { flex: 1; }
-.pager-page[data-page="0"] .fuel-widget { flex: 1; }
-.pager-page[data-page="1"] { min-height: 100%; }
-.pager-page[data-page="1"] .weather-widget { flex-grow: 1; }
-
-.pager-dots {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.pager-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  border: none;
-  background: var(--text-2);
-  opacity: 0.4;
-  cursor: pointer;
-  padding: 0;
-}
-
-.pager-dot.active {
-  background: var(--text);
-  opacity: 1;
-}
-
-/* Tabelle Weight & Fuel: header 400 grigio, label riga 400 grigio, valori 600 pieno */
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.data-table th {
-  text-align: right;
-  font-weight: 400;
-  color: var(--text-2);
-  font-size: 11px;
-  padding: 4px 6px;
-  border-bottom: 1px solid var(--inner-divider);
-}
-
-.data-table td {
-  text-align: right;
-  padding: 5px 6px;
-  border-bottom: 1px solid var(--inner-divider);
-}
-
-.data-table th:first-child,
-.data-table td:first-child {
-  text-align: left;
-  color: var(--text-2);
-  font-weight: 400;
-}
-
-.data-table td:not(:first-child) {
-  font-weight: 600;
-  color: var(--text);
-}
-
-.data-table tbody tr:last-child td { border-bottom: none; }
-.fuel-widget .data-table td:first-child,
-.fuel-widget .data-table th:first-child { font-size: 12.5px; }
-
-/* Weather Widget */
 .weather-widget .widget-body {
   padding: 10px 12px 12px 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .wx-tabs {
@@ -1274,10 +1297,10 @@ strong, b {
   border-radius: 6px;
   padding: 2px;
   gap: 2px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
 }
 
-/* Segmenti BER / ATL / ALTN: peso 500 */
 .wx-tab {
   flex: 1;
   background: transparent;
@@ -1302,6 +1325,54 @@ strong, b {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
+.wx-apt-header {
+  margin-bottom: 10px;
+}
+
+.wx-apt-code {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.25;
+}
+
+.wx-apt-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-top: 2px;
+}
+
+.wx-params-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  background: var(--input-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 5px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+
+.wx-param-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.wx-param-label {
+  color: var(--text-2);
+  font-weight: 400;
+}
+
+.wx-param-val {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .wx-row-header {
   display: flex;
   align-items: center;
@@ -1309,7 +1380,6 @@ strong, b {
   margin-bottom: 4px;
 }
 
-/* Intestazione METAR: 21m old -> peso 500, piccola, grigia */
 .wx-row-title { font-weight: 500; font-size: 11.5px; color: var(--text-2); }
 .wx-row-age { font-size: 11.5px; font-weight: 500; color: var(--text-2); flex: 1; }
 
@@ -1326,7 +1396,6 @@ strong, b {
 .wx-badge.imc { background: #fadada; color: #b3261e; }
 [data-theme="dark"] .wx-badge.imc { background: #3a1414; color: #f28b82; }
 
-/* Testo METAR / TAF: peso 400, colore pieno */
 .wx-text {
   white-space: pre-wrap;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -1342,6 +1411,252 @@ strong, b {
   background: var(--inner-divider);
   margin: 4px 0 10px;
 }
+
+/* --- PAGINA 2: COLONNA SINISTRA (NOTAM WIDGET) --- */
+.dash-notam-widget {
+  flex: 1;
+  min-height: 0;
+}
+
+.dash-notam-body-wrap {
+  padding: 10px 12px 12px 12px !important;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.dash-notam-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 2px;
+}
+
+.dash-notam-cat-title {
+  text-transform: uppercase;
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--text-2);
+  margin: 10px 0 6px 0;
+  letter-spacing: 0.03em;
+}
+
+.dash-notam-cat-title:first-child {
+  margin-top: 2px;
+}
+
+.dash-notam-item {
+  border: 1px solid var(--panel-border);
+  border-radius: 5px;
+  padding: 9px 10px;
+  margin-bottom: 8px;
+  background: var(--input-bg);
+}
+
+.dash-notam-item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.dash-notam-id {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.dash-notam-dates {
+  font-size: 10.5px;
+  color: var(--text-2);
+  margin-bottom: 5px;
+}
+
+.dash-notam-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+}
+
+/* --- PAGINA 2: COLONNA CENTRALE (WEIGHT & FUEL UNIFICATO) --- */
+.weight-fuel-widget {
+  flex: 1;
+  min-height: 0;
+}
+
+.weight-fuel-body {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10px 12px !important;
+}
+
+.wf-divider {
+  height: 1px;
+  background: var(--inner-divider);
+  margin: 8px 0;
+}
+
+/* --- PAGINA 2: COLONNA DESTRA (DISPATCH + CREW) --- */
+.dash-dispatch-widget {
+  flex: 0 0 auto;
+}
+
+.dispatch-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dispatch-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dispatch-label {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.dispatch-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dispatch-rmk-box {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 5px;
+  padding: 8px 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 110px;
+  overflow-y: auto;
+}
+
+.dash-crew-widget {
+  flex: 1;
+  min-height: 0;
+}
+
+.dash-crew-body {
+  overflow-y: auto;
+  padding: 8px 12px !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.crew-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--inner-divider);
+}
+
+.crew-row:last-child {
+  border-bottom: none;
+}
+
+.crew-role-badge {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  color: var(--text-2);
+  min-width: 46px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.crew-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: right;
+  word-break: break-word;
+}
+
+/* --- PAGER DOTS INFERIORI --- */
+.pager-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-shrink: 0;
+}
+
+.pager-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: none;
+  background: var(--text-2);
+  opacity: 0.4;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.pager-dot.active {
+  background: var(--text);
+  opacity: 1;
+  transform: scale(1.15);
+}
+
+/* Tabelle Weight & Fuel */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.data-table th {
+  text-align: right;
+  font-weight: 400;
+  color: var(--text-2);
+  font-size: 11px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--inner-divider);
+}
+
+.data-table td {
+  text-align: right;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--inner-divider);
+}
+
+.data-table th:first-child, .data-table td:first-child {
+  text-align: left;
+  color: var(--text-2);
+  font-weight: 400;
+}
+
+.data-table td:not(:first-child) {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.data-table tbody tr:last-child td { border-bottom: none; }
 
 /* =========================================================
    BRIEFING VIEW
@@ -1400,7 +1715,7 @@ strong, b {
 }
 
 .briefing-item::before {
-  content: '•';
+  content: '\2022';
   color: var(--tab-active);
   font-size: 18px;
   margin-right: 10px;
@@ -1424,9 +1739,10 @@ strong, b {
 }
 
 .brf-apt-item::before { display: none; }
+
 .brf-apt-item-main { font-size: 13px; font-weight: 600; }
 .brf-apt-item-sub { font-size: 11px; font-weight: 400; color: var(--text-2); margin-top: 2px; }
-.brf-apt-item.active .brf-apt-item-sub { color: #e2e8f0; }
+.brf-apt-item.active .brf-apt-item-sub { color: #f1f5f9; }
 
 .classic-ofp-container {
   flex: 1;
@@ -1465,6 +1781,7 @@ strong, b {
 
 .ofp-page-text img { display: block; max-width: 100%; height: auto; margin: 14px auto; }
 .ofp-page-text a { color: var(--btn); }
+
 .classic-ofp-empty { color: var(--text-2); padding: 40px; text-align: center; font-size: 14px; font-weight: 400; }
 
 .briefing-general-container {
@@ -1507,6 +1824,7 @@ strong, b {
 
 .gen-info-grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px 10px; padding: 14px 20px; }
 .gen-info-grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 20px 10px; padding: 14px 20px 20px; }
+
 .gen-stat { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
 .gen-stat-label { font-size: 10.5px; font-weight: 500; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; }
 .gen-stat-value { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; }
@@ -1525,7 +1843,9 @@ strong, b {
   white-space: nowrap;
   font-size: 11px;
 }
+
 .gen-data-table th:first-child { text-align: left; }
+
 .gen-data-table td {
   padding: 8px 14px;
   text-align: center;
@@ -1534,6 +1854,7 @@ strong, b {
   border-bottom: 1px solid var(--inner-divider);
   vertical-align: middle;
 }
+
 .gen-data-table td:first-child { text-align: left; font-weight: 400; color: var(--text-2); }
 .gen-data-table tr:last-child td { border-bottom: none; }
 
@@ -1549,27 +1870,25 @@ strong, b {
   font-family: inherit;
   font-size: 13px;
 }
+
 .act-weight-input:focus { outline: none; border-color: var(--tab-active); }
 .act-weight-input.limit-exceeded { color: #ef4444; border-color: #ef4444; }
-.act-weight-input::-webkit-outer-spin-button,
-.act-weight-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.act-weight-input::-webkit-outer-spin-button, .act-weight-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .act-weight-input[type=number] { -moz-appearance: textfield; }
 
 /* Fuel Controls */
-.brf-reset-btn,
-.brf-impacts-view-btn {
+.brf-reset-btn, .brf-impacts-view-btn {
   background: var(--btn-outline-bg);
   border: 1px solid var(--btn-outline-border);
   color: var(--btn-outline-text);
   padding: 4px 12px;
-  border-radius: 4px;
+  border-radius: 5px;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
 }
 
-.brf-reset-btn:hover,
-.brf-impacts-view-btn:hover {
+.brf-reset-btn:hover, .brf-impacts-view-btn:hover {
   background: var(--btn-outline-hover);
 }
 
@@ -1642,9 +1961,9 @@ strong, b {
   font-weight: 500;
   width: 100%;
 }
+
 .brf-text-input:focus { outline: none; border-color: var(--tab-active); }
 .brf-max-disc-info { font-size: 11px; color: var(--text-2); padding: 0 20px; font-weight: 400; }
-
 .brf-fuel-footer { padding: 14px 20px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--inner-divider); }
 .brf-ff-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .brf-ff-label { color: var(--text-2); font-weight: 400; }
@@ -1658,8 +1977,10 @@ strong, b {
   align-items: center;
   justify-content: space-between;
 }
+
 .brf-strip-title { color: #ffffff; font-size: 15px; font-weight: 600; text-transform: uppercase; }
 .brf-strip-controls { display: flex; align-items: center; gap: 10px; }
+
 .brf-block-input {
   width: 75px;
   background: #ffffff;
@@ -1672,17 +1993,20 @@ strong, b {
   font-family: inherit;
   font-size: 15px;
 }
+
 .brf-strip-unit { color: #ffffff; font-size: 13px; font-weight: 500; }
+
 .brf-order-btn {
   background-color: #ffffff;
   color: var(--btn);
   font-weight: 600;
   border: none;
-  border-radius: 4px;
+  border-radius: 5px;
   padding: 8px 16px;
   font-size: 13px;
   cursor: pointer;
 }
+
 .brf-order-btn.btn-ordered { background-color: var(--green-bg); color: var(--green-text); }
 
 .brf-impacts-table th { display: none; }
@@ -1699,6 +2023,7 @@ strong, b {
   color: var(--text);
   word-break: break-word;
 }
+
 .dispatch-text { font-family: inherit; }
 
 /* MEL Status Box */
@@ -1712,6 +2037,7 @@ strong, b {
   padding: 14px 18px;
   color: var(--text);
 }
+
 .mel-status-icon {
   background: #16a34a;
   color: #ffffff;
@@ -1737,7 +2063,7 @@ strong, b {
 .notam-category-title:first-child { margin-top: 0; }
 .notam-box { border: 1px solid var(--panel-border); border-radius: 5px; padding: 12px; margin-bottom: 12px; background: var(--input-bg); }
 .notam-top-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
-.notam-badge { display: inline-block; background: var(--brf-sidebar-active-bg); color: #ffffff; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.notam-badge { display: inline-block; background: var(--btn); color: #ffffff; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
 .notam-flag { background: none; border: none; cursor: pointer; color: var(--text-2); padding: 0; display: flex; align-items: center; justify-content: center; }
 .notam-flag.flagged { color: #eab308; }
 .notam-header { font-weight: 600; font-size: 13px; color: var(--text); margin-bottom: 6px; }
@@ -1784,6 +2110,7 @@ strong, b {
   background-color: #2c5b8f;
   overflow: visible;
 }
+
 .navlog-fuel-finres-zone {
   position: absolute;
   top: 0; bottom: 0; left: 0;
@@ -1791,6 +2118,7 @@ strong, b {
   background: repeating-linear-gradient(45deg, #2c5b8f, #2c5b8f 7px, #9333ea 7px, #9333ea 14px);
   z-index: 1;
 }
+
 .navlog-marker-totres {
   position: absolute;
   top: -3px; bottom: -3px;
@@ -1799,6 +2127,7 @@ strong, b {
   border-radius: 2px;
   z-index: 3;
 }
+
 .navlog-marker-landing {
   position: absolute;
   top: -3px; bottom: -3px;
@@ -1806,6 +2135,7 @@ strong, b {
   border-radius: 2px;
   z-index: 4;
 }
+
 .bg-red-500 { background-color: #ef4444 !important; }
 .bg-emerald-500 { background-color: #10b981 !important; }
 
@@ -1818,6 +2148,7 @@ strong, b {
   font-weight: 400;
   color: var(--text-2);
 }
+
 .navlog-legend-item { display: flex; align-items: center; gap: 4px; }
 .navlog-legend-dot-finres { width: 8px; height: 8px; border-radius: 50%; background-color: #9333ea; }
 .navlog-legend-line-totres { width: 4px; height: 12px; background-color: #f59e0b; border-radius: 1px; }
@@ -1833,6 +2164,7 @@ strong, b {
   font-weight: 400;
   color: var(--text-2);
 }
+
 .navlog-col-header div { text-align: center; }
 .navlog-col-header div:first-child { text-align: left; }
 
@@ -1847,8 +2179,10 @@ strong, b {
   border-radius: 5px;
   margin-bottom: 8px;
 }
+
 .navlog-row-wp div { text-align: center; font-size: 13px; font-weight: 600; color: var(--text); }
 .navlog-row-wp div:first-child { text-align: left; }
+
 .navlog-wp-ident { font-weight: 600; font-size: 14.5px; line-height: 1.1; }
 .navlog-wp-name { font-size: 11px; font-weight: 400; color: var(--text-2); }
 
@@ -1865,6 +2199,7 @@ strong, b {
   margin: 0 auto;
   display: block;
 }
+
 .navlog-input:focus { outline: none; border-color: var(--tab-active); }
 
 .navlog-row-aw {
@@ -1877,6 +2212,7 @@ strong, b {
   font-weight: 400;
   color: var(--text-2);
 }
+
 .navlog-row-aw div { text-align: center; }
 .navlog-row-aw div:first-child { text-align: left; font-weight: 500; }
 
@@ -1892,6 +2228,7 @@ strong, b {
   transition: opacity 0.2s ease;
   z-index: 100;
 }
+
 .modal-overlay.open { opacity: 1; pointer-events: auto; }
 
 .modal {
@@ -1911,6 +2248,7 @@ strong, b {
   transition: all 0.2s ease;
   overflow: hidden;
 }
+
 .modal.open { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
 
 .modal-header {
@@ -1921,13 +2259,15 @@ strong, b {
   padding: 12px 16px;
   border-bottom: 1px solid var(--panel-border);
 }
+
 .modal-title { font-weight: 600; font-size: 15px; color: var(--text-title); }
 .modal-header-btn { background: none; border: none; font-size: 14px; color: var(--tab-active); cursor: pointer; padding: 0; font-weight: 500; }
 #sig-cancel-btn, #submit-sig-cancel-btn { color: var(--text-2); font-weight: 400; }
-
 .modal-body { padding: 16px; }
+
 .acceptance-checkbox-container { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; cursor: pointer; }
 .acceptance-checkbox-container input { display: none; }
+
 .checkmark {
   width: 20px;
   height: 20px;
@@ -1940,17 +2280,21 @@ strong, b {
   margin-top: 2px;
   background-color: var(--input-bg);
 }
+
 .acceptance-checkbox-container input:checked ~ .checkmark {
   background: var(--green-bg);
   border-color: var(--green-text);
 }
+
 .acceptance-checkbox-container input:checked ~ .checkmark::after {
-  content: '✓';
+  content: '\2713';
   color: var(--green-text);
   font-weight: 600;
   font-size: 13px;
 }
+
 .acceptance-text { font-size: 11px; font-weight: 400; line-height: 1.4; color: var(--text); }
+
 .signature-pad-container {
   border: 1px solid var(--input-border);
   border-radius: 5px;
@@ -1960,4 +2304,5 @@ strong, b {
   overflow: hidden;
   touch-action: none;
 }
+
 canvas#signature-pad, canvas#submit-signature-pad { width: 100%; height: 100%; display: block; }
