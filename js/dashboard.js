@@ -597,7 +597,7 @@ function formatNotamText(rawText) {
       : '';
     return '<span class="notam-hl-warn">RWY</span>' + runway;
   });
-  formatted = formatted.replace(/\b(TWY|VOR|LOC|NDB|ILS|RNP|RNAV|DME|STAR|SID|GLS|GNSS|GPS)\b/gi,
+  formatted = formatted.replace(/\b(TWY|VOR|DVOR|VORTAC|TACAN|LOC|LLZ|NDB|ADF|ILS|GS|RNP|RNAV|DME|STAR|SID|GLS|GBAS|GNSS|GPS)\b/gi,
     '<span class="notam-hl-warn">$1</span>');
   formatted = formatted.replace(/\b(CLSD|NOT AVAILABLE|NOT AVBL|DO NOT USE)\b|U\/S/gi,
     match => '<span class="notam-hl-danger">' + match + '</span>');
@@ -606,7 +606,7 @@ function formatNotamText(rawText) {
 function getFlaggedNotamIds() {
   const flight = getFlight(currentFlightId);
   const ids = flight && flight.state && flight.state.flaggedNotams;
-  return Array.isArray(ids) ? ids : [];
+  return Array.isArray(ids) ? ids.map(String) : [];
 }
 
 function applyDashboardNotamFilter() {
@@ -678,7 +678,7 @@ function toggleNotamFlag(notamId) {
   const flight = getFlight(currentFlightId);
   if (!flight) return;
   if (!flight.state) flight.state = {};
-  const current = Array.isArray(flight.state.flaggedNotams) ? flight.state.flaggedNotams : [];
+  const current = Array.isArray(flight.state.flaggedNotams) ? flight.state.flaggedNotams.map(String) : [];
   const next = current.includes(notamId)
     ? current.filter(id => id !== notamId)
     : [...current, notamId];
