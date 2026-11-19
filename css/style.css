@@ -2350,7 +2350,7 @@ canvas#signature-pad, canvas#submit-signature-pad { width: 100%; height: 100%; d
 .notam-raim-tab.active { color: #48638c; }
 
 .notam-filter-btn {
-  min-width: 108px;
+  min-width: 82px;
   padding: 5px 14px;
   border: 1px solid transparent;
   border-radius: 7px;
