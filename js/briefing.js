@@ -1564,8 +1564,9 @@ function applyClassicOfpZoom() {
     });
   } else {
     container.querySelectorAll('.ofp-page').forEach(page => {
-      page.style.width = 'calc(210mm * ' + classicOfpZoom + ')';
+      page.style.width = (210 * classicOfpZoom) + 'mm';
       page.style.maxWidth = 'none';
+      page.style.zoom = '1';
       page.style.transform = 'none';
     });
     initializeClassicOfpAnnotationCanvases(getFlight(currentFlightId));
