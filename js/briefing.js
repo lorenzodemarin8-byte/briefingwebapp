@@ -2,133 +2,62 @@
    Navigazione sidebar Briefing, General, Fuel UI, MEL/CDL, Crew Alert/Bulletins, ATC, Dispatch, WX/RAIM/NOTAM, Classic OFP.
 */
 
+function normalizeSimBriefList(value) {
+  if (value === undefined || value === null || value === '') return [];
+  return Array.isArray(value) ? value : [value];
+}
+
 function extractAirportsData(data) {
   currentAirportsData = [];
   if (!data) return;
 
-  let allNotams = [];
-  if (data.notams && data.notams.notamdrec) {
-    allNotams = Array.isArray(data.notams.notamdrec) ? data.notams.notamdrec : [data.notams.notamdrec];
-  }
+  const allNotams = normalizeSimBriefList(data.notams && data.notams.notamdrec);
 
   function getAptNotams(icao) {
-    return allNotams.filter(n => n.cns_location_id === icao || n.icao_id === icao || n.location_icao === icao);
+    if (!icao) return [];
+    return allNotams.filter(n =>
+      n && (n.cns_location_id === icao || n.icao_id === icao || n.location_icao === icao)
+    );
+  }
+
+  function addAirportRecord(apt, type, runways) {
+    if (!apt || !apt.icao_code) return;
+    currentAirportsData.push({
+      type,
+      icao: apt.icao_code,
+      iata: apt.iata_code,
+      icao_code: apt.icao_code,
+      plan_rwy: apt.plan_rwy,
+      name: apt.name,
+      metar_ceiling: apt.metar_ceiling,
+      metar_visibility: apt.metar_visibility,
+      metar: apt.metar,
+      metar_time: apt.metar_time,
+      metar_category: apt.metar_category,
+      taf: apt.taf,
+      taf_time: apt.taf_time,
+      runways: runways || null,
+      notams: getAptNotams(apt.icao_code)
+    });
   }
 
   if (data.origin) {
-    currentAirportsData.push({
-      type: 'Departure',
-      icao: data.origin.icao_code,
-      iata: data.origin.iata_code,
-      icao_code: data.origin.icao_code,
-      plan_rwy: data.origin.plan_rwy,
-      name: data.origin.name,
-      metar_ceiling: data.origin.metar_ceiling,
-      metar_visibility: data.origin.metar_visibility,
-      metar: data.origin.metar,
-      metar_time: data.origin.metar_time,
-      metar_category: data.origin.metar_category,
-      taf: data.origin.taf,
-      taf_time: data.origin.taf_time,
-      runways: (data.tlr && data.tlr.takeoff) ? data.tlr.takeoff.runway : null,
-      notams: getAptNotams(data.origin.icao_code)
-    });
+    addAirportRecord(data.origin, 'Departure',
+      data.tlr && data.tlr.takeoff ? data.tlr.takeoff.runway : null);
   }
-
   if (data.destination) {
-    currentAirportsData.push({
-      type: 'Arrival',
-      icao: data.destination.icao_code,
-      iata: data.destination.iata_code,
-      icao_code: data.destination.icao_code,
-      plan_rwy: data.destination.plan_rwy,
-      name: data.destination.name,
-      metar_ceiling: data.destination.metar_ceiling,
-      metar_visibility: data.destination.metar_visibility,
-      metar: data.destination.metar,
-      metar_time: data.destination.metar_time,
-      metar_category: data.destination.metar_category,
-      taf: data.destination.taf,
-      taf_time: data.destination.taf_time,
-      runways: (data.tlr && data.tlr.landing) ? data.tlr.landing.runway : null,
-      notams: getAptNotams(data.destination.icao_code)
-    });
+    addAirportRecord(data.destination, 'Arrival',
+      data.tlr && data.tlr.landing ? data.tlr.landing.runway : null);
   }
 
-  if (data.alternate) {
-    let altns = Array.isArray(data.alternate) ? data.alternate : [data.alternate];
-    altns.forEach(alt => {
-      if (alt && alt.icao_code) {
-        currentAirportsData.push({
-          type: 'Arrival Alternate',
-          icao: alt.icao_code,
-          iata: alt.iata_code,
-          icao_code: alt.icao_code,
-          plan_rwy: alt.plan_rwy,
-          name: alt.name,
-          metar_ceiling: alt.metar_ceiling,
-          metar_visibility: alt.metar_visibility,
-          metar: alt.metar,
-          metar_time: alt.metar_time,
-          metar_category: alt.metar_category,
-          taf: alt.taf,
-          taf_time: alt.taf_time,
-          runways: null,
-          notams: getAptNotams(alt.icao_code)
-        });
-      }
-    });
-  }
-
-  if (data.takeoff_altn) {
-    let toAltns = Array.isArray(data.takeoff_altn) ? data.takeoff_altn : [data.takeoff_altn];
-    toAltns.forEach(alt => {
-      if (alt && alt.icao_code) {
-        currentAirportsData.push({
-          type: 'Takeoff Alternate',
-          icao: alt.icao_code,
-          iata: alt.iata_code,
-          icao_code: alt.icao_code,
-          plan_rwy: alt.plan_rwy,
-          name: alt.name,
-          metar_ceiling: alt.metar_ceiling,
-          metar_visibility: alt.metar_visibility,
-          metar: alt.metar,
-          metar_time: alt.metar_time,
-          metar_category: alt.metar_category,
-          taf: alt.taf,
-          taf_time: alt.taf_time,
-          runways: null,
-          notams: getAptNotams(alt.icao_code)
-        });
-      }
-    });
-  }
-
-  if (data.enroute_altn) {
-    let erAltns = Array.isArray(data.enroute_altn) ? data.enroute_altn : [data.enroute_altn];
-    erAltns.forEach(alt => {
-      if (alt && alt.icao_code) {
-        currentAirportsData.push({
-          type: 'Enroute Alternate',
-          icao: alt.icao_code,
-          iata: alt.iata_code,
-          icao_code: alt.icao_code,
-          plan_rwy: alt.plan_rwy,
-          name: alt.name,
-          metar_ceiling: alt.metar_ceiling,
-          metar_visibility: alt.metar_visibility,
-          metar: alt.metar,
-          metar_time: alt.metar_time,
-          metar_category: alt.metar_category,
-          taf: alt.taf,
-          taf_time: alt.taf_time,
-          runways: null,
-          notams: getAptNotams(alt.icao_code)
-        });
-      }
-    });
-  }
+  normalizeSimBriefList(data.alternate).forEach(alt =>
+    addAirportRecord(alt, 'Arrival Alternate'));
+  normalizeSimBriefList(data.takeoff_altn).forEach(alt =>
+    addAirportRecord(alt, 'Takeoff Alternate'));
+  normalizeSimBriefList(data.enroute_altn).forEach(alt =>
+    addAirportRecord(alt, 'Enroute Alternate'));
+  normalizeSimBriefList(data.enroute_station).forEach(station =>
+    addAirportRecord(station, 'Enroute Station'));
 }
 
 function getBriefingVisitedPages() {
@@ -187,26 +116,117 @@ function briefingSectionMarkup(title, key, innerHtml, expanded) {
     (expanded ? '' : 'hidden') + '>' + innerHtml + '</div></section>';
 }
 
-function getFlightFirList(data) {
-  const fixes = data && data.navlog && data.navlog.fix;
-  const list = Array.isArray(fixes) ? fixes : fixes ? [fixes] : [];
+function getPlanHtmlText(data, sectionName) {
+  const html = data && data.text && data.text.plan_html;
+  if (!html) return '';
+  let sectionHtml = String(html);
+  const markerPattern = /<!--BKMK\/\/\/([^]*?)\/\/\/\d+-->/g;
+  const markers = [];
+  let match;
+  while ((match = markerPattern.exec(sectionHtml)) !== null) {
+    markers.push({ name: match[1].trim(), end: markerPattern.lastIndex, index: match.index });
+  }
+  const marker = markers.find(x => x.name.toLowerCase() === String(sectionName).toLowerCase());
+  if (marker) {
+    const next = markers.find(x => x.index > marker.index);
+    sectionHtml = sectionHtml.slice(marker.end, next ? next.index : sectionHtml.length);
+  }
+  const holder = document.createElement('div');
+  holder.innerHTML = sectionHtml;
+  return (holder.textContent || holder.innerText || '').replace(/\r/g, '');
+}
+
+function addFirNameToMap(map, code, name) {
+  const id = String(code || '').trim().toUpperCase();
+  const firName = String(name || '').trim().replace(/\*+$/, '').trim();
+  if (/^[A-Z0-9]{4}$/.test(id) && firName && !map[id]) map[id] = firName;
+}
+
+function collectFirNamesFromPlanHtml(data, map) {
+  const text = getPlanHtmlText(data, 'NOTAM') + '\n' + getPlanHtmlText(data, 'Weather');
+  let match;
+  const inline = /^([A-Z0-9]{4})\s{2,}(.+?\bFIR(?:\/UIR)?\b.*)$/gim;
+  while ((match = inline.exec(text)) !== null) addFirNameToMap(map, match[1], match[2]);
+
+  const namedThenCode = /^([A-Z][A-Z /()-]+?\bFIR(?:\/UIR)?)[* \t]*\n\s*-([A-Z0-9]{4})\b/gim;
+  while ((match = namedThenCode.exec(text)) !== null) addFirNameToMap(map, match[2], match[1]);
+}
+
+function getFlightFirEntries(data) {
+  const fixes = normalizeSimBriefList(data && data.navlog && data.navlog.fix);
+  const names = Object.create(null);
+  const orderedCodes = [];
   const seen = new Set();
-  return list.map(fix => String(fix && fix.fir || '').trim()).filter(fir => {
-    if (!fir || seen.has(fir)) return false;
-    seen.add(fir);
-    return true;
+
+  fixes.forEach(fix => {
+    const crossings = normalizeSimBriefList(fix && fix.fir_crossing && fix.fir_crossing.fir);
+    crossings.forEach(crossing => {
+      if (!crossing || typeof crossing !== 'object') return;
+      addFirNameToMap(names, crossing.fir_icao || crossing.icao || crossing.code,
+        crossing.fir_name || crossing.name);
+    });
+
+    const rawFir = fix && fix.fir;
+    const code = typeof rawFir === 'string' ? rawFir.trim().toUpperCase()
+      : rawFir && typeof rawFir === 'object'
+        ? String(rawFir.fir_icao || rawFir.icao || rawFir.code || '').trim().toUpperCase()
+        : '';
+    if (code && /^[A-Z0-9]{4}$/.test(code) && !seen.has(code)) {
+      seen.add(code);
+      orderedCodes.push(code);
+    }
+
+    crossings.forEach(crossing => {
+      const crossingCode = String(crossing && (crossing.fir_icao || crossing.icao || crossing.code) || '').trim().toUpperCase();
+      if (crossingCode && /^[A-Z0-9]{4}$/.test(crossingCode) && !seen.has(crossingCode)) {
+        seen.add(crossingCode);
+        orderedCodes.push(crossingCode);
+      }
+    });
   });
+
+  // ATC's filed enroute FIRs are a fallback for layouts without FIR tags on navlog fixes.
+  if (!orderedCodes.length && data && data.atc) {
+    normalizeSimBriefList(data.atc.fir_enroute).forEach(value => {
+      const code = String(value || '').trim().toUpperCase();
+      if (/^[A-Z0-9]{4}$/.test(code) && !seen.has(code)) {
+        seen.add(code);
+        orderedCodes.push(code);
+      }
+    });
+  }
+
+  collectFirNamesFromPlanHtml(data, names);
+  normalizeSimBriefList(data && data.sigmets && data.sigmets.sigmet).forEach(sigmet => {
+    if (sigmet) addFirNameToMap(names, sigmet.fir, sigmet.fir_name);
+  });
+
+  return orderedCodes.map(code => ({ code, name: names[code] || '' }));
+}
+
+function getFirNotams(data, firCode) {
+  const records = normalizeSimBriefList(data && data.notams && data.notams.notamdrec);
+  const code = String(firCode || '').toUpperCase();
+  return records.filter(notam => notam &&
+    [notam.cns_location_id, notam.icao_id, notam.location_icao]
+      .some(value => String(value || '').toUpperCase() === code));
+}
+
+function getFirEntriesForCurrentFlight() {
+  const flight = getFlight(currentFlightId);
+  return getFlightFirEntries(flight && flight.raw ? flight.raw : {});
 }
 
 function renderBriefingMenu() {
   const menuEl = document.getElementById('briefing-menu');
   if (!menuEl) return;
-  const data = (getFlight(currentFlightId) || {}).raw || {};
+  const flight = getFlight(currentFlightId);
+  const data = flight && flight.raw ? flight.raw : {};
   const mainAirports = currentAirportsData.map((apt, index) => ({ apt, index }))
     .filter(x => ['Departure', 'Arrival', 'Arrival Alternate'].includes(x.apt.type));
   const enrouteAirports = currentAirportsData.map((apt, index) => ({ apt, index }))
-    .filter(x => ['Enroute Alternate', 'Enroute Airport'].includes(x.apt.type));
-  const firs = getFlightFirList(data);
+    .filter(x => ['Enroute Alternate', 'Enroute Station'].includes(x.apt.type));
+  const firs = getFlightFirEntries(data);
 
   const flightPlanDefs = [
     ['General', 'section:general'], ['Fuel', 'section:fuel'],
@@ -228,16 +248,21 @@ function renderBriefingMenu() {
     '<div class="briefing-airport-empty">No main airports available</div>';
   const enrouteItems = enrouteAirports.map(x => briefingAirportButton(x.apt, x.index)).join('') ||
     '<div class="briefing-airport-empty">No enroute airports available</div>';
-  const firItems = firs.map(fir => briefingPageButton(escapeNotamHtml(fir), 'fir:' + fir,
-    'data-placeholder-title="FIR ' + escapeNotamHtml(fir) + '"')).join('') ||
-    '<div class="briefing-airport-empty">No FIR data available</div>';
+  const firItems = firs.map(fir => {
+    const code = escapeNotamHtml(fir.code);
+    const name = escapeNotamHtml(fir.name || 'Flight Information Region');
+    const label = '<span class="briefing-airport-code">' + code + '</span>' +
+      '<span class="briefing-airport-type">' + name + '</span>';
+    const attrs = 'data-fir-code="' + code + '" data-fir-name="' + name + '"';
+    return briefingPageButton(label, 'fir:' + fir.code, attrs, 'briefing-airport-item briefing-fir-item');
+  }).join('') || '<div class="briefing-airport-empty">No FIR data available</div>';
 
-  const wxNotams = '<div class="briefing-global-filter notam-segmented" role="group" aria-label="Filter airports">' +
+  const wxNotams = '<div class="briefing-global-filter notam-segmented" role="group" aria-label="Filter airports and FIRs">' +
     '<button type="button" class="notam-filter-btn ' + (activeNotamFilter === 'all' ? 'active' : '') + '" data-notam-filter="all">All</button>' +
     '<button type="button" class="notam-filter-btn ' + (activeNotamFilter === 'flagged' ? 'active' : '') + '" data-notam-filter="flagged">Flagged</button>' +
     '</div>' +
     briefingGroupMarkup('Main Airports', 'brf-main-airports', mainAirportItems, true) +
-    briefingGroupMarkup('Enroute Airports', 'brf-enroute-airports', enrouteItems, false) +
+    briefingGroupMarkup('Enroute Airports', 'brf-enroute-airports', enrouteItems, true) +
     briefingGroupMarkup('FIRs', 'brf-firs', firItems, false);
 
   const chartLabels = ['UAD', 'SIGWX with Route', 'VAA/TCA', 'CDA', 'SIGWX',
@@ -271,10 +296,18 @@ function renderBriefingMenu() {
 
 function applyBriefingAirportMenuFilter() {
   const flaggedIds = getFlaggedNotamIds();
+  const flight = getFlight(currentFlightId);
+  const data = flight && flight.raw ? flight.raw : {};
   document.querySelectorAll('#briefing-menu .briefing-airport-item').forEach(item => {
-    const apt = currentAirportsData[Number(item.dataset.aptIndex)];
-    const hasFlagged = Boolean(apt && Array.isArray(apt.notams) &&
-      apt.notams.some(notam => flaggedIds.includes(String(notam.notam_id || 'UNKNOWN'))));
+    let hasFlagged = false;
+    if (item.dataset.firCode) {
+      hasFlagged = getFirNotams(data, item.dataset.firCode)
+        .some(notam => flaggedIds.includes(String(notam.notam_id || 'UNKNOWN')));
+    } else {
+      const apt = currentAirportsData[Number(item.dataset.aptIndex)];
+      hasFlagged = Boolean(apt && Array.isArray(apt.notams) &&
+        apt.notams.some(notam => flaggedIds.includes(String(notam.notam_id || 'UNKNOWN'))));
+    }
     item.style.display = activeNotamFilter === 'flagged' && !hasFlagged ? 'none' : '';
   });
 }
@@ -304,7 +337,18 @@ function selectBriefingPage(item) {
   const flight = getFlight(currentFlightId);
   const section = item.dataset.section;
   const aptIndex = item.dataset.aptIndex;
+  const firCode = item.dataset.firCode;
   const placeholderTitle = item.dataset.placeholderTitle;
+
+  if (firCode) {
+    const fir = getFlightFirEntries(flight && flight.raw ? flight.raw : {}).find(x => x.code === firCode);
+    const firName = (fir && fir.name) || item.dataset.firName || 'Flight Information Region';
+    if (title) title.textContent = firCode + ' - ' + firName;
+    const airportContainer = document.getElementById('briefing-airport-container');
+    if (airportContainer) airportContainer.style.display = 'flex';
+    renderFirSection(firCode, firName);
+    return;
+  }
 
   if (aptIndex !== undefined) {
     const apt = currentAirportsData[Number(aptIndex)];
@@ -354,7 +398,7 @@ function selectBriefingPage(item) {
     const tools = document.getElementById('classic-ofp-tools');
     const viewport = document.getElementById('classic-ofp-viewport');
     if (tools) tools.style.display = 'flex';
-    if (viewport) viewport.style.display = 'flex';
+    if (viewport) viewport.style.display = 'block';
     renderClassicOfpText(flight && flight.raw);
     initClassicOfpAnnotationTools(flight);
   } else {
@@ -939,6 +983,12 @@ function renderAirportSection(index) {
   const weatherType = apt.type === 'Departure' ? 'origin'
     : apt.type === 'Arrival' ? 'destination' : 'alternate';
   const metrics = getAirportWeatherMetrics(flight.raw || {}, weatherType, apt);
+  const airportWeatherContent = document.getElementById('brf-apt-airport-weather-content');
+  const firWeatherContent = document.getElementById('brf-fir-weather-content');
+  const vmcBadge = document.getElementById('brf-apt-vmc-badge');
+  if (airportWeatherContent) airportWeatherContent.style.display = '';
+  if (firWeatherContent) firWeatherContent.style.display = 'none';
+  if (vmcBadge) vmcBadge.style.display = '';
 
   setT('brf-apt-param-ceiling', metrics.ceiling);
   setT('brf-apt-param-vis', metrics.visibility);
@@ -1082,17 +1132,220 @@ function getClassicOfpAnnotations(flight) {
   return annotations && typeof annotations === 'object' ? annotations : {};
 }
 
-function renderClassicOfpText(data) {
+function escapeRegexText(value) {
+  return String(value || '').replace(/[.*+?^$()|[\]\\]/g, '\\$&');
+}
+
+function extractFirWeatherTextForCategory(weatherText, firCode, firName, heading) {
+  if (!weatherText) return 'NIL';
+  const lines = String(weatherText).split(/\r?\n/);
+  let start = -1;
+  const code = String(firCode || '').toUpperCase();
+  const name = String(firName || '').toUpperCase();
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].toUpperCase();
+    if (line.includes(code) && (line.includes('FIR') || (name && line.includes(name)))) {
+      start = i;
+      break;
+    }
+  }
+
+  let scoped = '';
+  if (start >= 0) {
+    let end = lines.length;
+    for (let i = start + 1; i < lines.length; i++) {
+      if (/^\s*[A-Z0-9]{4}\s{2,}.*\bFIR(?:\/UIR)?\b/i.test(lines[i]) ||
+          /^\s*(DEPARTURE AIRPORT|DESTINATION AIRPORT|DESTINATION ALTERNATE|FUEL ENROUTE AIRPORT)\s*:/i.test(lines[i])) {
+        end = i;
+        break;
+      }
+    }
+    scoped = lines.slice(start, end).join('\n');
+  } else {
+    const upper = String(weatherText).toUpperCase();
+    if (upper.includes(code) || (name && upper.includes(name))) scoped = String(weatherText);
+  }
+
+  if (!scoped) return 'NIL';
+  const categoryPattern = new RegExp('(?:^|\\n)\\s*' + escapeRegexText(heading) +
+    '\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*(?:AIRMETs|SIGMETs|Tropical Cyclone SIGMETs|Volcanic Ash SIGMETs)\\s*:|$)', 'i');
+  const match = categoryPattern.exec(scoped);
+  if (!match) return 'NIL';
+  const value = match[1].trim();
+  if (!value || /^(?:NIL|NO WX DATA AVAILABLE|NO DATA AVAILABLE)$/i.test(value)) return 'NIL';
+  return value;
+}
+
+function getFirWeatherMessages(data, firCode, firName) {
+  const records = normalizeSimBriefList(data && data.sigmets && data.sigmets.sigmet);
+  const buckets = { WA: [], WS: [], WC: [], WV: [] };
+  records.forEach(record => {
+    if (!record) return;
+    const code = String(record.fir || record.fir_icao || '').trim().toUpperCase();
+    if (code !== String(firCode).toUpperCase()) return;
+    const type = String(record.type || '').trim().toUpperCase();
+    if (!buckets[type]) return;
+    const message = String(record.text || record.title || record.message || '').trim();
+    if (message) buckets[type].push(message);
+  });
+
+  const weatherText = getPlanHtmlText(data, 'Weather');
+  return {
+    airmets: buckets.WA.length ? buckets.WA.join('\n\n') : extractFirWeatherTextForCategory(weatherText, firCode, firName, 'AIRMETs'),
+    sigmets: buckets.WS.length ? buckets.WS.join('\n\n') : extractFirWeatherTextForCategory(weatherText, firCode, firName, 'SIGMETs'),
+    tropical: buckets.WC.length ? buckets.WC.join('\n\n') : extractFirWeatherTextForCategory(weatherText, firCode, firName, 'Tropical Cyclone SIGMETs'),
+    volcanic: buckets.WV.length ? buckets.WV.join('\n\n') : extractFirWeatherTextForCategory(weatherText, firCode, firName, 'Volcanic Ash SIGMETs')
+  };
+}
+
+function renderFirSection(firCode, firName) {
+  const flight = getFlight(currentFlightId);
+  if (!flight || !flight.raw) return;
+  if (!flight.state) flight.state = {};
+  if (!Array.isArray(flight.state.flaggedNotams)) flight.state.flaggedNotams = [];
+
+  const setText = (id, value) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value || 'NIL';
+  };
+
+  const airportWeatherContent = document.getElementById('brf-apt-airport-weather-content');
+  const firWeatherContent = document.getElementById('brf-fir-weather-content');
+  const vmcBadge = document.getElementById('brf-apt-vmc-badge');
+  if (airportWeatherContent) airportWeatherContent.style.display = 'none';
+  if (firWeatherContent) firWeatherContent.style.display = 'flex';
+  if (vmcBadge) vmcBadge.style.display = 'none';
+
+  const weather = getFirWeatherMessages(flight.raw, firCode, firName);
+  setText('brf-fir-airmets', weather.airmets);
+  setText('brf-fir-sigmets', weather.sigmets);
+  setText('brf-fir-tropical-sigmets', weather.tropical);
+  setText('brf-fir-volcanic-sigmets', weather.volcanic);
+
+  const runwayWidget = document.getElementById('brf-apt-rwy-widget');
+  if (runwayWidget) runwayWidget.style.display = 'none';
+
+  const notamWidget = document.getElementById('brf-apt-notam-widget');
+  const notamBody = document.getElementById('brf-apt-notam-body');
+  if (!notamWidget || !notamBody) return;
+
+  const notams = getFirNotams(flight.raw, firCode);
+  notamWidget.style.display = 'flex';
+  notamBody.dataset.airportIcao = firCode;
+
+  if (!notams.length) {
+    notamBody.innerHTML = '<div class="briefing-airport-empty">NIL — no FIR NOTAMs available for ' +
+      escapeNotamHtml(firCode) + '</div>';
+    return;
+  }
+
+  const grouped = {};
+  notams.forEach(notam => {
+    const category = notam.notam_qcode_category || decodeQCodeCategory(notam.notam_qcode);
+    if (!grouped[category]) grouped[category] = [];
+    grouped[category].push(notam);
+  });
+  const catOrder = { RUNWAY: 1, SID: 2, STAR: 3, 'APPROACH PROCEDURES': 4, AIRPORT: 5 };
+  const categories = Object.keys(grouped).sort((a, b) => (catOrder[a] || 99) - (catOrder[b] || 99));
+  const selectedFilter = getAirportNotamFilter(firCode);
+  let html = '';
+
+  categories.forEach((category, categoryIndex) => {
+    if (categoryIndex === 0) {
+      html += '<div class="notam-category-heading-row"><div class="notam-category-title">' +
+        escapeNotamHtml(category) + '</div>' +
+        '<label class="notam-airport-filter"><span class="notam-airport-filter-label">Show:</span>' +
+        '<select class="brf-select notam-airport-filter-select" data-airport-notam-filter data-icao="' +
+        escapeNotamHtml(firCode) + '" aria-label="Show all or flagged FIR NOTAMs">' +
+        '<option value="all"' + (selectedFilter === 'all' ? ' selected' : '') + '>All</option>' +
+        '<option value="flagged"' + (selectedFilter === 'flagged' ? ' selected' : '') + '>Flagged</option>' +
+        '</select></label></div><div class="notam-category-wrapper">';
+    } else {
+      html += '<div class="notam-category-wrapper"><div class="notam-category-title">' +
+        escapeNotamHtml(category) + '</div>';
+    }
+
+    grouped[category].forEach(notam => {
+      const notamId = String(notam.notam_id || 'UNKNOWN');
+      const isFlagged = getFlaggedNotamIds().includes(notamId);
+      const startDate = formatNotamDate(notam.notam_effective_dtg || notam.notam_created_dtg);
+      const endDate = formatNotamDate(notam.notam_expire_dtg || notam.notam_expire_dtg_estimated);
+      html += '<div class="notam-box" data-notam-id="' + escapeNotamHtml(notamId) + '">' +
+        '<div class="notam-top-row"><div class="notam-badge">' + escapeNotamHtml(category) + '</div>' +
+        '<button type="button" class="notam-flag' + (isFlagged ? ' flagged' : '') +
+        '" aria-label="Flag NOTAM" aria-pressed="' + isFlagged + '">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg></button></div>' +
+        '<div class="notam-header">' + escapeNotamHtml(notamId) + ' - ' +
+        escapeNotamHtml(startDate) + ' - ' + escapeNotamHtml(endDate) + '</div>' +
+        '<div class="notam-body">' + formatNotamText(notam.notam_report || notam.notam_text || '') + '</div></div>';
+    });
+    html += '</div>';
+  });
+
+  notamBody.innerHTML = html;
+  notamBody.querySelectorAll('.notam-flag').forEach(button => {
+    button.addEventListener('click', () => {
+      const card = button.closest('.notam-box');
+      if (card) toggleNotamFlag(card.dataset.notamId);
+    });
+  });
+  bindAirportNotamFilterControls(notamBody);
+  applyBriefingNotamFilter();
+}
+
+var classicOfpPdfDocument = null;
+var classicOfpPdfPages = [];
+var classicOfpPdfObserver = null;
+var classicOfpPdfRenderTasks = Object.create(null);
+var classicOfpPdfLoadingTask = null;
+var classicOfpRenderToken = 0;
+var classicOfpResizeBound = false;
+var classicOfpBaseScale = 1;
+
+function getClassicOfpPdfFile(data) {
+  const link = data && data.files && data.files.pdf && data.files.pdf.link;
+  if (!link) return null;
+  const fileName = String(link).split('/').pop().split('?')[0];
+  if (!/^[A-Z0-9_-]+_PDF_[0-9]+\.pdf$/i.test(fileName)) return null;
+  const directory = data.files.directory || 'https://www.simbrief.com/ofp/flightplans/';
+  let directUrl = fileName;
+  try {
+    directUrl = new URL(fileName, directory).href;
+  } catch (e) {
+    directUrl = 'https://www.simbrief.com/ofp/flightplans/' + encodeURIComponent(fileName);
+  }
+  return {
+    proxyUrl: '/api/simbrief-pdf?file=' + encodeURIComponent(fileName),
+    directUrl
+  };
+}
+
+function waitForPdfJs(timeoutMs) {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  return new Promise(resolve => {
+    let finished = false;
+    const complete = () => {
+      if (finished) return;
+      finished = true;
+      window.removeEventListener('pdfjs-ready', complete);
+      resolve(window.pdfjsLib || null);
+    };
+    window.addEventListener('pdfjs-ready', complete, { once: true });
+    window.setTimeout(complete, timeoutMs || 8000);
+  });
+}
+
+function renderClassicOfpHtmlFallback(data, reason) {
   const container = document.getElementById('classic-ofp-container');
   if (!container) return;
   const html = data && data.text && data.text.plan_html;
   if (!html) {
-    container.innerHTML = '<p class="classic-ofp-empty">Testo OFP non disponibile per questo volo.</p>';
+    container.innerHTML = '<p class="classic-ofp-empty">OFP PDF and HTML content are not available for this flight.</p>';
     return;
   }
 
-  // Remove SimBrief's single outer DIV/PRE wrapper before splitting into individual pages.
-  const normalizedHtml = html
+  const normalizedHtml = String(html)
     .replace(/^\s*<div[^>]*>\s*<pre[^>]*>/i, '')
     .replace(/<\/pre>\s*<\/div>\s*$/i, '');
   const pages = normalizedHtml
@@ -1100,33 +1353,228 @@ function renderClassicOfpText(data) {
     .map(page => page.trim())
     .filter(Boolean);
 
-  container.innerHTML = pages.map((page, index) =>
-    '<div class="ofp-page" data-page-index="' + index + '">' +
-      '<div class="ofp-page-content"><pre class="ofp-page-text">' + page + '</pre></div>' +
-      '<canvas class="ofp-annotation-canvas" data-page-index="' + index + '" aria-label="OFP annotations"></canvas>' +
-    '</div>'
-  ).join('');
+  container.classList.remove('classic-ofp-pdf-mode');
+  container.innerHTML = (reason ? '<div class="classic-ofp-error">PDF unavailable — showing the SimBrief HTML version instead.</div>' : '') +
+    pages.map((page, index) =>
+      '<div class="ofp-page" data-page-index="' + index + '">' +
+        '<div class="ofp-page-content"><pre class="ofp-page-text">' + page + '</pre></div>' +
+        '<canvas class="ofp-annotation-canvas" data-page-index="' + index + '" aria-label="OFP annotations"></canvas>' +
+      '</div>'
+    ).join('');
   applyClassicOfpZoom();
   initializeClassicOfpAnnotationCanvases(getFlight(currentFlightId));
 }
 
+async function renderClassicOfpText(data) {
+  const container = document.getElementById('classic-ofp-container');
+  if (!container) return;
+  const token = ++classicOfpRenderToken;
+
+  if (classicOfpPdfObserver) {
+    classicOfpPdfObserver.disconnect();
+    classicOfpPdfObserver = null;
+  }
+  Object.keys(classicOfpPdfRenderTasks).forEach(key => {
+    try { classicOfpPdfRenderTasks[key].cancel(); } catch (e) {}
+  });
+  classicOfpPdfRenderTasks = Object.create(null);
+  if (classicOfpPdfLoadingTask && classicOfpPdfLoadingTask.destroy) {
+    try { classicOfpPdfLoadingTask.destroy(); } catch (e) {}
+  }
+  classicOfpPdfLoadingTask = null;
+  classicOfpPdfDocument = null;
+  classicOfpPdfPages = [];
+
+  const pdfFile = getClassicOfpPdfFile(data);
+  if (!pdfFile) {
+    renderClassicOfpHtmlFallback(data, false);
+    return;
+  }
+
+  container.classList.add('classic-ofp-pdf-mode');
+  container.innerHTML = '<div class="classic-ofp-loading">Loading original SimBrief PDF…</div>';
+  const pdfjsLib = await waitForPdfJs(8000);
+  if (token !== classicOfpRenderToken) return;
+  if (!pdfjsLib) {
+    renderClassicOfpHtmlFallback(data, true);
+    return;
+  }
+
+  let pdf = null;
+  const urls = [pdfFile.proxyUrl, pdfFile.directUrl];
+  for (let i = 0; i < urls.length && !pdf; i++) {
+    try {
+      classicOfpPdfLoadingTask = pdfjsLib.getDocument({
+        url: urls[i],
+        withCredentials: false,
+        disableAutoFetch: false,
+        disableStream: false
+      });
+      pdf = await classicOfpPdfLoadingTask.promise;
+    } catch (e) {
+      pdf = null;
+    }
+    if (token !== classicOfpRenderToken) return;
+  }
+
+  if (!pdf) {
+    renderClassicOfpHtmlFallback(data, true);
+    return;
+  }
+
+  classicOfpPdfDocument = pdf;
+  container.innerHTML = '';
+  const viewportEl = document.getElementById('classic-ofp-viewport');
+  const availableWidth = Math.max(280, (viewportEl ? viewportEl.clientWidth : window.innerWidth) - 36);
+  const firstPage = await pdf.getPage(1);
+  const firstViewport = firstPage.getViewport({ scale: 1 });
+  classicOfpBaseScale = Math.max(0.35, Math.min(1.8, availableWidth / firstViewport.width));
+
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+    if (token !== classicOfpRenderToken) return;
+    const page = pageNumber === 1 ? firstPage : await pdf.getPage(pageNumber);
+    const baseViewport = page.getViewport({ scale: 1 });
+    classicOfpPdfPages[pageNumber - 1] = page;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'ofp-pdf-page';
+    wrapper.dataset.pageIndex = String(pageNumber - 1);
+    wrapper.dataset.baseWidth = String(baseViewport.width * classicOfpBaseScale);
+    wrapper.dataset.baseHeight = String(baseViewport.height * classicOfpBaseScale);
+    wrapper.dataset.pdfRendered = 'false';
+
+    const pdfCanvas = document.createElement('canvas');
+    pdfCanvas.className = 'ofp-pdf-canvas';
+    pdfCanvas.setAttribute('aria-label', 'SimBrief OFP page ' + pageNumber);
+    const annotationCanvas = document.createElement('canvas');
+    annotationCanvas.className = 'ofp-annotation-canvas';
+    annotationCanvas.dataset.pageIndex = String(pageNumber - 1);
+    annotationCanvas.setAttribute('aria-label', 'OFP annotations');
+
+    wrapper.appendChild(pdfCanvas);
+    wrapper.appendChild(annotationCanvas);
+    container.appendChild(wrapper);
+  }
+
+  applyClassicOfpZoom();
+  initializeClassicOfpAnnotationCanvases(getFlight(currentFlightId));
+
+  if ('IntersectionObserver' in window) {
+    classicOfpPdfObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const index = Number(entry.target.dataset.pageIndex);
+        renderClassicOfpPdfPage(index);
+      });
+    }, {
+      root: viewportEl || null,
+      rootMargin: '700px 0px'
+    });
+    container.querySelectorAll('.ofp-pdf-page').forEach(page => classicOfpPdfObserver.observe(page));
+  } else {
+    for (let index = 0; index < classicOfpPdfPages.length; index++) {
+      renderClassicOfpPdfPage(index);
+    }
+  }
+
+  if (!classicOfpResizeBound) {
+    classicOfpResizeBound = true;
+    window.addEventListener('resize', () => {
+      if (!classicOfpPdfDocument) return;
+      const viewport = document.getElementById('classic-ofp-viewport');
+      const page = classicOfpPdfPages[0];
+      if (!viewport || !page) return;
+      const baseViewport = page.getViewport({ scale: 1 });
+      const width = Math.max(280, viewport.clientWidth - 36);
+      classicOfpBaseScale = Math.max(0.35, Math.min(1.8, width / baseViewport.width));
+      applyClassicOfpZoom();
+    });
+  }
+}
+
+async function renderClassicOfpPdfPage(index) {
+  if (!classicOfpPdfDocument || !classicOfpPdfPages[index]) return;
+  const container = document.getElementById('classic-ofp-container');
+  const wrapper = container && container.querySelector('.ofp-pdf-page[data-page-index="' + index + '"]');
+  if (!wrapper) return;
+
+  const pdfCanvas = wrapper.querySelector('.ofp-pdf-canvas');
+  if (!pdfCanvas) return;
+  const scale = classicOfpBaseScale * classicOfpZoom;
+  const renderKey = String(Math.round(scale * 10000) / 10000);
+  if (wrapper.dataset.renderedScale === renderKey) return;
+
+  const oldTask = classicOfpPdfRenderTasks[index];
+  if (oldTask) {
+    try { oldTask.cancel(); } catch (e) {}
+  }
+
+  try {
+    const page = classicOfpPdfPages[index];
+    const viewport = page.getViewport({ scale });
+    const outputScale = Math.min(window.devicePixelRatio || 1, 2);
+    pdfCanvas.width = Math.max(1, Math.ceil(viewport.width * outputScale));
+    pdfCanvas.height = Math.max(1, Math.ceil(viewport.height * outputScale));
+    pdfCanvas.style.width = viewport.width + 'px';
+    pdfCanvas.style.height = viewport.height + 'px';
+    const context = pdfCanvas.getContext('2d', { alpha: false });
+    const renderTask = page.render({
+      canvasContext: context,
+      viewport,
+      transform: outputScale === 1 ? null : [outputScale, 0, 0, outputScale, 0, 0]
+    });
+    classicOfpPdfRenderTasks[index] = renderTask;
+    await renderTask.promise;
+    wrapper.dataset.renderedScale = renderKey;
+    wrapper.dataset.pdfRendered = 'true';
+  } catch (e) {
+    if (e && e.name !== 'RenderingCancelledException') {
+      console.warn('Classic OFP PDF page render failed', index + 1, e);
+    }
+  } finally {
+    delete classicOfpPdfRenderTasks[index];
+  }
+}
 
 function applyClassicOfpZoom() {
   const container = document.getElementById('classic-ofp-container');
   const zoomValue = document.getElementById('ofp-zoom-value');
-  if (container) {
-    if ('zoom' in container.style) {
-      container.style.zoom = String(classicOfpZoom);
-      container.style.transform = '';
-      container.style.width = '';
-    } else {
-      container.style.zoom = '';
-      container.style.transform = 'scale(' + classicOfpZoom + ')';
-      container.style.width = (100 / classicOfpZoom) + '%';
-    }
+  if (!container) return;
+
+  if (classicOfpPdfDocument) {
+    const wrappers = container.querySelectorAll('.ofp-pdf-page');
+    wrappers.forEach(wrapper => {
+      const width = Number(wrapper.dataset.baseWidth) * classicOfpZoom;
+      const height = Number(wrapper.dataset.baseHeight) * classicOfpZoom;
+      wrapper.style.width = width + 'px';
+      wrapper.style.height = height + 'px';
+      const canvas = wrapper.querySelector('.ofp-pdf-canvas');
+      if (canvas) {
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+      }
+      wrapper.dataset.renderedScale = '';
+    });
+    initializeClassicOfpAnnotationCanvases(getFlight(currentFlightId));
+    wrappers.forEach((wrapper, index) => {
+      const rect = wrapper.getBoundingClientRect();
+      const viewport = document.getElementById('classic-ofp-viewport');
+      const viewRect = viewport ? viewport.getBoundingClientRect() : null;
+      const closeToView = !viewRect || (rect.bottom >= viewRect.top - 700 && rect.top <= viewRect.bottom + 700);
+      if (wrapper.dataset.pdfRendered === 'true' || closeToView) renderClassicOfpPdfPage(index);
+    });
+  } else {
+    container.querySelectorAll('.ofp-page').forEach(page => {
+      page.style.width = (210 * classicOfpZoom) + 'mm';
+      page.style.maxWidth = 'none';
+      page.style.zoom = '1';
+      page.style.transform = 'none';
+    });
+    initializeClassicOfpAnnotationCanvases(getFlight(currentFlightId));
   }
+
   if (zoomValue) zoomValue.textContent = Math.round(classicOfpZoom * 100) + '%';
 }
+
 
 function restoreClassicOfpCanvas(canvas, dataUrl) {
   const ctx = canvas.getContext('2d');
@@ -1147,7 +1595,7 @@ function initializeClassicOfpAnnotationCanvases(flight) {
   const annotations = getClassicOfpAnnotations(flight);
   const canvases = document.querySelectorAll('#classic-ofp-container .ofp-annotation-canvas');
   canvases.forEach(canvas => {
-    const page = canvas.closest('.ofp-page');
+    const page = canvas.closest('.ofp-page, .ofp-pdf-page');
     if (!page) return;
     const rect = page.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
@@ -1159,7 +1607,7 @@ function initializeClassicOfpAnnotationCanvases(flight) {
     const ctx = canvas.getContext('2d');
     if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     canvas.style.pointerEvents = 'auto';
-    canvas.style.touchAction = 'pan-y';
+    canvas.style.touchAction = 'pan-x pan-y';
     canvas.classList.add('drawing-enabled');
 
     if (!canvas.dataset.annotationBound) {
@@ -1278,6 +1726,9 @@ function initClassicOfpAnnotationTools(flight) {
       } else if (action === 'zoom-out') {
         classicOfpZoom = Math.max(0.6, Math.round((classicOfpZoom - 0.1) * 10) / 10);
         applyClassicOfpZoom();
+      } else if (action === 'zoom-fit') {
+        classicOfpZoom = 1;
+        applyClassicOfpZoom();
       } else {
         const canvas = document.querySelector('#classic-ofp-container .ofp-annotation-canvas[data-page-index="' + classicOfpCurrentPage + '"]');
         if (!canvas) return;
@@ -1297,7 +1748,7 @@ function initClassicOfpAnnotationTools(flight) {
     };
   });
 
-  document.querySelectorAll('#classic-ofp-container .ofp-page').forEach(page => {
+  document.querySelectorAll('#classic-ofp-container .ofp-page, #classic-ofp-container .ofp-pdf-page').forEach(page => {
     page.addEventListener('pointerdown', () => {
       classicOfpCurrentPage = Number(page.dataset.pageIndex) || 0;
     }, { passive: true });
