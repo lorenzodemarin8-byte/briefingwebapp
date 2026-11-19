@@ -34,6 +34,14 @@ function activateBriefingView() {
   document.body.classList.add('briefing-mode');
   const nav = document.getElementById('topbar-nav');
   if (nav) nav.classList.add('briefing-layout');
+  const flight = getFlight(currentFlightId);
+  const flightNumber = document.getElementById('briefing-flight-number');
+  if (flightNumber) {
+    const callsign = flight && flight.raw && typeof extractCallsign === 'function'
+      ? extractCallsign(flight.raw)
+      : '';
+    flightNumber.textContent = callsign === '—' ? '' : callsign;
+  }
   setBriefingSidebarOpen(true);
   if (typeof openBriefingGeneral === 'function') openBriefingGeneral();
 }
