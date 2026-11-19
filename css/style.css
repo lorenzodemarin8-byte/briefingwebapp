@@ -10,21 +10,21 @@
   --info-strip: #ececec;
   --page: #f5f5f5;
   --panel: #ebebeb;
-  --panel-border: #e0e0e0;
+  --panel-border: #dadada;
   --card: #ffffff;
   --card-border: #e4e4e4;
   --card-outline: #c8c8ca;
-  --inner-divider: #e0e0e0;
+  --inner-divider: #e8e8e8;
   --seg-bg: #dcdcde;
   --seg-active: #ffffff;
   --seg-active-text: #1c1d1f;
   --text: #1c1d1f;
   --text-title: #303030;
-  --text-2: #686868;
+  --text-2: #828282;
   --text-3: #6d6d6d;
   --tab-inactive: #858585;
-  --tab-active: #3562a8;
-  --btn: #3262b3;
+  --tab-active: #132557;
+  --btn: #132557;
   --btn-hover: #1b3478;
   --btn-text: #ffffff;
   --btn-outline-bg: #f5f5f5;
@@ -40,7 +40,7 @@
   --input-bg: #f5f5f5;
   --input-border: #d2d2d2;
   --brf-sidebar-active-bg: #8899bf;
-  --brf-sidebar-active-text: #101d30;
+  --brf-sidebar-active-text: #ffffff;
 }
 
 [data-theme="dark"] {
