@@ -394,7 +394,9 @@ function renderFuelSection(flight) {
   const discTimeVal = document.getElementById('brf-disc-time-val');
   const discReason = document.getElementById('brf-disc-reason-input');
 
-  let isBlockFuelManual = (savedFuel.blockFuel !== undefined && savedFuel.blockFuel !== "");
+  let isBlockFuelManual = savedFuel.blockFuelManual !== undefined
+    ? savedFuel.blockFuelManual === true
+    : (savedFuel.blockFuel !== undefined && savedFuel.blockFuel !== "");
 
   function saveCurrentFuelState(isOrdered) {
     const f = getFlight(currentFlightId);
@@ -411,6 +413,7 @@ function renderFuelSection(flight) {
     const aSel = document.getElementById('brf-f-altn-select');
 
     if (bInp) f.state.fuelState.blockFuel = bInp.value;
+    f.state.fuelState.blockFuelManual = isBlockFuelManual;
     if (dInp) f.state.fuelState.discFuel = dInp.value;
     if (rInp) f.state.fuelState.discReason = rInp.value;
     if (aSel) f.state.fuelState.altnIndex = aSel.value;
@@ -468,6 +471,7 @@ function renderFuelSection(flight) {
       if (!flight.state) flight.state = {};
       if (!flight.state.fuelState) flight.state.fuelState = {};
       flight.state.fuelState.blockFuel = '';
+      flight.state.fuelState.blockFuelManual = false;
       flight.state.fuelState.altnIndex = newSel.value;
       updateFuelCalcs();
       saveCurrentFuelState();
@@ -498,6 +502,7 @@ function renderFuelSection(flight) {
       if (!flight.state.fuelState) flight.state.fuelState = {};
       // Discard stale manual block fuel so the engine recomputes the new total.
       flight.state.fuelState.blockFuel = '';
+      flight.state.fuelState.blockFuelManual = false;
       flight.state.fuelState.discFuel = newDisc.value;
       updateFuelCalcs();
       saveCurrentFuelState();
@@ -517,14 +522,17 @@ function renderFuelSection(flight) {
   if (blockInput) {
     const newBlockInput = blockInput.cloneNode(true);
     blockInput.parentNode.replaceChild(newBlockInput, blockInput);
-    if (savedFuel.blockFuel) {
+    if (isBlockFuelManual && savedFuel.blockFuel !== undefined && savedFuel.blockFuel !== '') {
       newBlockInput.value = savedFuel.blockFuel;
+    } else {
+      newBlockInput.value = calcs.actualBlockFuel;
     }
     newBlockInput.addEventListener('input', () => {
       isBlockFuelManual = true;
       if (!flight.state) flight.state = {};
       if (!flight.state.fuelState) flight.state.fuelState = {};
       flight.state.fuelState.blockFuel = newBlockInput.value;
+      flight.state.fuelState.blockFuelManual = true;
       updateFuelCalcs();
       saveCurrentFuelState();
     });
@@ -561,6 +569,7 @@ function renderFuelSection(flight) {
         discFuel: '',
         discReason: '',
         blockFuel: '',
+        blockFuelManual: false,
         fuelOrdered: false
       };
       isBlockFuelManual = false;
