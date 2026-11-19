@@ -592,7 +592,7 @@ function escapeNotamHtml(value) {
 
 function formatNotamText(rawText) {
   let formatted = escapeNotamHtml(rawText);
-  formatted = formatted.replace(/\bRWY\b(?:\s*([0-9]{2}[LCR]?(?:\/[0-9]{2}[LCR]?)*))?/gi, (match, runwayGroup) => {
+  formatted = formatted.replace(/\bRWY(?:\s*([0-9]{2}[LCR]?(?:\/[0-9]{2}[LCR]?)*))?/gi, (match, runwayGroup) => {
     const identifiers = runwayGroup
       ? ' ' + runwayGroup.split('/').map(id => '<span class="notam-rwy-ident">' + id + '</span>').join('/')
       : '';
