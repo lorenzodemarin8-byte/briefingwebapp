@@ -365,9 +365,16 @@ function selectBriefingPage(item) {
 
 function bindBriefingTabs() {
   const menu = document.getElementById('briefing-menu');
-  if (!menu) return;
-  menu.querySelectorAll('.briefing-page-item').forEach(item => {
-    item.addEventListener('click', () => selectBriefingPage(item));
+  if (!menu || menu.dataset.pageNavigationBound === 'true') return;
+
+  // Delegate clicks from the stable menu container so regenerated page buttons remain interactive.
+  menu.dataset.pageNavigationBound = 'true';
+  menu.addEventListener('click', event => {
+    const target = event.target && event.target.closest
+      ? event.target.closest('.briefing-page-item')
+      : null;
+    if (!target || !menu.contains(target)) return;
+    selectBriefingPage(target);
   });
 }
 
@@ -1298,85 +1305,6 @@ function initClassicOfpAnnotationTools(flight) {
   initializeClassicOfpAnnotationCanvases(flight);
 }
 
-
-function bindBriefingTabs() {
-  document.querySelectorAll('.briefing-item').forEach(item => {
-    const newItem = item.cloneNode(true);
-    item.parentNode.replaceChild(newItem, item);
-
-    newItem.addEventListener('click', () => {
-      document.querySelectorAll('.briefing-item').forEach(i => i.classList.remove('active'));
-      newItem.classList.add('active');
-
-      const ofpContainer = document.getElementById('classic-ofp-container');
-      const generalContainer = document.getElementById('briefing-general-container');
-      const fuelContainer = document.getElementById('briefing-fuel-container');
-      const atcContainer = document.getElementById('briefing-atc-container');
-      const dispatchContainer = document.getElementById('briefing-dispatch-container');
-      const airportContainer = document.getElementById('briefing-airport-container');
-      const melContainer = document.getElementById('briefing-mel-container');
-      const crewAlertContainer = document.getElementById('briefing-crew-alert-container');
-      const journeyTimesContainer = document.getElementById('briefing-journey-times-container');
-      const journeyDelaysContainer = document.getElementById('briefing-journey-delays-container');
-      const placeholder = document.getElementById('briefing-placeholder');
-
-      if (ofpContainer) ofpContainer.style.display = 'none';
-      if (generalContainer) generalContainer.style.display = 'none';
-      if (fuelContainer) fuelContainer.style.display = 'none';
-      if (atcContainer) atcContainer.style.display = 'none';
-      if (dispatchContainer) dispatchContainer.style.display = 'none';
-      if (airportContainer) airportContainer.style.display = 'none';
-      if (melContainer) melContainer.style.display = 'none';
-      if (crewAlertContainer) crewAlertContainer.style.display = 'none';
-      if (journeyTimesContainer) journeyTimesContainer.style.display = 'none';
-      if (journeyDelaysContainer) journeyDelaysContainer.style.display = 'none';
-      if (placeholder) placeholder.style.display = 'none';
-
-      if (newItem.dataset.section) {
-        const title = document.getElementById('topbar-title');
-        if (title) title.textContent = newItem.dataset.section;
-
-        if (newItem.dataset.section === 'Classic OFP') {
-          if (ofpContainer) ofpContainer.style.display = 'flex';
-        } else if (newItem.dataset.section === 'General') {
-          if (generalContainer) generalContainer.style.display = 'flex';
-          renderGeneralSection(getFlight(currentFlightId));
-        } else if (newItem.dataset.section === 'Fuel') {
-          if (fuelContainer) fuelContainer.style.display = 'flex';
-          renderFuelSection(getFlight(currentFlightId));
-        } else if (newItem.dataset.section === 'MEL/CDL Information') {
-          if (melContainer) melContainer.style.display = 'flex';
-        } else if (newItem.dataset.section === 'ATC') {
-          if (atcContainer) atcContainer.style.display = 'flex';
-          renderAtcSection(getFlight(currentFlightId));
-        } else if (newItem.dataset.section === 'Dispatch Info') {
-          if (dispatchContainer) dispatchContainer.style.display = 'flex';
-          renderDispatchSection(getFlight(currentFlightId));
-        } else if (newItem.dataset.section === 'Crew Alert and Bulletin') {
-          if (crewAlertContainer) crewAlertContainer.style.display = 'flex';
-          renderCrewAlertSection(getFlight(currentFlightId));
-        } else if (newItem.dataset.section === 'Flight Times and Fuel') {
-          if (journeyTimesContainer) journeyTimesContainer.style.display = 'flex';
-          if (typeof renderJourneyTimes === 'function') renderJourneyTimes(getFlight(currentFlightId));
-        } else if (newItem.dataset.section === 'Duty Assignment & Delays') {
-          if (journeyDelaysContainer) journeyDelaysContainer.style.display = 'flex';
-          if (typeof renderJourneyDelays === 'function') renderJourneyDelays(getFlight(currentFlightId));
-        } else {
-          if (placeholder) placeholder.style.display = 'block';
-        }
-      } else if (newItem.dataset.aptIndex !== undefined) {
-        if (airportContainer) airportContainer.style.display = 'flex';
-        const apt = currentAirportsData[newItem.dataset.aptIndex];
-        let titleText = apt.icao || '????';
-        if (apt.iata) titleText += `/${apt.iata}`;
-        if (apt.name) titleText += ` - ${apt.name}`;
-        const title = document.getElementById('topbar-title');
-        if (title) title.textContent = titleText;
-        renderAirportSection(newItem.dataset.aptIndex);
-      }
-    });
-  });
-}
 
 function initBriefingInteractions() {
   bindBriefingTabs();
