@@ -1369,6 +1369,7 @@ async function renderClassicOfpText(data) {
   const container = document.getElementById('classic-ofp-container');
   if (!container) return;
   const token = ++classicOfpRenderToken;
+  classicOfpUndoByPage = Object.create(null);
 
   if (classicOfpPdfObserver) {
     classicOfpPdfObserver.disconnect();
@@ -1378,8 +1379,11 @@ async function renderClassicOfpText(data) {
     try { classicOfpPdfRenderTasks[key].cancel(); } catch (e) {}
   });
   classicOfpPdfRenderTasks = Object.create(null);
+  if (classicOfpPdfDocument && classicOfpPdfDocument.cleanup) {
+    try { classicOfpPdfDocument.cleanup(); } catch (e) {}
+  }
   if (classicOfpPdfLoadingTask && classicOfpPdfLoadingTask.destroy) {
-    try { classicOfpPdfLoadingTask.destroy(); } catch (e) {}
+    try { await classicOfpPdfLoadingTask.destroy(); } catch (e) {}
   }
   classicOfpPdfLoadingTask = null;
   classicOfpPdfDocument = null;
@@ -1486,6 +1490,14 @@ async function renderClassicOfpText(data) {
       const baseViewport = page.getViewport({ scale: 1 });
       const width = Math.max(280, viewport.clientWidth - 36);
       classicOfpBaseScale = Math.max(0.35, Math.min(1.8, width / baseViewport.width));
+      document.querySelectorAll('#classic-ofp-container .ofp-pdf-page').forEach((wrapper, index) => {
+        const pageAtIndex = classicOfpPdfPages[index];
+        if (!pageAtIndex) return;
+        const pageViewport = pageAtIndex.getViewport({ scale: 1 });
+        wrapper.dataset.baseWidth = String(pageViewport.width * classicOfpBaseScale);
+        wrapper.dataset.baseHeight = String(pageViewport.height * classicOfpBaseScale);
+        wrapper.dataset.pdfRendered = 'false';
+      });
       applyClassicOfpZoom();
     });
   }
@@ -1508,6 +1520,7 @@ async function renderClassicOfpPdfPage(index) {
     try { oldTask.cancel(); } catch (e) {}
   }
 
+  let activeRenderTask = null;
   try {
     const page = classicOfpPdfPages[index];
     const viewport = page.getViewport({ scale });
@@ -1517,13 +1530,13 @@ async function renderClassicOfpPdfPage(index) {
     pdfCanvas.style.width = viewport.width + 'px';
     pdfCanvas.style.height = viewport.height + 'px';
     const context = pdfCanvas.getContext('2d', { alpha: false });
-    const renderTask = page.render({
+    activeRenderTask = page.render({
       canvasContext: context,
       viewport,
       transform: outputScale === 1 ? null : [outputScale, 0, 0, outputScale, 0, 0]
     });
-    classicOfpPdfRenderTasks[index] = renderTask;
-    await renderTask.promise;
+    classicOfpPdfRenderTasks[index] = activeRenderTask;
+    await activeRenderTask.promise;
     wrapper.dataset.renderedScale = renderKey;
     wrapper.dataset.pdfRendered = 'true';
   } catch (e) {
@@ -1531,7 +1544,9 @@ async function renderClassicOfpPdfPage(index) {
       console.warn('Classic OFP PDF page render failed', index + 1, e);
     }
   } finally {
-    delete classicOfpPdfRenderTasks[index];
+    if (classicOfpPdfRenderTasks[index] === activeRenderTask) {
+      delete classicOfpPdfRenderTasks[index];
+    }
   }
 }
 
