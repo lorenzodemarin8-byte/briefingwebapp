@@ -19,6 +19,7 @@ var submitCanvas = null;
 var activeDashWxTab = 'origin';
 var activeDashNotamTab = 'origin';
 var activeNotamFilter = 'all';
+var airportNotamFilters = Object.create(null);
 
 /* ---------- NAVIGAZIONE RAPIDA VERSO BRIEFING ---------- */
 function navigateToBriefingSection(sectionName) {
@@ -591,18 +592,47 @@ function escapeNotamHtml(value) {
 
 function formatNotamText(rawText) {
   let formatted = escapeNotamHtml(rawText);
-  formatted = formatted.replace(/\bRWY\b(?:\s*([0-9]{2}[LCR]?))?/gi, (match, runwayIdent) => {
-    const runway = runwayIdent
-      ? ' <span class="notam-rwy-ident">' + runwayIdent + '</span>'
+  formatted = formatted.replace(/\bRWY\b(?:\s*([0-9]{2}[LCR]?(?:\/[0-9]{2}[LCR]?)*))?/gi, (match, runwayGroup) => {
+    const identifiers = runwayGroup
+      ? ' ' + runwayGroup.split('/').map(id => '<span class="notam-rwy-ident">' + id + '</span>').join('/')
       : '';
-    return '<span class="notam-hl-warn">RWY</span>' + runway;
+    return '<span class="notam-hl-warn">RWY</span>' + identifiers;
   });
-  formatted = formatted.replace(/\b(TWY|VOR|DVOR|VORTAC|TACAN|LOC|LLZ|NDB|ADF|ILS|GS|RNP|RNAV|DME|STAR|SID|GLS|GBAS|GNSS|GPS)\b/gi,
+  formatted = formatted.replace(/\b(TWY|VOR|DVOR|VORTAC|TACAN|LOC|LLZ|NDB|ADF|ILS|GS|RNP|RNAV|DME|PAPI|GLS|GBAS|GNSS|GPS)\b/gi,
     '<span class="notam-hl-warn">$1</span>');
-  formatted = formatted.replace(/\b(CLSD|NOT AVAILABLE|NOT AVBL|DO NOT USE)\b|U\/S/gi,
+  formatted = formatted.replace(/\b(CLSD|NOT AVAILABLE|NOT AVBL|NOT USABLE|NOT USABLE|DO NOT USE|UNSERVICEABLE)\b|U\/S/gi,
     match => '<span class="notam-hl-danger">' + match + '</span>');
   return formatted;
 }
+
+function getAirportNotamFilter(icao) {
+  return icao && airportNotamFilters[icao] === 'flagged' ? 'flagged' : 'all';
+}
+
+function setAirportNotamFilter(icao, filter) {
+  if (!icao) return;
+  airportNotamFilters[icao] = filter === 'flagged' ? 'flagged' : 'all';
+  syncAirportNotamFilterControls(icao);
+  applyDashboardNotamFilter();
+  applyBriefingNotamFilter();
+}
+
+function syncAirportNotamFilterControls(icao) {
+  document.querySelectorAll('[data-airport-notam-filter]').forEach(control => {
+    if (!icao || control.dataset.icao === icao) {
+      control.value = getAirportNotamFilter(control.dataset.icao);
+    }
+  });
+}
+
+function bindAirportNotamFilterControls(root) {
+  const scope = root || document;
+  scope.querySelectorAll('[data-airport-notam-filter]').forEach(control => {
+    control.onchange = () => setAirportNotamFilter(control.dataset.icao, control.value);
+  });
+  syncAirportNotamFilterControls();
+}
+
 function getFlaggedNotamIds() {
   const flight = getFlight(currentFlightId);
   const ids = flight && flight.state && flight.state.flaggedNotams;
@@ -612,10 +642,11 @@ function getFlaggedNotamIds() {
 function applyDashboardNotamFilter() {
   const listEl = document.getElementById('dash-notam-list');
   if (!listEl) return;
+  const filter = getAirportNotamFilter(listEl.dataset.airportIcao);
   listEl.querySelectorAll('.dash-notam-category-wrapper').forEach(wrapper => {
     let visibleCount = 0;
     wrapper.querySelectorAll('.dash-notam-item').forEach(card => {
-      const visible = activeNotamFilter !== 'flagged' || getFlaggedNotamIds().includes(card.dataset.notamId);
+      const visible = filter !== 'flagged' || getFlaggedNotamIds().includes(card.dataset.notamId);
       card.style.display = visible ? '' : 'none';
       if (visible) visibleCount++;
     });
@@ -626,10 +657,11 @@ function applyDashboardNotamFilter() {
 function applyBriefingNotamFilter() {
   const body = document.getElementById('brf-apt-notam-body');
   if (!body) return;
+  const filter = getAirportNotamFilter(body.dataset.airportIcao);
   body.querySelectorAll('.notam-category-wrapper').forEach(wrapper => {
     let visibleCount = 0;
     wrapper.querySelectorAll('.notam-box').forEach(card => {
-      const visible = activeNotamFilter !== 'flagged' || getFlaggedNotamIds().includes(card.dataset.notamId);
+      const visible = filter !== 'flagged' || getFlaggedNotamIds().includes(card.dataset.notamId);
       card.style.display = visible ? '' : 'none';
       if (visible) visibleCount++;
     });
@@ -653,8 +685,6 @@ function bindNotamFilterControls() {
 function setActiveNotamFilter(filter) {
   activeNotamFilter = filter === 'flagged' ? 'flagged' : 'all';
   syncNotamFilterControls();
-  applyDashboardNotamFilter();
-  applyBriefingNotamFilter();
   if (typeof applyBriefingAirportMenuFilter === 'function') applyBriefingAirportMenuFilter();
 }
 
@@ -669,6 +699,7 @@ function refreshNotamFlagViews() {
   });
   applyDashboardNotamFilter();
   applyBriefingNotamFilter();
+  syncAirportNotamFilterControls();
   if (typeof applyBriefingAirportMenuFilter === 'function') applyBriefingAirportMenuFilter();
   const flight = getFlight(currentFlightId);
   if (flight && typeof renderFlightChecklist === 'function') renderFlightChecklist(flight);
@@ -693,14 +724,16 @@ function renderDashNotams(wxAirports, which) {
   if (!listEl) return;
 
   const airport = wxAirports[which] || {};
-  const icao = airport.icao_code;
+  const icao = airport.icao_code || '';
+  listEl.dataset.airportIcao = icao;
   const aptEntry = Array.isArray(currentAirportsData)
     ? currentAirportsData.find(a => a.icao === icao)
     : null;
   const notams = (aptEntry && Array.isArray(aptEntry.notams)) ? aptEntry.notams : [];
 
   if (notams.length === 0) {
-    listEl.innerHTML = `<p class="hint" style="text-align:center; margin-top:24px;">Nessun NOTAM attivo per ${escapeNotamHtml(icao || '---')}.</p>`;
+    listEl.innerHTML = '<p class="hint" style="text-align:center; margin-top:24px;">Nessun NOTAM attivo per ' +
+      escapeNotamHtml(icao || '---') + '.</p>';
     return;
   }
 
@@ -714,36 +747,44 @@ function renderDashNotams(wxAirports, which) {
   const catOrder = { RUNWAY: 1, SID: 2, STAR: 3, 'APPROACH PROCEDURES': 4, AIRPORT: 5 };
   const sortedCats = Object.keys(grouped).sort((a, b) => (catOrder[a] || 99) - (catOrder[b] || 99));
   const flagged = getFlaggedNotamIds();
+  const selectedFilter = getAirportNotamFilter(icao);
 
   let html = '';
-  for (const category of sortedCats) {
-    html += `<div class="dash-notam-category-wrapper"><div class="dash-notam-cat-title">${escapeNotamHtml(category)}</div>`;
+  sortedCats.forEach((category, categoryIndex) => {
+    html += '<div class="dash-notam-category-wrapper">';
+    html += '<div class="notam-category-heading-row"><div class="dash-notam-cat-title">' +
+      escapeNotamHtml(category) + '</div>';
+    if (categoryIndex === 0) {
+      html += '<label class="notam-airport-filter"><span class="notam-airport-filter-label">Show:</span>' +
+        '<select class="brf-select notam-airport-filter-select" data-airport-notam-filter data-icao="' +
+        escapeNotamHtml(icao) + '" aria-label="Show all or flagged NOTAMs">' +
+        '<option value="all"' + (selectedFilter === 'all' ? ' selected' : '') + '>All</option>' +
+        '<option value="flagged"' + (selectedFilter === 'flagged' ? ' selected' : '') + '>Flagged</option>' +
+        '</select></label>';
+    }
+    html += '</div>';
     grouped[category].forEach(notam => {
       const notamId = String(notam.notam_id || 'UNKNOWN');
       const safeId = escapeNotamHtml(notamId);
       const start = formatNotamDate(notam.notam_effective_dtg || notam.notam_created_dtg);
       const end = formatNotamDate(notam.notam_expire_dtg || notam.notam_expire_dtg_estimated);
-      const flagClass = flagged.includes(notamId) ? ' flagged' : '';
-      html += `
-        <div class="notam-box dash-notam-item" data-notam-id="${safeId}">
-          <div class="notam-top-row">
-            <div class="notam-badge">${escapeNotamHtml(category)}</div>
-            <button type="button" class="notam-flag dash-notam-flag${flagClass}" data-notam-id="${safeId}" aria-label="Flag NOTAM" aria-pressed="${flagged.includes(notamId)}">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
-            </button>
-          </div>
-          <div class="notam-header">${safeId} - ${escapeNotamHtml(start)} - ${escapeNotamHtml(end)}</div>
-          <div class="notam-body">${formatNotamText(notam.notam_report || notam.notam_text || '')}</div>
-        </div>
-      `;
+      const isFlagged = flagged.includes(notamId);
+      html += '<div class="notam-box dash-notam-item" data-notam-id="' + safeId + '">' +
+        '<div class="notam-top-row"><div class="notam-badge">' + escapeNotamHtml(category) + '</div>' +
+        '<button type="button" class="notam-flag dash-notam-flag' + (isFlagged ? ' flagged' : '') +
+        '" data-notam-id="' + safeId + '" aria-label="Flag NOTAM" aria-pressed="' + isFlagged + '">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg></button></div>' +
+        '<div class="notam-header">' + safeId + ' - ' + escapeNotamHtml(start) + ' - ' + escapeNotamHtml(end) + '</div>' +
+        '<div class="notam-body">' + formatNotamText(notam.notam_report || notam.notam_text || '') + '</div></div>';
     });
     html += '</div>';
-  }
+  });
 
   listEl.innerHTML = html;
   listEl.querySelectorAll('.dash-notam-flag').forEach(button => {
     button.addEventListener('click', () => toggleNotamFlag(button.dataset.notamId));
   });
+  bindAirportNotamFilterControls(listEl);
   applyDashboardNotamFilter();
 }
 
