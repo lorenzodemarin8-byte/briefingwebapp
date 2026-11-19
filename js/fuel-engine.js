@@ -38,8 +38,13 @@ function getFuelCalculations(data, state) {
   let discFuel = Number(savedFuel.discFuel) || 0;
   let calcBlockFuel = Math.ceil((minBlockFuel + discFuel) / 100) * 100;
 
-  let actualBlockFuel = (savedFuel.blockFuel !== undefined && savedFuel.blockFuel !== "") 
-    ? Number(savedFuel.blockFuel) 
+  const hasStoredBlockFuel = savedFuel.blockFuel !== undefined && savedFuel.blockFuel !== "";
+  // Preserve legacy manual values, but do not mistake an automatically calculated value for a manual override.
+  const isBlockFuelManual = savedFuel.blockFuelManual !== undefined
+    ? savedFuel.blockFuelManual === true
+    : hasStoredBlockFuel;
+  let actualBlockFuel = (isBlockFuelManual && hasStoredBlockFuel)
+    ? Number(savedFuel.blockFuel)
     : calcBlockFuel;
 
   let extraFuel = Math.max(0, actualBlockFuel - minBlockFuel);

@@ -39,7 +39,7 @@
   --orange-text: #d97706;
   --input-bg: #f5f5f5;
   --input-border: #d2d2d2;
-  --brf-sidebar-active-bg: #849ac2;
+  --brf-sidebar-active-bg: #8899bf;
   --brf-sidebar-active-text: #ffffff;
 }
 
@@ -2306,3 +2306,719 @@ strong, b {
 }
 
 canvas#signature-pad, canvas#submit-signature-pad { width: 100%; height: 100%; display: block; }
+
+/* =========================================================
+   LIDO REFERENCE ALIGNMENT — WEATHER, NOTAMs, BRIEFING SIDEBAR
+   ========================================================= */
+.wx-apt-topline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.wx-apt-header { margin-bottom: 10px; }
+.wx-apt-topline .wx-badge { flex: 0 0 auto; margin-top: 1px; }
+.brf-wx-header .wx-badge { margin-left: auto; }
+
+.notam-segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 1px;
+  border: 1px solid #c9c9c9;
+  border-radius: 8px;
+  background: #cfcfd1;
+}
+/* Shared Lido-style tab strip, used by the NOTAM/RAIM area when present. */
+.notam-raim-tabs {
+  display: flex;
+  align-items: stretch;
+  background: #ebebeb;
+  border-bottom: 1px solid #d0d0d0;
+}
+.notam-raim-tab {
+  min-width: 110px;
+  padding: 11px 18px;
+  border: 0;
+  border-right: 1px solid #cfcfcf;
+  background: transparent;
+  color: #636363;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+.notam-raim-tab.active { color: #48638c; }
+
+.notam-filter-btn {
+  min-width: 82px;
+  padding: 5px 14px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #1d1d1f;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.notam-filter-btn.active {
+  border-color: #c9c9c9;
+  background: #ffffff;
+  color: #1d1d1f;
+  box-shadow: 0 1px 1px rgba(0,0,0,0.08);
+}
+.briefing-sidebar-filter {
+  align-self: center;
+  margin: 14px auto 12px;
+}
+.notam-filter-bar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  color: #686868;
+}
+.notam-filter-bar-dashboard { margin: 2px 0 10px; }
+.notam-filter-bar .notam-segmented { margin-left: auto; }
+
+.briefing-sidebar {
+  background: #f5f5f5;
+  border-color: #e0e0e0;
+}
+.briefing-category {
+  background: transparent;
+  border-bottom-color: #e0e0e0;
+  color: #686868;
+}
+.briefing-item {
+  color: #191919;
+  border-bottom-color: #e0e0e0;
+  font-weight: 500;
+}
+.briefing-item::before { color: #3562a8; }
+ .briefing-item.active {
+  background: #8899bf;
+  color: #101d30;
+  border-bottom-color: #8899bf;
+}
+.briefing-item.active:not(.brf-apt-item)::before { color: #101d30; }
+ .brf-apt-item {
+  position: relative;
+  padding-left: 60px;
+}
+.brf-apt-item::before {
+  display: block;
+  position: absolute;
+  left: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  color: #3562a8;
+  font-size: 18px;
+}
+.brf-apt-item.active::before { display: none; }
+.brf-apt-item-main { color: #191919; }
+.brf-apt-item-sub { color: #595959; }
+.brf-apt-item.active .brf-apt-item-main { color: #101d30; }
+.brf-apt-item.active .brf-apt-item-sub { color: #2d3c59; }
+
+.notam-category-title,
+.dash-notam-cat-title {
+  color: #525252;
+  font-size: 13px;
+  font-weight: 500;
+}
+.notam-box,
+.dash-notam-item {
+  border: 1px solid #dddddd;
+  border-radius: 4px;
+  background: var(--card);
+  box-shadow: none;
+}
+.notam-badge {
+  background: #3262b3;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.notam-header {
+  color: #181818;
+  font-weight: 700;
+}
+.notam-body,
+.dash-notam-text {
+  color: #1f1f1f;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+}
+.notam-hl-warn { color: #d4a05a; font-weight: 700; }
+.notam-hl-danger { color: #a53540; font-weight: 700; text-decoration: underline; }
+.notam-rwy-ident { color: #191919; font-weight: 700; }
+.notam-flag { color: #cccccc; }
+.notam-flag.flagged { color: #d4a017; }
+
+.weight-fuel-body {
+  justify-content: flex-start;
+  gap: 0;
+}
+.wf-divider {
+  flex: 0 0 2px;
+  align-self: stretch;
+  width: calc(100% + 24px);
+  height: 2px;
+  min-height: 2px;
+  margin: 14px -12px 12px;
+  background: var(--panel-border);
+}
+
+.dispatch-value { font-weight: 400; }
+.dispatch-rmk-box {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  max-height: none;
+  overflow: visible;
+}
+.crew-role-badge {
+  min-width: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font-weight: 400;
+  text-align: left;
+}
+.crew-name { font-weight: 400; }
+
+[data-theme="dark"] .briefing-sidebar {
+  background: var(--card);
+  border-color: var(--panel-border);
+}
+[data-theme="dark"] .briefing-category { color: var(--text-2); }
+[data-theme="dark"] .briefing-item { color: var(--text); }
+[data-theme="dark"] .briefing-item.active { color: #101d30; }
+[data-theme="dark"] .notam-box,
+[data-theme="dark"] .dash-notam-item {
+  background: var(--card);
+  border-color: var(--panel-border);
+}
+[data-theme="dark"] .notam-header,
+[data-theme="dark"] .notam-body,
+[data-theme="dark"] .dash-notam-text { color: var(--text); }
+[data-theme="dark"] .notam-filter-btn { color: #1d1d1f; }
+
+
+/* =========================================================
+   BRIEFING NAVIGATION + LIDO INTERACTION POLISH
+   ========================================================= */
+:root { --briefing-sidebar-width: clamp(300px, 28vw, 420px); }
+
+/* Topbar division follows the open briefing sidebar exactly. */
+.topbar-nav.briefing-layout {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 0;
+  padding: 0;
+  justify-content: initial;
+}
+.topbar-nav.briefing-layout.sidebar-open {
+  grid-template-columns: var(--briefing-sidebar-width) minmax(0, 1fr) auto;
+}
+.topbar-left-slot {
+  height: 40px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.topbar-nav.briefing-layout.sidebar-open .topbar-left-slot {
+  border-right: 1px solid var(--bar-border);
+  justify-content: flex-end;
+  padding: 0 12px;
+}
+.topbar-nav.briefing-layout #home-nav-btn { display: none !important; }
+.topbar-nav.briefing-layout #briefing-sidebar-toggle { display: flex !important; }
+.topbar-nav.briefing-layout .topbar-title {
+  position: static;
+  grid-column: 2;
+  grid-row: 1;
+  transform: none;
+  justify-self: center;
+  max-width: calc(100% - 28px);
+  min-width: 0;
+}
+.topbar-nav.briefing-layout .topbar-right-group {
+  grid-column: 3;
+  grid-row: 1;
+  padding: 0 12px 0 8px;
+}
+.topbar-nav.briefing-layout:not(.sidebar-open) .topbar-left-slot {
+  border-right: 0;
+}
+.topbar-nav.briefing-layout.sidebar-open .topbar-left-slot .icon-btn {
+  margin-left: auto;
+}
+
+/* The Briefing body is a true two-column workspace: content reflows, not overlays. */
+.briefing-container {
+  max-width: none;
+  width: 100%;
+  gap: 0;
+  margin: 0;
+}
+.briefing-sidebar {
+  flex: 0 0 var(--briefing-sidebar-width);
+  width: var(--briefing-sidebar-width);
+  min-width: 0;
+  border: 0;
+  border-right: 1px solid var(--panel-border);
+  border-radius: 0;
+  overflow: hidden;
+  background: var(--page);
+}
+.briefing-sidebar.is-collapsed { display: none !important; }
+.briefing-menu-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 0 20px;
+}
+.briefing-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.briefing-content > .briefing-general-container,
+.briefing-content > #classic-ofp-viewport {
+  width: 100%;
+  min-width: 0;
+}
+@media (max-width: 760px) {
+  :root { --briefing-sidebar-width: min(340px, 82vw); }
+  .topbar-nav.briefing-layout.sidebar-open {
+    grid-template-columns: var(--briefing-sidebar-width) minmax(0, 1fr) auto;
+  }
+}
+
+/* Major Briefing sections and nested expandable groups. */
+.briefing-section { border-bottom: 1px solid var(--inner-divider); }
+.briefing-section-toggle,
+.briefing-subsection-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.035em;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.briefing-section-toggle { padding-top: 17px; padding-bottom: 12px; }
+.briefing-subsection-toggle {
+  padding: 13px 16px 13px 22px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.015em;
+  text-transform: none;
+}
+.briefing-section-toggle svg,
+.briefing-subsection-toggle svg {
+  flex: 0 0 auto;
+  color: var(--text-2);
+  transition: transform 0.16s ease;
+}
+.briefing-section-toggle[aria-expanded="false"] svg,
+.briefing-subsection-toggle[aria-expanded="false"] svg { transform: rotate(-90deg); }
+.briefing-section-content[hidden],
+.briefing-subsection-content[hidden] { display: none !important; }
+
+.briefing-page-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 13px 18px 13px 44px;
+  border: 0;
+  border-bottom: 1px solid var(--inner-divider);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.briefing-page-item:last-child { border-bottom-color: transparent; }
+.briefing-page-item.unread::before {
+  content: '';
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: #3562a8;
+}
+.briefing-page-item.active {
+  background: var(--brf-sidebar-active-bg);
+  color: #101d30;
+  font-weight: 600;
+}
+.briefing-page-item.active::before { background: #3562a8; }
+.briefing-airport-item {
+  min-height: 58px;
+  display: block;
+  padding: 11px 14px 11px 52px;
+}
+.briefing-airport-item.unread::before { left: 34px; }
+.briefing-airport-code { display: block; color: var(--text); font-size: 13px; font-weight: 600; }
+.briefing-airport-type { display: block; margin-top: 3px; color: var(--text-2); font-size: 11px; font-weight: 500; }
+.briefing-page-item.active .briefing-airport-code { color: #101d30; }
+.briefing-page-item.active .briefing-airport-type { color: #2d3c59; }
+
+.briefing-global-filter {
+  display: flex;
+  justify-content: center;
+  padding: 6px 0 12px;
+}
+.briefing-global-filter .notam-segmented { min-width: 196px; }
+.briefing-global-filter .notam-filter-btn { flex: 1; }
+.briefing-airport-empty {
+  padding: 10px 18px 12px 34px;
+  color: var(--text-2);
+  font-size: 11px;
+}
+
+/* Independent All / Flagged selector for the currently displayed airport. */
+.notam-airport-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+}
+.notam-airport-filter-label {
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 500;
+}
+.notam-airport-filter .notam-filter-btn {
+  min-width: 54px;
+  padding: 4px 9px;
+  font-size: 11px;
+}
+.notam-category-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 15px 0 8px;
+}
+.notam-category-heading-row .notam-category-title,
+.notam-category-heading-row .dash-notam-cat-title { margin: 0; }
+.notam-category-heading-row:first-child { margin-top: 0; }
+
+/* Readable NOTAMs in both themes; runway pairs such as 04/22 are emphasised together. */
+.notam-hl-warn { color: #b9782f; font-weight: 800; }
+.notam-hl-danger { color: #a53540; font-weight: 800; text-decoration: underline; }
+.notam-rwy-ident { color: var(--text); font-weight: 800; }
+ .notam-body { font-weight: 400; }
+.notam-box,
+.dash-notam-item { border-color: #c9cdd2; }
+.notam-flag { color: #aeb3b9; }
+.notam-flag.flagged { color: #bd8b22; }
+
+.briefing-sidebar .briefing-menu-scroll { background: var(--page); }
+.briefing-sidebar .briefing-global-filter .notam-segmented {
+  background: #cfcfd1;
+  border-color: #c9c9c9;
+}
+.briefing-sidebar .briefing-global-filter .notam-filter-btn { color: #1d1d1f; }
+.briefing-sidebar .briefing-global-filter .notam-filter-btn.active {
+  background: #ffffff;
+  color: #1d1d1f;
+}
+
+[data-theme="dark"] .briefing-sidebar {
+  background: var(--page);
+  border-right-color: #343b43;
+}
+[data-theme="dark"] .briefing-section { border-bottom-color: rgba(255,255,255,0.07); }
+[data-theme="dark"] .briefing-page-item { color: var(--text); border-bottom-color: rgba(255,255,255,0.065); }
+[data-theme="dark"] .briefing-page-item.active { background: #849ac2; color: #101d30; }
+[data-theme="dark"] .briefing-page-item.active .briefing-airport-code { color: #101d30; }
+[data-theme="dark"] .briefing-page-item.active .briefing-airport-type { color: #2d3c59; }
+[data-theme="dark"] .briefing-airport-code { color: var(--text); }
+[data-theme="dark"] .briefing-airport-type { color: var(--text-2); }
+[data-theme="dark"] .briefing-section-toggle,
+[data-theme="dark"] .briefing-subsection-toggle { color: var(--text-2); }
+[data-theme="dark"] .briefing-global-filter .notam-segmented,
+[data-theme="dark"] .notam-segmented {
+  background: #2a3037;
+  border-color: #4a535d;
+}
+[data-theme="dark"] .briefing-global-filter .notam-filter-btn,
+[data-theme="dark"] .notam-filter-btn { color: #e5e7eb; }
+[data-theme="dark"] .briefing-global-filter .notam-filter-btn.active,
+[data-theme="dark"] .notam-filter-btn.active {
+  background: #4a5562;
+  border-color: #647080;
+  color: #ffffff;
+  box-shadow: none;
+}
+[data-theme="dark"] .notam-box,
+[data-theme="dark"] .dash-notam-item {
+  background: #2a3037;
+  border-color: #66717d;
+}
+[data-theme="dark"] .notam-header { color: #f1f3f5; }
+[data-theme="dark"] .notam-body,
+[data-theme="dark"] .dash-notam-text { color: #e7e9ec; }
+[data-theme="dark"] .notam-rwy-ident { color: #f4f5f6; font-weight: 800; }
+[data-theme="dark"] .notam-hl-warn { color: #f0bd73; font-weight: 800; }
+[data-theme="dark"] .notam-hl-danger { color: #ff858e; font-weight: 800; }
+[data-theme="dark"] .notam-flag { color: #aab2bc; }
+[data-theme="dark"] .notam-flag.flagged { color: #e8b84c; }
+
+/* Block Fuel strip reuses the same active-page blue, including its text contrast. */
+.brf-block-strip { background-color: var(--brf-sidebar-active-bg); }
+ .brf-strip-title,
+.brf-strip-unit { color: #101d30; }
+.brf-order-btn { color: #101d30; }
+
+/* Runway widget accordion. */
+.briefing-collapsible-header { justify-content: space-between; }
+.briefing-collapse-btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.briefing-collapse-btn[aria-expanded="true"] svg { transform: rotate(180deg); }
+.briefing-collapse-btn svg { transition: transform 0.16s ease; }
+.briefing-rwy-content { overflow-x: auto; }
+
+/* Crew messages and MEL/CDL minimal page. */
+.crew-message-widget { margin-bottom: 14px; }
+.crew-message-body { padding: 18px 22px; }
+.crew-message-text {
+  margin: 0;
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.mel-na-content {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Classic OFP zoom and Apple Pencil / pointer annotation tools. */
+.classic-ofp-tools {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--panel-border);
+  background: var(--panel);
+}
+.classic-ofp-tool-group,
+.classic-ofp-zoom-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ofp-tool-btn {
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid var(--input-border);
+  border-radius: 5px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ofp-tool-btn.active {
+  border-color: var(--tab-active);
+  background: var(--brf-sidebar-active-bg);
+  color: #101d30;
+  font-weight: 600;
+}
+#ofp-zoom-value {
+  min-width: 45px;
+  text-align: center;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.classic-ofp-viewport {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  background: var(--page);
+  padding: 16px 12px 34px;
+  touch-action: pan-x pan-y;
+}
+.classic-ofp-container {
+  transform-origin: top center;
+  align-items: center;
+}
+.ofp-page {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+}
+.ofp-page-content { position: relative; z-index: 1; }
+.ofp-annotation-canvas {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  pointer-events: none;
+}
+.ofp-annotation-canvas.drawing-enabled { pointer-events: auto; }
+
+
+/* Heading-only items for the three future document groups. */
+.briefing-section-title {
+  padding: 17px 16px 12px;
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.035em;
+}
+[data-theme="dark"] .briefing-section-title { color: var(--text-2); }
+
+
+
+/* Briefing navigation refinements after interactive menu test. */
+.briefing-menu-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.briefing-menu-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.briefing-sidebar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.briefing-sidebar::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+/* Keep the topbar/sidebar divider on the same x-coordinate and visible in both themes. */
+.topbar-nav.briefing-layout.sidebar-open .topbar-left-slot {
+  border-right: 1px solid var(--briefing-divider);
+}
+.briefing-sidebar {
+  border-right: 1px solid var(--briefing-divider);
+}
+:root { --briefing-divider: #d7dbe0; }
+[data-theme="dark"] { --briefing-divider: #46505b; }
+
+/* Clearer section headings and a little more breathing room between page rows. */
+.briefing-section-toggle {
+  padding: 19px 17px 15px;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.045em;
+}
+.briefing-subsection-toggle {
+  padding: 16px 17px 15px 23px;
+  font-size: 12.5px;
+  font-weight: 650;
+}
+.briefing-section { border-bottom: 1px solid var(--briefing-divider); }
+.briefing-page-item {
+  min-height: 52px;
+  padding-top: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--briefing-divider);
+}
+.briefing-airport-item {
+  min-height: 60px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+[data-theme="dark"] .briefing-section,
+[data-theme="dark"] .briefing-page-item {
+  border-bottom-color: #39424c;
+}
+
+/* Compact, centred sidebar All / Flagged selector with even one-pixel edges. */
+.briefing-global-filter {
+  justify-content: center;
+  padding: 10px 0 14px;
+}
+.briefing-global-filter .notam-segmented {
+  width: 188px;
+  min-width: 0;
+  padding: 0;
+  border: 1px solid #c9c9c9;
+  border-radius: 7px;
+  gap: 0;
+}
+.briefing-global-filter .notam-filter-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 6px;
+  box-shadow: none;
+}
+.briefing-global-filter .notam-filter-btn.active {
+  outline: 1px solid #c9c9c9;
+  outline-offset: -1px;
+}
+[data-theme="dark"] .briefing-global-filter .notam-segmented {
+  border-color: #59636e;
+}
+[data-theme="dark"] .briefing-global-filter .notam-filter-btn.active {
+  outline-color: #73808e;
+}
+
+/* Slightly stronger topbar/sidebar divider in dark mode. */
+[data-theme="dark"] .topbar-nav.briefing-layout.sidebar-open .topbar-left-slot {
+  border-right-color: #46505b;
+}

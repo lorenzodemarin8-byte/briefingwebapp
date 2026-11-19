@@ -20,7 +20,11 @@ function extractAirportsData(data) {
       type: 'Departure',
       icao: data.origin.icao_code,
       iata: data.origin.iata_code,
+      icao_code: data.origin.icao_code,
+      plan_rwy: data.origin.plan_rwy,
       name: data.origin.name,
+      metar_ceiling: data.origin.metar_ceiling,
+      metar_visibility: data.origin.metar_visibility,
       metar: data.origin.metar,
       metar_time: data.origin.metar_time,
       metar_category: data.origin.metar_category,
@@ -36,7 +40,11 @@ function extractAirportsData(data) {
       type: 'Arrival',
       icao: data.destination.icao_code,
       iata: data.destination.iata_code,
+      icao_code: data.destination.icao_code,
+      plan_rwy: data.destination.plan_rwy,
       name: data.destination.name,
+      metar_ceiling: data.destination.metar_ceiling,
+      metar_visibility: data.destination.metar_visibility,
       metar: data.destination.metar,
       metar_time: data.destination.metar_time,
       metar_category: data.destination.metar_category,
@@ -55,7 +63,11 @@ function extractAirportsData(data) {
           type: 'Arrival Alternate',
           icao: alt.icao_code,
           iata: alt.iata_code,
+          icao_code: alt.icao_code,
+          plan_rwy: alt.plan_rwy,
           name: alt.name,
+          metar_ceiling: alt.metar_ceiling,
+          metar_visibility: alt.metar_visibility,
           metar: alt.metar,
           metar_time: alt.metar_time,
           metar_category: alt.metar_category,
@@ -76,7 +88,11 @@ function extractAirportsData(data) {
           type: 'Takeoff Alternate',
           icao: alt.icao_code,
           iata: alt.iata_code,
+          icao_code: alt.icao_code,
+          plan_rwy: alt.plan_rwy,
           name: alt.name,
+          metar_ceiling: alt.metar_ceiling,
+          metar_visibility: alt.metar_visibility,
           metar: alt.metar,
           metar_time: alt.metar_time,
           metar_category: alt.metar_category,
@@ -97,7 +113,11 @@ function extractAirportsData(data) {
           type: 'Enroute Alternate',
           icao: alt.icao_code,
           iata: alt.iata_code,
+          icao_code: alt.icao_code,
+          plan_rwy: alt.plan_rwy,
           name: alt.name,
+          metar_ceiling: alt.metar_ceiling,
+          metar_visibility: alt.metar_visibility,
           metar: alt.metar,
           metar_time: alt.metar_time,
           metar_category: alt.metar_category,
@@ -111,28 +131,258 @@ function extractAirportsData(data) {
   }
 }
 
+function getBriefingVisitedPages() {
+  const flight = getFlight(currentFlightId);
+  const pages = flight && flight.state && flight.state.briefingVisitedPages;
+  return Array.isArray(pages) ? pages : [];
+}
+
+function markBriefingPageVisited(pageKey, item) {
+  if (!pageKey) return;
+  const flight = getFlight(currentFlightId);
+  if (!flight) return;
+  const pages = getBriefingVisitedPages();
+  if (!pages.includes(pageKey)) {
+    pages.push(pageKey);
+    updateFlightState(currentFlightId, { briefingVisitedPages: pages });
+  }
+  if (item) item.classList.remove('unread');
+}
+
+function briefingPageButton(label, pageKey, attributes, extraClass) {
+  const visited = getBriefingVisitedPages().includes(pageKey);
+  return '<button type="button" class="briefing-page-item ' + (visited ? 'visited' : 'unread') +
+    ' ' + (extraClass || '') + '" data-page-key="' + escapeNotamHtml(pageKey) + '" ' +
+    (attributes || '') + '>' + label + '</button>';
+}
+
+function briefingAirportButton(apt, index) {
+  const code = [apt.icao || '????', apt.iata].filter(Boolean).join('/');
+  const pageKey = 'airport:' + (apt.icao || index);
+  const visited = getBriefingVisitedPages().includes(pageKey);
+  return '<button type="button" class="briefing-page-item briefing-airport-item ' +
+    (visited ? 'visited' : 'unread') + '" data-page-key="' + escapeNotamHtml(pageKey) +
+    '" data-apt-index="' + index + '">' +
+    '<span class="briefing-airport-code">' + escapeNotamHtml(code) + '</span>' +
+    '<span class="briefing-airport-type">' + escapeNotamHtml(apt.type || '') + '</span></button>';
+}
+
+function briefingGroupMarkup(title, key, innerHtml, expanded) {
+  return '<div class="briefing-subsection">' +
+    '<button type="button" class="briefing-subsection-toggle" data-menu-target="' + key +
+    '" aria-expanded="' + String(Boolean(expanded)) + '">' +
+    '<span>' + title + '</span>' +
+    '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>' +
+    '</button><div class="briefing-subsection-content" id="' + key + '" ' +
+    (expanded ? '' : 'hidden') + '>' + innerHtml + '</div></div>';
+}
+
+function briefingSectionMarkup(title, key, innerHtml, expanded) {
+  return '<section class="briefing-section">' +
+    '<button type="button" class="briefing-section-toggle" data-menu-target="' + key +
+    '" aria-expanded="' + String(Boolean(expanded)) + '">' +
+    '<span>' + title + '</span>' +
+    '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>' +
+    '</button><div class="briefing-section-content" id="' + key + '" ' +
+    (expanded ? '' : 'hidden') + '>' + innerHtml + '</div></section>';
+}
+
+function getFlightFirList(data) {
+  const fixes = data && data.navlog && data.navlog.fix;
+  const list = Array.isArray(fixes) ? fixes : fixes ? [fixes] : [];
+  const seen = new Set();
+  return list.map(fix => String(fix && fix.fir || '').trim()).filter(fir => {
+    if (!fir || seen.has(fir)) return false;
+    seen.add(fir);
+    return true;
+  });
+}
+
 function renderBriefingMenu() {
-  const listEl = document.getElementById('brf-wx-menu-list');
-  if (!listEl) return;
-  listEl.innerHTML = '';
+  const menuEl = document.getElementById('briefing-menu');
+  if (!menuEl) return;
+  const data = (getFlight(currentFlightId) || {}).raw || {};
+  const mainAirports = currentAirportsData.map((apt, index) => ({ apt, index }))
+    .filter(x => ['Departure', 'Arrival', 'Arrival Alternate'].includes(x.apt.type));
+  const enrouteAirports = currentAirportsData.map((apt, index) => ({ apt, index }))
+    .filter(x => ['Enroute Alternate', 'Enroute Airport'].includes(x.apt.type));
+  const firs = getFlightFirList(data);
 
-  currentAirportsData.forEach((apt, index) => {
-    const div = document.createElement('div');
-    div.className = 'briefing-item brf-apt-item';
-    div.dataset.aptIndex = index;
+  const flightPlanDefs = [
+    ['General', 'section:general'], ['Fuel', 'section:fuel'],
+    ['MEL/CDL Information', 'section:mel'], ['ATC', 'section:atc'],
+    ['Dispatch Info', 'section:dispatch'], ['Crew Alert and Bulletin', 'section:crew'],
+    ['Classic OFP', 'section:classic-ofp'], ['TLR', 'section:tlr']
+  ];
+  const flightPlan = flightPlanDefs.map(def =>
+    briefingPageButton(def[0], def[1], 'data-section="' + def[0] + '"')).join('');
 
-    let title = apt.icao || '????';
-    if (apt.iata) title += `/${apt.iata}`;
+  const journeyDefs = [
+    ['Flight Times and Fuel', 'section:journey-times', 'Flight Times and Fuel'],
+    ['Duty Assignments', 'section:duty-assignments', 'Duty Assignment & Delays']
+  ];
+  const journeyLog = journeyDefs.map(def =>
+    briefingPageButton(def[0], def[1], 'data-section="' + def[2] + '"')).join('');
 
-    div.innerHTML = `
-      <div class="brf-apt-item-main">${title}</div>
-      <div class="brf-apt-item-sub">${apt.type}</div>
-    `;
-    listEl.appendChild(div);
+  const mainAirportItems = mainAirports.map(x => briefingAirportButton(x.apt, x.index)).join('') ||
+    '<div class="briefing-airport-empty">No main airports available</div>';
+  const enrouteItems = enrouteAirports.map(x => briefingAirportButton(x.apt, x.index)).join('') ||
+    '<div class="briefing-airport-empty">No enroute airports available</div>';
+  const firItems = firs.map(fir => briefingPageButton(escapeNotamHtml(fir), 'fir:' + fir,
+    'data-placeholder-title="FIR ' + escapeNotamHtml(fir) + '"')).join('') ||
+    '<div class="briefing-airport-empty">No FIR data available</div>';
+
+  const wxNotams = '<div class="briefing-global-filter notam-segmented" role="group" aria-label="Filter airports">' +
+    '<button type="button" class="notam-filter-btn ' + (activeNotamFilter === 'all' ? 'active' : '') + '" data-notam-filter="all">All</button>' +
+    '<button type="button" class="notam-filter-btn ' + (activeNotamFilter === 'flagged' ? 'active' : '') + '" data-notam-filter="flagged">Flagged</button>' +
+    '</div>' +
+    briefingGroupMarkup('Main Airports', 'brf-main-airports', mainAirportItems, true) +
+    briefingGroupMarkup('Enroute Airports', 'brf-enroute-airports', enrouteItems, false) +
+    briefingGroupMarkup('FIRs', 'brf-firs', firItems, false);
+
+  const chartLabels = ['UAD', 'SIGWX with Route', 'VAA/TCA', 'CDA', 'SIGWX',
+    'Satellite Maps', 'Radar', 'Surface Fronts', 'Dispatcher Maps', 'Vertical Profile'];
+  const charts = chartLabels.map(label => briefingPageButton(label, 'chart:' + label,
+    'data-placeholder-title="' + escapeNotamHtml(label) + '"')).join('');
+
+  menuEl.innerHTML =
+    briefingSectionMarkup('Flight Plan', 'brf-flight-plan', flightPlan, true) +
+    briefingSectionMarkup('Journey Log', 'brf-journey-log', journeyLog, true) +
+    briefingSectionMarkup('WX / RAIM / NOTAM', 'brf-wx-raim-notam', wxNotams, true) +
+    briefingSectionMarkup('Charts', 'brf-charts', charts, false) +
+    '<section class="briefing-section briefing-empty-section"><div class="briefing-section-title">Added Contents</div></section>' +
+    '<section class="briefing-section briefing-empty-section"><div class="briefing-section-title">Other Documents</div></section>' +
+    '<section class="briefing-section briefing-empty-section"><div class="briefing-section-title">Attachments</div></section>';
+
+  menuEl.querySelectorAll('[data-menu-target]').forEach(button => {
+    button.addEventListener('click', () => {
+      const target = document.getElementById(button.dataset.menuTarget);
+      if (!target) return;
+      const expanded = button.getAttribute('aria-expanded') === 'true';
+      button.setAttribute('aria-expanded', String(!expanded));
+      target.hidden = expanded;
+    });
   });
 
+  bindNotamFilterControls();
+  applyBriefingAirportMenuFilter();
   bindBriefingTabs();
 }
+
+function applyBriefingAirportMenuFilter() {
+  const flaggedIds = getFlaggedNotamIds();
+  document.querySelectorAll('#briefing-menu .briefing-airport-item').forEach(item => {
+    const apt = currentAirportsData[Number(item.dataset.aptIndex)];
+    const hasFlagged = Boolean(apt && Array.isArray(apt.notams) &&
+      apt.notams.some(notam => flaggedIds.includes(String(notam.notam_id || 'UNKNOWN'))));
+    item.style.display = activeNotamFilter === 'flagged' && !hasFlagged ? 'none' : '';
+  });
+}
+
+function hideAllBriefingPages() {
+  const ids = [
+    'briefing-general-container', 'briefing-fuel-container', 'briefing-atc-container',
+    'briefing-dispatch-container', 'briefing-airport-container', 'briefing-mel-container',
+    'briefing-crew-alert-container', 'briefing-journey-times-container',
+    'briefing-journey-delays-container', 'classic-ofp-tools', 'classic-ofp-viewport',
+    'briefing-placeholder'
+  ];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+}
+
+function selectBriefingPage(item) {
+  if (!item) return;
+  document.querySelectorAll('.briefing-page-item.active').forEach(el => el.classList.remove('active'));
+  item.classList.add('active');
+  markBriefingPageVisited(item.dataset.pageKey, item);
+  hideAllBriefingPages();
+
+  const title = document.getElementById('topbar-title');
+  const flight = getFlight(currentFlightId);
+  const section = item.dataset.section;
+  const aptIndex = item.dataset.aptIndex;
+  const placeholderTitle = item.dataset.placeholderTitle;
+
+  if (aptIndex !== undefined) {
+    const apt = currentAirportsData[Number(aptIndex)];
+    if (!apt) return;
+    const titleText = (apt.icao || '????') + (apt.iata ? '/' + apt.iata : '') +
+      (apt.name ? ' - ' + apt.name : '');
+    if (title) title.textContent = titleText;
+    const airportContainer = document.getElementById('briefing-airport-container');
+    if (airportContainer) airportContainer.style.display = 'flex';
+    renderAirportSection(Number(aptIndex));
+    return;
+  }
+
+  if (title) title.textContent = placeholderTitle || section || item.textContent.trim();
+  if (section === 'General') {
+    const el = document.getElementById('briefing-general-container');
+    if (el) el.style.display = 'flex';
+    renderGeneralSection(flight);
+  } else if (section === 'Fuel') {
+    const el = document.getElementById('briefing-fuel-container');
+    if (el) el.style.display = 'flex';
+    renderFuelSection(flight);
+  } else if (section === 'MEL/CDL Information') {
+    const el = document.getElementById('briefing-mel-container');
+    if (el) el.style.display = 'flex';
+  } else if (section === 'ATC') {
+    const el = document.getElementById('briefing-atc-container');
+    if (el) el.style.display = 'flex';
+    renderAtcSection(flight);
+  } else if (section === 'Dispatch Info') {
+    const el = document.getElementById('briefing-dispatch-container');
+    if (el) el.style.display = 'flex';
+    renderDispatchSection(flight);
+  } else if (section === 'Crew Alert and Bulletin') {
+    const el = document.getElementById('briefing-crew-alert-container');
+    if (el) el.style.display = 'flex';
+    renderCrewAlertSection(flight);
+  } else if (section === 'Flight Times and Fuel') {
+    const el = document.getElementById('briefing-journey-times-container');
+    if (el) el.style.display = 'flex';
+    if (typeof renderJourneyTimes === 'function') renderJourneyTimes(flight);
+  } else if (section === 'Duty Assignment & Delays') {
+    const el = document.getElementById('briefing-journey-delays-container');
+    if (el) el.style.display = 'flex';
+    if (typeof renderJourneyDelays === 'function') renderJourneyDelays(flight);
+  } else if (section === 'Classic OFP') {
+    const tools = document.getElementById('classic-ofp-tools');
+    const viewport = document.getElementById('classic-ofp-viewport');
+    if (tools) tools.style.display = 'flex';
+    if (viewport) viewport.style.display = 'flex';
+    renderClassicOfpText(flight && flight.raw);
+    initClassicOfpAnnotationTools(flight);
+  } else {
+    const placeholder = document.getElementById('briefing-placeholder');
+    if (placeholder) placeholder.style.display = 'block';
+  }
+}
+
+function bindBriefingTabs() {
+  const menu = document.getElementById('briefing-menu');
+  if (!menu || menu.dataset.pageNavigationBound === 'true') return;
+
+  // Delegate clicks from the stable menu container so regenerated page buttons remain interactive.
+  menu.dataset.pageNavigationBound = 'true';
+  menu.addEventListener('click', event => {
+    const target = event.target && event.target.closest
+      ? event.target.closest('.briefing-page-item')
+      : null;
+    if (!target || !menu.contains(target)) return;
+    selectBriefingPage(target);
+  });
+}
+
+function openBriefingGeneral() {
+  const generalItem = document.querySelector('#briefing-menu .briefing-page-item[data-section="General"]');
+  if (generalItem) selectBriefingPage(generalItem);
+}
+
 
 function renderGeneralSection(flight) {
   if (!flight) return;
@@ -362,7 +612,9 @@ function renderFuelSection(flight) {
   const discTimeVal = document.getElementById('brf-disc-time-val');
   const discReason = document.getElementById('brf-disc-reason-input');
 
-  let isBlockFuelManual = (savedFuel.blockFuel !== undefined && savedFuel.blockFuel !== "");
+  let isBlockFuelManual = savedFuel.blockFuelManual !== undefined
+    ? savedFuel.blockFuelManual === true
+    : (savedFuel.blockFuel !== undefined && savedFuel.blockFuel !== "");
 
   function saveCurrentFuelState(isOrdered) {
     const f = getFlight(currentFlightId);
@@ -379,6 +631,7 @@ function renderFuelSection(flight) {
     const aSel = document.getElementById('brf-f-altn-select');
 
     if (bInp) f.state.fuelState.blockFuel = bInp.value;
+    f.state.fuelState.blockFuelManual = isBlockFuelManual;
     if (dInp) f.state.fuelState.discFuel = dInp.value;
     if (rInp) f.state.fuelState.discReason = rInp.value;
     if (aSel) f.state.fuelState.altnIndex = aSel.value;
@@ -394,7 +647,7 @@ function renderFuelSection(flight) {
     setT('brf-f-altn-time', formatHHMM(currentCalcs.altnTime));
     setT('brf-f-tkof-fuel', currentCalcs.tkofFuel);
     setT('brf-f-tkof-time', formatHHMM(currentCalcs.tkofTime));
-    setT('brf-f-minblock-fuel', currentCalcs.minBlockFuel);
+    setT('brf-f-minblock-fuel', Math.round(currentCalcs.minBlockFuel));
 
     const blockInputEl = document.getElementById('brf-block-input');
     if (!isBlockFuelManual && blockInputEl) {
@@ -435,6 +688,8 @@ function renderFuelSection(flight) {
       isBlockFuelManual = false;
       if (!flight.state) flight.state = {};
       if (!flight.state.fuelState) flight.state.fuelState = {};
+      flight.state.fuelState.blockFuel = '';
+      flight.state.fuelState.blockFuelManual = false;
       flight.state.fuelState.altnIndex = newSel.value;
       updateFuelCalcs();
       saveCurrentFuelState();
@@ -463,6 +718,9 @@ function renderFuelSection(flight) {
       isBlockFuelManual = false;
       if (!flight.state) flight.state = {};
       if (!flight.state.fuelState) flight.state.fuelState = {};
+      // Discard stale manual block fuel so the engine recomputes the new total.
+      flight.state.fuelState.blockFuel = '';
+      flight.state.fuelState.blockFuelManual = false;
       flight.state.fuelState.discFuel = newDisc.value;
       updateFuelCalcs();
       saveCurrentFuelState();
@@ -482,14 +740,17 @@ function renderFuelSection(flight) {
   if (blockInput) {
     const newBlockInput = blockInput.cloneNode(true);
     blockInput.parentNode.replaceChild(newBlockInput, blockInput);
-    if (savedFuel.blockFuel) {
+    if (isBlockFuelManual && savedFuel.blockFuel !== undefined && savedFuel.blockFuel !== '') {
       newBlockInput.value = savedFuel.blockFuel;
+    } else {
+      newBlockInput.value = calcs.actualBlockFuel;
     }
     newBlockInput.addEventListener('input', () => {
       isBlockFuelManual = true;
       if (!flight.state) flight.state = {};
       if (!flight.state.fuelState) flight.state.fuelState = {};
       flight.state.fuelState.blockFuel = newBlockInput.value;
+      flight.state.fuelState.blockFuelManual = true;
       updateFuelCalcs();
       saveCurrentFuelState();
     });
@@ -526,6 +787,7 @@ function renderFuelSection(flight) {
         discFuel: '',
         discReason: '',
         blockFuel: '',
+        blockFuelManual: false,
         fuelOrdered: false
       };
       isBlockFuelManual = false;
@@ -625,13 +887,44 @@ function renderDispatchSection(flight) {
   if (dxEl) dxEl.textContent = rmk;
 }
 
-function renderCrewAlertSection(flight) {
-  if (!flight) return;
-  const data = flight.raw || {};
-  const dxEl = document.getElementById('brf-crew-alert-dx');
-  if (dxEl) {
-    dxEl.textContent = (data.general && data.general.dx_rmk && data.general.dx_rmk.trim() !== '') ? data.general.dx_rmk : 'NIL DISPATCH REMARKS';
+function extractCrewMessages(planHtml) {
+  if (!planHtml) return { alert: 'NIL', bulletin: 'NIL' };
+  const holder = document.createElement('div');
+  holder.innerHTML = planHtml;
+  const pre = holder.querySelector('pre');
+  // Read the whole plan document: SimBrief page-break headings can close the original PRE element.
+  const text = holder.textContent || (pre ? pre.textContent : '');
+  const alertMarker = /={3,}\s*CREW ALERT\s*={3,}/i;
+  const bulletinMarker = /={3,}\s*CREW BULLETIN\s*={3,}/i;
+  const alertMatch = alertMarker.exec(text);
+  const bulletinMatch = bulletinMarker.exec(text);
+  if (!alertMatch || !bulletinMatch || bulletinMatch.index <= alertMatch.index) {
+    return { alert: 'NIL', bulletin: 'NIL' };
   }
+  const alertStart = alertMatch.index + alertMatch[0].length;
+  const bulletinStart = bulletinMatch.index + bulletinMatch[0].length;
+  const afterBulletin = text.slice(bulletinStart);
+  const routeIndex = afterBulletin.search(/\n\s*Route\s*(?:\n|$)/i);
+  let alert = text.slice(alertStart, bulletinMatch.index);
+  let bulletin = routeIndex >= 0 ? afterBulletin.slice(0, routeIndex) : afterBulletin;
+  const clean = value => value
+    .replace(/^\s*\n+/, '')
+    .replace(/\n\s*=+\s*$/gm, '')
+    .replace(/\s+$/, '')
+    .trim();
+  alert = clean(alert);
+  bulletin = clean(bulletin);
+  return { alert: alert || 'NIL', bulletin: bulletin || 'NIL' };
+}
+
+function renderCrewAlertSection(flight) {
+  const data = flight && flight.raw ? flight.raw : {};
+  const planHtml = data.text && data.text.plan_html;
+  const messages = extractCrewMessages(planHtml);
+  const alertEl = document.getElementById('brf-crew-alert-text');
+  const bulletinEl = document.getElementById('brf-crew-bulletin-text');
+  if (alertEl) alertEl.textContent = messages.alert;
+  if (bulletinEl) bulletinEl.textContent = messages.bulletin;
 }
 
 function renderAirportSection(index) {
@@ -643,307 +936,375 @@ function renderAirportSection(index) {
   if (!apt) return;
 
   const setT = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+  const weatherType = apt.type === 'Departure' ? 'origin'
+    : apt.type === 'Arrival' ? 'destination' : 'alternate';
+  const metrics = getAirportWeatherMetrics(flight.raw || {}, weatherType, apt);
 
+  setT('brf-apt-param-ceiling', metrics.ceiling);
+  setT('brf-apt-param-vis', metrics.visibility);
+  setT('brf-apt-param-hwc', metrics.hwc);
+  setT('brf-apt-param-cwc', metrics.cwc);
   setT('brf-apt-metar-text', apt.metar || 'METAR non disponibile');
   setT('brf-apt-taf-text', apt.taf || 'TAF non disponibile');
   setT('brf-apt-metar-age', formatObsDateTime(apt.metar_time));
   setT('brf-apt-taf-age', apt.taf_time ? `Issued ${formatObsDateTime(apt.taf_time)}` : '');
 
-  const badge = document.getElementById('brf-apt-vmc-badge');
-  if (badge) {
-    const category = (apt.metar_category || '').toLowerCase();
-    if (category === 'vfr' || category === 'mvfr') {
-      badge.textContent = 'VMC';
-      badge.className = 'wx-badge vmc';
-    } else if (category === 'ifr' || category === 'lifr') {
-      badge.textContent = 'IMC';
-      badge.className = 'wx-badge imc';
+  setVmcBadge(document.getElementById('brf-apt-vmc-badge'), metrics);
+
+  // Runway widget: collapsed by default, with a user-controlled disclosure button.
+  const rwyWidget = document.getElementById('brf-apt-rwy-widget');
+  const rwyTbody = document.getElementById('brf-apt-rwy-tbody');
+  const rwyContent = document.getElementById('brf-apt-rwy-content');
+  const rwyToggle = document.getElementById('brf-apt-rwy-toggle');
+  if (rwyWidget && rwyContent && rwyToggle) {
+    if ((apt.type === 'Departure' || apt.type === 'Arrival') && apt.runways) {
+      rwyWidget.style.display = 'flex';
+      rwyContent.style.display = 'none';
+      rwyToggle.setAttribute('aria-expanded', 'false');
+      rwyToggle.title = 'Mostra piste';
+      rwyToggle.onclick = () => {
+        const expanded = rwyToggle.getAttribute('aria-expanded') === 'true';
+        rwyToggle.setAttribute('aria-expanded', String(!expanded));
+        rwyContent.style.display = expanded ? 'none' : 'block';
+        rwyToggle.title = expanded ? 'Mostra piste' : 'Nascondi piste';
+      };
+      if (rwyTbody) {
+        rwyTbody.innerHTML = '';
+        const rwyList = Array.isArray(apt.runways) ? apt.runways : [apt.runways];
+        rwyList.forEach(r => {
+          const rName = r.identifier ? 'RW' + String(r.identifier).padStart(2, '0') : '---';
+          const rLenFt = parseFloat(r.length || r.length_tora || r.length_lda);
+          const rLen = !isNaN(rLenFt) ? Math.round(rLenFt * 0.3048) + ' m' : '---';
+          const rElev = r.elevation ? r.elevation + ' ft' : '---';
+          const rMag = r.magnetic_course || '---';
+          const rTrue = r.true_course || '---';
+          const windComps = computeRunwayWind(r, apt.metar);
+          const hwRaw = windComps.hw;
+          let hwVal = '---', hwClass = 'wind-green', hwArrow = '';
+          if (!isNaN(hwRaw)) {
+            if (hwRaw < 0) {
+              hwArrow = '↑'; hwVal = Math.abs(hwRaw);
+              hwClass = hwVal > 10 ? 'wind-red' : 'wind-amber';
+            } else {
+              hwArrow = '↓'; hwVal = hwRaw; hwClass = 'wind-green';
+            }
+          }
+          const xwRaw = windComps.xw;
+          const xwVal = !isNaN(xwRaw) ? Math.abs(xwRaw) : '---';
+          const xwClass = !isNaN(xwRaw) && xwVal > 10 ? 'wind-amber' : 'wind-green';
+          const row = document.createElement('tr');
+          row.innerHTML = '<td>' + rName + '</td><td>' + rLen + '</td><td>' + rElev + '</td>' +
+            '<td>' + rMag + '</td><td>' + rTrue + '</td><td><div class="wind-comp-cell">' +
+            '<div class="wind-box ' + hwClass + '"><span>' + hwArrow + '</span><span>' + hwVal + '</span></div>' +
+            '<div class="wind-box ' + xwClass + '"><span>' + xwVal + '</span></div></div></td>';
+          rwyTbody.appendChild(row);
+        });
+      }
     } else {
-      badge.textContent = '--';
-      badge.className = 'wx-badge';
+      rwyWidget.style.display = 'none';
     }
   }
 
-  // Runway con calcolo dinamico del vento
-  const rwyWidget = document.getElementById('brf-apt-rwy-widget');
-  const rwyTbody = document.getElementById('brf-apt-rwy-tbody');
-
-  if ((apt.type === 'Departure' || apt.type === 'Arrival') && apt.runways && rwyWidget && rwyTbody) {
-    rwyWidget.style.display = 'flex';
-    rwyTbody.innerHTML = '';
-
-    let rwyList = Array.isArray(apt.runways) ? apt.runways : [apt.runways];
-
-    rwyList.forEach(r => {
-      let rName = r.identifier ? `RW${String(r.identifier).padStart(2, '0')}` : '---';
-      let rLenFt = parseFloat(r.length || r.length_tora || r.length_lda);
-      let rLen = !isNaN(rLenFt) ? Math.round(rLenFt * 0.3048) + ' m' : '---';
-      let rElev = r.elevation ? r.elevation + ' ft' : '---';
-      let rMag = r.magnetic_course || '---';
-      let rTrue = r.true_course || '---';
-
-      const windComps = computeRunwayWind(r, apt.metar);
-      let hwRaw = windComps.hw;
-      let hwVal = '---';
-      let hwClass = 'wind-green';
-      let hwArrow = '';
-
-      if (!isNaN(hwRaw)) {
-        if (hwRaw < 0) {
-          hwArrow = '↑';
-          hwVal = Math.abs(hwRaw);
-          hwClass = hwVal > 10 ? 'wind-red' : 'wind-amber';
-        } else {
-          hwArrow = '↓';
-          hwVal = hwRaw;
-          hwClass = 'wind-green';
-        }
-      }
-
-      let xwRaw = windComps.xw;
-      let xwVal = '---';
-      let xwClass = 'wind-green';
-      if (!isNaN(xwRaw)) {
-        xwVal = Math.abs(xwRaw);
-        xwClass = xwVal > 10 ? 'wind-amber' : 'wind-green';
-      }
-
-      let row = document.createElement('tr');
-      row.innerHTML = `
-        <td>${rName}</td>
-        <td>${rLen}</td>
-        <td>${rElev}</td>
-        <td>${rMag}</td>
-        <td>${rTrue}</td>
-        <td>
-          <div class="wind-comp-cell">
-            <div class="wind-box ${hwClass}"><span>${hwArrow}</span><span>${hwVal}</span></div>
-            <div class="wind-box ${xwClass}"><span>${xwVal}</span></div>
-          </div>
-        </td>
-      `;
-      rwyTbody.appendChild(row);
-    });
-  } else if (rwyWidget) {
-    rwyWidget.style.display = 'none';
-  }
-
-  // NOTAMs
+  // NOTAMs: local All / Flagged selector is specific to this airport.
   const notamWidget = document.getElementById('brf-apt-notam-widget');
   const notamBody = document.getElementById('brf-apt-notam-body');
 
   if (apt.notams && apt.notams.length > 0 && notamWidget && notamBody) {
     notamWidget.style.display = 'flex';
-
-    let notamHtml = `
-      <div class="notam-filter-bar">
-        <label for="brf-notam-filter">Show:</label>
-        <select id="brf-notam-filter" class="brf-select">
-          <option value="all">All</option>
-          <option value="flagged">Flagged</option>
-        </select>
-      </div>
-    `;
-
+    notamBody.dataset.airportIcao = apt.icao || '';
+    const selectedFilter = getAirportNotamFilter(apt.icao);
     const grouped = {};
-    apt.notams.forEach(n => {
-      const cat = decodeQCodeCategory(n.notam_qcode);
-      if (!grouped[cat]) grouped[cat] = [];
-      grouped[cat].push(n);
+    apt.notams.forEach(notam => {
+      const category = decodeQCodeCategory(notam.notam_qcode);
+      if (!grouped[category]) grouped[category] = [];
+      grouped[category].push(notam);
+    });
+    const catOrder = { RUNWAY: 1, SID: 2, STAR: 3, 'APPROACH PROCEDURES': 4, AIRPORT: 5 };
+    const sortedCats = Object.keys(grouped).sort((a,b) => (catOrder[a] || 99) - (catOrder[b] || 99));
+    let notamHtml = '';
+
+    sortedCats.forEach((category, categoryIndex) => {
+      const firstCategory = categoryIndex === 0;
+      if (firstCategory) {
+        notamHtml += '<div class="notam-category-heading-row"><div class="notam-category-title">' +
+          escapeNotamHtml(category) + '</div>' +
+          '<label class="notam-airport-filter"><span class="notam-airport-filter-label">Show:</span>' +
+          '<select class="brf-select notam-airport-filter-select" data-airport-notam-filter data-icao="' +
+          escapeNotamHtml(apt.icao || '') + '" aria-label="Show all or flagged NOTAMs">' +
+          '<option value="all"' + (selectedFilter === 'all' ? ' selected' : '') + '>All</option>' +
+          '<option value="flagged"' + (selectedFilter === 'flagged' ? ' selected' : '') + '>Flagged</option>' +
+          '</select></label></div>';
+        notamHtml += '<div class="notam-category-wrapper">';
+      } else {
+        notamHtml += '<div class="notam-category-wrapper"><div class="notam-category-title">' +
+          escapeNotamHtml(category) + '</div>';
+      }
+
+      grouped[category].forEach(notam => {
+        const notamId = String(notam.notam_id || 'UNKNOWN');
+        const safeId = escapeNotamHtml(notamId);
+        const start = formatNotamDate(notam.notam_effective_dtg || notam.notam_created_dtg);
+        const end = formatNotamDate(notam.notam_expire_dtg || notam.notam_expire_dtg_estimated);
+        const isFlagged = getFlaggedNotamIds().includes(notamId);
+        notamHtml += '<div class="notam-box" data-notam-id="' + safeId + '">' +
+          '<div class="notam-top-row"><div class="notam-badge">' + escapeNotamHtml(category) + '</div>' +
+          '<button type="button" class="notam-flag' + (isFlagged ? ' flagged' : '') +
+          '" aria-label="Flag NOTAM" aria-pressed="' + isFlagged + '">' +
+          '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg></button></div>' +
+          '<div class="notam-header">' + safeId + ' - ' + escapeNotamHtml(start) + ' - ' + escapeNotamHtml(end) + '</div>' +
+          '<div class="notam-body">' + formatNotamText(notam.notam_report || notam.notam_text || '') + '</div></div>';
+      });
+      notamHtml += '</div>';
     });
 
-    const catOrder = { 'RUNWAY': 1, 'SID': 2, 'STAR': 3, 'APPROACH PROCEDURES': 4, 'AIRPORT': 5 };
-    const sortedCats = Object.keys(grouped).sort((a, b) => (catOrder[a] || 99) - (catOrder[b] || 99));
-
-    for (const cat of sortedCats) {
-      const list = grouped[cat];
-      notamHtml += `<div class="notam-category-wrapper">`;
-      notamHtml += `<div class="notam-category-title">${cat}</div>`;
-
-      list.forEach(n => {
-        const notamId = n.notam_id || 'UNKNOWN';
-        const start = formatNotamDate(n.notam_effective_dtg || n.notam_created_dtg);
-        const end = formatNotamDate(n.notam_expire_dtg || n.notam_expire_dtg_estimated);
-
-        let rawText = n.notam_report || n.notam_text || '';
-
-        let safeText = rawText
-          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-          .replace(/\b(TWY|RWY|VOR|LOC|NDB|ILS|RNP|RNAV|DME|STAR|SID|GLS|GNSS|GPS)\b/g, '<span class="notam-hl-warn">$1</span>')
-          .replace(/(\bCLSD\b|U\/S|\bNOT AVAILABLE\b|\bNOT AVBL\b|\bDO NOT USE\b)/g, '<span class="notam-hl-danger">$1</span>');
-
-        let isFlagged = flight.state.flaggedNotams.includes(notamId);
-        let flagClass = isFlagged ? 'flagged' : '';
-
-        notamHtml += `
-          <div class="notam-box" data-notam-id="${notamId}">
-            <div class="notam-top-row">
-              <div class="notam-badge">${cat}</div>
-              <button class="notam-flag ${flagClass}" aria-label="Flag NOTAM">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
-              </button>
-            </div>
-            <div class="notam-header">${notamId} - ${start} - ${end}</div>
-            <div class="notam-body">${safeText}</div>
-          </div>
-        `;
-      });
-      notamHtml += `</div>`;
-    }
-
-    notamBody.innerHTML = notamHtml;
-
-    const filterSelect = document.getElementById('brf-notam-filter');
-    const flagBtns = notamBody.querySelectorAll('.notam-flag');
-
-    function applyNotamFilter() {
-      if (!filterSelect) return;
-      const mode = filterSelect.value;
-      notamBody.querySelectorAll('.notam-category-wrapper').forEach(wrapper => {
-        let visibleCount = 0;
-        wrapper.querySelectorAll('.notam-box').forEach(box => {
-          const isFlagged = box.querySelector('.notam-flag').classList.contains('flagged');
-          if (mode === 'flagged' && !isFlagged) {
-            box.style.display = 'none';
-          } else {
-            box.style.display = 'block';
-            visibleCount++;
-          }
-        });
-        wrapper.style.display = visibleCount > 0 ? 'block' : 'none';
-      });
-    }
-
-    if (filterSelect) filterSelect.addEventListener('change', applyNotamFilter);
-
-    flagBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const box = e.currentTarget.closest('.notam-box');
-        const nid = box.dataset.notamId;
-
-        let fState = flight.state || {};
-        let fNotams = fState.flaggedNotams || [];
-
-        if (fNotams.includes(nid)) {
-          fNotams = fNotams.filter(id => id !== nid);
-          e.currentTarget.classList.remove('flagged');
-        } else {
-          fNotams.push(nid);
-          e.currentTarget.classList.add('flagged');
-        }
-
-        updateFlightState(currentFlightId, { flaggedNotams: fNotams });
-        flight.state.flaggedNotams = fNotams;
-
-        if (filterSelect && filterSelect.value === 'flagged') {
-          applyNotamFilter();
-        }
+        notamBody.innerHTML = notamHtml;
+    notamBody.querySelectorAll('.notam-flag').forEach(button => {
+      button.addEventListener('click', () => {
+        const card = button.closest('.notam-box');
+        if (card) toggleNotamFlag(card.dataset.notamId);
       });
     });
-
+    bindAirportNotamFilterControls(notamBody);
+    applyBriefingNotamFilter();
   } else if (notamWidget) {
     notamWidget.style.display = 'none';
+    if (notamBody) notamBody.innerHTML = '';
   }
+}
+
+var classicOfpZoom = 1;
+var classicOfpTool = 'pen';
+var classicOfpCurrentPage = 0;
+var classicOfpUndoByPage = Object.create(null);
+
+function getClassicOfpAnnotations(flight) {
+  const annotations = flight && flight.state && flight.state.classicOfpAnnotations;
+  return annotations && typeof annotations === 'object' ? annotations : {};
 }
 
 function renderClassicOfpText(data) {
   const container = document.getElementById('classic-ofp-container');
   if (!container) return;
-
   const html = data && data.text && data.text.plan_html;
   if (!html) {
     container.innerHTML = '<p class="classic-ofp-empty">Testo OFP non disponibile per questo volo.</p>';
     return;
   }
 
-  const pages = html
+  // Remove SimBrief's single outer DIV/PRE wrapper before splitting into individual pages.
+  const normalizedHtml = html
+    .replace(/^\s*<div[^>]*>\s*<pre[^>]*>/i, '')
+    .replace(/<\/pre>\s*<\/div>\s*$/i, '');
+  const pages = normalizedHtml
     .split(/<h2[^>]*page-break-after[^>]*>[\s\S]*?<\/h2>/i)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0);
+    .map(page => page.trim())
+    .filter(Boolean);
 
-  container.innerHTML = pages
-    .map((page) => `<div class="ofp-page"><pre class="ofp-page-text">${page}</pre></div>`)
-    .join('');
+  container.innerHTML = pages.map((page, index) =>
+    '<div class="ofp-page" data-page-index="' + index + '">' +
+      '<div class="ofp-page-content"><pre class="ofp-page-text">' + page + '</pre></div>' +
+      '<canvas class="ofp-annotation-canvas" data-page-index="' + index + '" aria-label="OFP annotations"></canvas>' +
+    '</div>'
+  ).join('');
+  applyClassicOfpZoom();
+  initializeClassicOfpAnnotationCanvases(getFlight(currentFlightId));
 }
 
-function bindBriefingTabs() {
-  document.querySelectorAll('.briefing-item').forEach(item => {
-    const newItem = item.cloneNode(true);
-    item.parentNode.replaceChild(newItem, item);
 
-    newItem.addEventListener('click', () => {
-      document.querySelectorAll('.briefing-item').forEach(i => i.classList.remove('active'));
-      newItem.classList.add('active');
+function applyClassicOfpZoom() {
+  const container = document.getElementById('classic-ofp-container');
+  const zoomValue = document.getElementById('ofp-zoom-value');
+  if (container) {
+    if ('zoom' in container.style) {
+      container.style.zoom = String(classicOfpZoom);
+      container.style.transform = '';
+      container.style.width = '';
+    } else {
+      container.style.zoom = '';
+      container.style.transform = 'scale(' + classicOfpZoom + ')';
+      container.style.width = (100 / classicOfpZoom) + '%';
+    }
+  }
+  if (zoomValue) zoomValue.textContent = Math.round(classicOfpZoom * 100) + '%';
+}
 
-      const ofpContainer = document.getElementById('classic-ofp-container');
-      const generalContainer = document.getElementById('briefing-general-container');
-      const fuelContainer = document.getElementById('briefing-fuel-container');
-      const atcContainer = document.getElementById('briefing-atc-container');
-      const dispatchContainer = document.getElementById('briefing-dispatch-container');
-      const airportContainer = document.getElementById('briefing-airport-container');
-      const melContainer = document.getElementById('briefing-mel-container');
-      const crewAlertContainer = document.getElementById('briefing-crew-alert-container');
-      const journeyTimesContainer = document.getElementById('briefing-journey-times-container');
-      const journeyDelaysContainer = document.getElementById('briefing-journey-delays-container');
-      const placeholder = document.getElementById('briefing-placeholder');
+function restoreClassicOfpCanvas(canvas, dataUrl) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!dataUrl) return;
+  const image = new Image();
+  image.onload = () => {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.drawImage(image, 0, 0, rect.width, rect.height);
+  };
+  image.src = dataUrl;
+}
 
-      if (ofpContainer) ofpContainer.style.display = 'none';
-      if (generalContainer) generalContainer.style.display = 'none';
-      if (fuelContainer) fuelContainer.style.display = 'none';
-      if (atcContainer) atcContainer.style.display = 'none';
-      if (dispatchContainer) dispatchContainer.style.display = 'none';
-      if (airportContainer) airportContainer.style.display = 'none';
-      if (melContainer) melContainer.style.display = 'none';
-      if (crewAlertContainer) crewAlertContainer.style.display = 'none';
-      if (journeyTimesContainer) journeyTimesContainer.style.display = 'none';
-      if (journeyDelaysContainer) journeyDelaysContainer.style.display = 'none';
-      if (placeholder) placeholder.style.display = 'none';
+function initializeClassicOfpAnnotationCanvases(flight) {
+  const annotations = getClassicOfpAnnotations(flight);
+  const canvases = document.querySelectorAll('#classic-ofp-container .ofp-annotation-canvas');
+  canvases.forEach(canvas => {
+    const page = canvas.closest('.ofp-page');
+    if (!page) return;
+    const rect = page.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.round(rect.width * dpr));
+    canvas.height = Math.max(1, Math.round(rect.height * dpr));
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+    const ctx = canvas.getContext('2d');
+    if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    canvas.style.pointerEvents = 'auto';
+    canvas.style.touchAction = 'pan-y';
+    canvas.classList.add('drawing-enabled');
 
-      if (newItem.dataset.section) {
-        const title = document.getElementById('topbar-title');
-        if (title) title.textContent = newItem.dataset.section;
+    if (!canvas.dataset.annotationBound) {
+      canvas.dataset.annotationBound = '1';
+      canvas.addEventListener('pointerdown', event => {
+        if (event.pointerType === 'touch') return;
+        const activeFlight = getFlight(currentFlightId);
+        if (!activeFlight) return;
+        event.preventDefault();
+        classicOfpCurrentPage = Number(canvas.dataset.pageIndex) || 0;
+        if (!classicOfpUndoByPage[classicOfpCurrentPage]) classicOfpUndoByPage[classicOfpCurrentPage] = [];
+        classicOfpUndoByPage[classicOfpCurrentPage].push(canvas.toDataURL('image/png'));
+        canvas._ofpDrawing = true;
+        canvas._ofpLastPoint = null;
+        if (canvas.setPointerCapture) canvas.setPointerCapture(event.pointerId);
+        const bounds = canvas.getBoundingClientRect();
+        const point = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+        canvas._ofpLastPoint = point;
+        const context = canvas.getContext('2d');
+        if (!context) return;
+        context.save();
+        context.globalCompositeOperation = classicOfpTool === 'eraser' ? 'destination-out' : 'source-over';
+        context.globalAlpha = classicOfpTool === 'highlight' ? 0.28 : 1;
+        context.strokeStyle = classicOfpTool === 'eraser'
+          ? 'rgba(0,0,0,1)'
+          : (document.getElementById('ofp-annotation-color') || {}).value || '#1f5fbf';
+        context.fillStyle = context.strokeStyle;
+        context.lineWidth = classicOfpTool === 'eraser' ? 22 : classicOfpTool === 'highlight' ? 18 : 2.6;
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        context.beginPath();
+        context.arc(point.x, point.y, context.lineWidth / 2, 0, Math.PI * 2);
+        context.fill();
+        context.restore();
+      });
 
-        if (newItem.dataset.section === 'Classic OFP') {
-          if (ofpContainer) ofpContainer.style.display = 'flex';
-        } else if (newItem.dataset.section === 'General') {
-          if (generalContainer) generalContainer.style.display = 'flex';
-          renderGeneralSection(getFlight(currentFlightId));
-        } else if (newItem.dataset.section === 'Fuel') {
-          if (fuelContainer) fuelContainer.style.display = 'flex';
-          renderFuelSection(getFlight(currentFlightId));
-        } else if (newItem.dataset.section === 'MEL/CDL Information') {
-          if (melContainer) melContainer.style.display = 'flex';
-        } else if (newItem.dataset.section === 'ATC') {
-          if (atcContainer) atcContainer.style.display = 'flex';
-          renderAtcSection(getFlight(currentFlightId));
-        } else if (newItem.dataset.section === 'Dispatch Info') {
-          if (dispatchContainer) dispatchContainer.style.display = 'flex';
-          renderDispatchSection(getFlight(currentFlightId));
-        } else if (newItem.dataset.section === 'Crew Alert and Bulletin') {
-          if (crewAlertContainer) crewAlertContainer.style.display = 'flex';
-          renderCrewAlertSection(getFlight(currentFlightId));
-        } else if (newItem.dataset.section === 'Flight Times and Fuel') {
-          if (journeyTimesContainer) journeyTimesContainer.style.display = 'flex';
-          if (typeof renderJourneyTimes === 'function') renderJourneyTimes(getFlight(currentFlightId));
-        } else if (newItem.dataset.section === 'Duty Assignment & Delays') {
-          if (journeyDelaysContainer) journeyDelaysContainer.style.display = 'flex';
-          if (typeof renderJourneyDelays === 'function') renderJourneyDelays(getFlight(currentFlightId));
-        } else {
-          if (placeholder) placeholder.style.display = 'block';
-        }
-      } else if (newItem.dataset.aptIndex !== undefined) {
-        if (airportContainer) airportContainer.style.display = 'flex';
-        const apt = currentAirportsData[newItem.dataset.aptIndex];
-        let titleText = apt.icao || '????';
-        if (apt.iata) titleText += `/${apt.iata}`;
-        if (apt.name) titleText += ` - ${apt.name}`;
-        const title = document.getElementById('topbar-title');
-        if (title) title.textContent = titleText;
-        renderAirportSection(newItem.dataset.aptIndex);
-      }
-    });
+      canvas.addEventListener('pointermove', event => {
+        if (!canvas._ofpDrawing || !canvas._ofpLastPoint) return;
+        event.preventDefault();
+        const bounds = canvas.getBoundingClientRect();
+        const next = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+        const context = canvas.getContext('2d');
+        if (!context) return;
+        context.save();
+        context.globalCompositeOperation = classicOfpTool === 'eraser' ? 'destination-out' : 'source-over';
+        context.globalAlpha = classicOfpTool === 'highlight' ? 0.28 : 1;
+        context.strokeStyle = classicOfpTool === 'eraser'
+          ? 'rgba(0,0,0,1)'
+          : (document.getElementById('ofp-annotation-color') || {}).value || '#1f5fbf';
+        context.lineWidth = classicOfpTool === 'eraser' ? 22 : classicOfpTool === 'highlight' ? 18 : 2.6;
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        context.beginPath();
+        context.moveTo(canvas._ofpLastPoint.x, canvas._ofpLastPoint.y);
+        context.lineTo(next.x, next.y);
+        context.stroke();
+        context.restore();
+        canvas._ofpLastPoint = next;
+      });
+
+      const finishStroke = () => {
+        if (!canvas._ofpDrawing) return;
+        canvas._ofpDrawing = false;
+        canvas._ofpLastPoint = null;
+        const current = getFlight(currentFlightId);
+        if (!current) return;
+        if (!current.state) current.state = {};
+        const saved = getClassicOfpAnnotations(current);
+        saved[canvas.dataset.pageIndex] = canvas.toDataURL('image/png');
+        updateFlightState(currentFlightId, { classicOfpAnnotations: saved });
+      };
+      canvas.addEventListener('pointerup', finishStroke);
+      canvas.addEventListener('pointercancel', finishStroke);
+      canvas.addEventListener('lostpointercapture', finishStroke);
+    }
+
+    restoreClassicOfpCanvas(canvas, annotations[canvas.dataset.pageIndex] || '');
+  });
+
+  containerImagesReload();
+}
+
+function containerImagesReload() {
+  const container = document.getElementById('classic-ofp-container');
+  if (!container) return;
+  container.querySelectorAll('img').forEach(image => {
+    if (image.dataset.ofpResizeBound) return;
+    image.dataset.ofpResizeBound = '1';
+    image.addEventListener('load', () => initializeClassicOfpAnnotationCanvases(getFlight(currentFlightId)));
   });
 }
+
+function saveClassicOfpCanvas(canvas, dataUrl) {
+  const flight = getFlight(currentFlightId);
+  if (!flight) return;
+  const annotations = getClassicOfpAnnotations(flight);
+  annotations[canvas.dataset.pageIndex] = dataUrl;
+  updateFlightState(currentFlightId, { classicOfpAnnotations: annotations });
+}
+
+function initClassicOfpAnnotationTools(flight) {
+  const toolbar = document.getElementById('classic-ofp-tools');
+  if (!toolbar) return;
+  toolbar.querySelectorAll('[data-ofp-tool]').forEach(button => {
+    button.onclick = () => {
+      classicOfpTool = button.dataset.ofpTool;
+      toolbar.querySelectorAll('[data-ofp-tool]').forEach(b => b.classList.toggle('active', b === button));
+    };
+  });
+  toolbar.querySelectorAll('[data-ofp-action]').forEach(button => {
+    button.onclick = () => {
+      const action = button.dataset.ofpAction;
+      if (action === 'zoom-in') {
+        classicOfpZoom = Math.min(1.8, Math.round((classicOfpZoom + 0.1) * 10) / 10);
+        applyClassicOfpZoom();
+      } else if (action === 'zoom-out') {
+        classicOfpZoom = Math.max(0.6, Math.round((classicOfpZoom - 0.1) * 10) / 10);
+        applyClassicOfpZoom();
+      } else {
+        const canvas = document.querySelector('#classic-ofp-container .ofp-annotation-canvas[data-page-index="' + classicOfpCurrentPage + '"]');
+        if (!canvas) return;
+        const context = canvas.getContext('2d');
+        if (!context) return;
+        const undo = classicOfpUndoByPage[classicOfpCurrentPage] || [];
+        if (action === 'undo' && undo.length) {
+          const previous = undo.pop();
+          restoreClassicOfpCanvas(canvas, previous);
+          saveClassicOfpCanvas(canvas, previous);
+        } else if (action === 'clear') {
+          undo.push(canvas.toDataURL('image/png'));
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          saveClassicOfpCanvas(canvas, canvas.toDataURL('image/png'));
+        }
+      }
+    };
+  });
+
+  document.querySelectorAll('#classic-ofp-container .ofp-page').forEach(page => {
+    page.addEventListener('pointerdown', () => {
+      classicOfpCurrentPage = Number(page.dataset.pageIndex) || 0;
+    }, { passive: true });
+  });
+  initializeClassicOfpAnnotationCanvases(flight);
+}
+
 
 function initBriefingInteractions() {
   bindBriefingTabs();
