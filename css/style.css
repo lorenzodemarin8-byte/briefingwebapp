@@ -2749,7 +2749,7 @@ canvas#signature-pad, canvas#submit-signature-pad { width: 100%; height: 100%; d
 .notam-hl-warn { color: #b9782f; font-weight: 800; }
 .notam-hl-danger { color: #a53540; font-weight: 800; text-decoration: underline; }
 .notam-rwy-ident { color: var(--text); font-weight: 800; }
-.notam-body { font-weight: 500; }
+ .notam-body { font-weight: 400; }
 .notam-box,
 .dash-notam-item { border-color: #c9cdd2; }
 .notam-flag { color: #aeb3b9; }
@@ -2809,8 +2809,8 @@ canvas#signature-pad, canvas#submit-signature-pad { width: 100%; height: 100%; d
 
 /* Block Fuel strip reuses the same active-page blue, including its text contrast. */
 .brf-block-strip { background-color: var(--brf-sidebar-active-bg); }
-.brf-strip-title,
-.brf-strip-unit { color: var(--brf-sidebar-active-text); }
+ .brf-strip-title,
+.brf-strip-unit { color: #101d30; }
 .brf-order-btn { color: #101d30; }
 
 /* Runway widget accordion. */
