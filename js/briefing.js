@@ -1080,8 +1080,15 @@ function renderClassicOfpText(data) {
     return;
   }
 
-  const pages = html.split(/<h2[^>]*page-break-after[^>]*>[\s\S]*?<\/h2>/i)
-    .map(page => page.trim()).filter(Boolean);
+  // Remove SimBrief's single outer DIV/PRE wrapper before splitting into individual pages.
+  const normalizedHtml = html
+    .replace(/^\s*<div[^>]*>\s*<pre[^>]*>/i, '')
+    .replace(/<\/pre>\s*<\/div>\s*$/i, '');
+  const pages = normalizedHtml
+    .split(/<h2[^>]*page-break-after[^>]*>[\s\S]*?<\/h2>/i)
+    .map(page => page.trim())
+    .filter(Boolean);
+
   container.innerHTML = pages.map((page, index) =>
     '<div class="ofp-page" data-page-index="' + index + '">' +
       '<div class="ofp-page-content"><pre class="ofp-page-text">' + page + '</pre></div>' +
@@ -1091,6 +1098,7 @@ function renderClassicOfpText(data) {
   applyClassicOfpZoom();
   initializeClassicOfpAnnotationCanvases(getFlight(currentFlightId));
 }
+
 
 function applyClassicOfpZoom() {
   const container = document.getElementById('classic-ofp-container');
