@@ -3022,3 +3022,162 @@ canvas#signature-pad, canvas#submit-signature-pad { width: 100%; height: 100%; d
 [data-theme="dark"] .topbar-nav.briefing-layout.sidebar-open .topbar-left-slot {
   border-right-color: #46505b;
 }
+
+
+/* Final Briefing hierarchy: section headers secondary; individual pages remain bold. */
+.briefing-section-toggle {
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.045em;
+  padding: 18px 17px 13px;
+}
+.briefing-subsection-toggle {
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.briefing-page-item {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* Flight number sits in the sidebar's topbar cell; the close icon stays right-aligned. */
+.briefing-flight-number {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: calc(100% - 70px);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.topbar-nav.briefing-layout.sidebar-open .briefing-flight-number { display: block; }
+.topbar-nav.briefing-layout.sidebar-open .topbar-left-slot {
+  position: relative;
+  justify-content: flex-end;
+}
+.topbar-nav.briefing-layout.sidebar-open #briefing-sidebar-toggle {
+  position: relative;
+  z-index: 1;
+  width: 34px;
+  height: 34px;
+  padding: 7px;
+}
+
+/* Enroute stations and alternates use the same two-line airport rows. */
+.briefing-airport-item .briefing-airport-type {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* The category captions above NOTAM cards need more contrast in dark mode. */
+[data-theme="dark"] .notam-category-title,
+[data-theme="dark"] .dash-notam-cat-title {
+  color: #c5cbd3;
+  font-weight: 600;
+}
+
+/* FIR weather blocks within the existing WX widget. */
+.fir-weather-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 2px;
+}
+.fir-weather-block {
+  padding: 0 0 10px;
+  border-bottom: 1px solid var(--inner-divider);
+}
+.fir-weather-block:last-child { border-bottom: 0; padding-bottom: 0; }
+.fir-weather-title {
+  margin-bottom: 5px;
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+.fir-weather-text {
+  margin: 0;
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+[data-theme="dark"] .fir-weather-block { border-bottom-color: rgba(255,255,255,0.08); }
+
+/* Classic OFP is rendered inside our own viewport; only the viewport scrolls. */
+.classic-ofp-viewport {
+  display: block;
+  min-width: 0;
+  overflow: auto;
+  padding: 12px 10px 28px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.classic-ofp-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  width: max-content;
+  min-width: 100%;
+  min-height: 100%;
+  padding: 4px 4px 30px;
+  overflow: visible;
+  transform: none !important;
+  zoom: 1 !important;
+}
+.ofp-pdf-page {
+  position: relative;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  background: #ffffff;
+  overflow: hidden;
+  border-radius: 2px;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.25);
+  isolation: isolate;
+}
+.ofp-pdf-canvas {
+  position: relative;
+  z-index: 1;
+  display: block;
+  max-width: none;
+  background: #ffffff;
+}
+.ofp-pdf-page .ofp-annotation-canvas {
+  z-index: 2;
+  pointer-events: auto;
+  touch-action: pan-x pan-y;
+}
+.classic-ofp-loading,
+.classic-ofp-error {
+  width: min(620px, calc(100% - 36px));
+  margin: 24px auto;
+  padding: 18px;
+  border: 1px solid var(--panel-border);
+  border-radius: 7px;
+  color: var(--text-2);
+  text-align: center;
+  font-size: 13px;
+  background: var(--card);
+}
+[data-theme="dark"] .ofp-pdf-page {
+  box-shadow: 0 1px 6px rgba(0,0,0,0.55);
+}
+@media (max-width: 760px) {
+  .classic-ofp-tools { gap: 7px; padding: 7px 8px; }
+  .classic-ofp-viewport { padding: 8px 4px 20px; }
+  .classic-ofp-container { gap: 12px; }
+}
