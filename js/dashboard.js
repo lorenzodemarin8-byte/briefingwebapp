@@ -600,7 +600,7 @@ function formatNotamText(rawText) {
   });
   formatted = formatted.replace(/\b(TWY|VOR|DVOR|VORTAC|TACAN|LOC|LLZ|NDB|ADF|ILS|GS|RNP|RNAV|DME|PAPI|GLS|GBAS|GNSS|GPS)\b/gi,
     '<span class="notam-hl-warn">$1</span>');
-  formatted = formatted.replace(/\b(CLSD|NOT AVAILABLE|NOT AVBL|NOT USABLE|NOT USABLE|DO NOT USE|UNSERVICEABLE)\b|U\/S/gi,
+  formatted = formatted.replace(/\b(CLSD|NOT AVAILABLE|NOT AVBL|NOT USABLE|DO NOT USE|UNSERVICEABLE)\b|U\/S/gi,
     match => '<span class="notam-hl-danger">' + match + '</span>');
   return formatted;
 }
