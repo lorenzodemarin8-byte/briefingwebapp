@@ -1287,17 +1287,58 @@ function renderFirSection(firCode, firName) {
   applyBriefingNotamFilter();
 }
 
-function renderClassicOfpText(data) {
+var classicOfpPdfDocument = null;
+var classicOfpPdfPages = [];
+var classicOfpPdfObserver = null;
+var classicOfpPdfRenderTasks = Object.create(null);
+var classicOfpPdfLoadingTask = null;
+var classicOfpRenderToken = 0;
+var classicOfpResizeBound = false;
+var classicOfpBaseScale = 1;
+
+function getClassicOfpPdfFile(data) {
+  const link = data && data.files && data.files.pdf && data.files.pdf.link;
+  if (!link) return null;
+  const fileName = String(link).split('/').pop().split('?')[0];
+  if (!/^[A-Z0-9_-]+_PDF_[0-9]+\.pdf$/i.test(fileName)) return null;
+  const directory = data.files.directory || 'https://www.simbrief.com/ofp/flightplans/';
+  let directUrl = fileName;
+  try {
+    directUrl = new URL(fileName, directory).href;
+  } catch (e) {
+    directUrl = 'https://www.simbrief.com/ofp/flightplans/' + encodeURIComponent(fileName);
+  }
+  return {
+    proxyUrl: '/api/simbrief-pdf?file=' + encodeURIComponent(fileName),
+    directUrl
+  };
+}
+
+function waitForPdfJs(timeoutMs) {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  return new Promise(resolve => {
+    let finished = false;
+    const complete = () => {
+      if (finished) return;
+      finished = true;
+      window.removeEventListener('pdfjs-ready', complete);
+      resolve(window.pdfjsLib || null);
+    };
+    window.addEventListener('pdfjs-ready', complete, { once: true });
+    window.setTimeout(complete, timeoutMs || 8000);
+  });
+}
+
+function renderClassicOfpHtmlFallback(data, reason) {
   const container = document.getElementById('classic-ofp-container');
   if (!container) return;
   const html = data && data.text && data.text.plan_html;
   if (!html) {
-    container.innerHTML = '<p class="classic-ofp-empty">Testo OFP non disponibile per questo volo.</p>';
+    container.innerHTML = '<p class="classic-ofp-empty">OFP PDF and HTML content are not available for this flight.</p>';
     return;
   }
 
-  // Remove SimBrief's single outer DIV/PRE wrapper before splitting into individual pages.
-  const normalizedHtml = html
+  const normalizedHtml = String(html)
     .replace(/^\s*<div[^>]*>\s*<pre[^>]*>/i, '')
     .replace(/<\/pre>\s*<\/div>\s*$/i, '');
   const pages = normalizedHtml
@@ -1305,33 +1346,227 @@ function renderClassicOfpText(data) {
     .map(page => page.trim())
     .filter(Boolean);
 
-  container.innerHTML = pages.map((page, index) =>
-    '<div class="ofp-page" data-page-index="' + index + '">' +
-      '<div class="ofp-page-content"><pre class="ofp-page-text">' + page + '</pre></div>' +
-      '<canvas class="ofp-annotation-canvas" data-page-index="' + index + '" aria-label="OFP annotations"></canvas>' +
-    '</div>'
-  ).join('');
+  container.classList.remove('classic-ofp-pdf-mode');
+  container.innerHTML = (reason ? '<div class="classic-ofp-error">PDF unavailable — showing the SimBrief HTML version instead.</div>' : '') +
+    pages.map((page, index) =>
+      '<div class="ofp-page" data-page-index="' + index + '">' +
+        '<div class="ofp-page-content"><pre class="ofp-page-text">' + page + '</pre></div>' +
+        '<canvas class="ofp-annotation-canvas" data-page-index="' + index + '" aria-label="OFP annotations"></canvas>' +
+      '</div>'
+    ).join('');
   applyClassicOfpZoom();
   initializeClassicOfpAnnotationCanvases(getFlight(currentFlightId));
 }
 
+async function renderClassicOfpText(data) {
+  const container = document.getElementById('classic-ofp-container');
+  if (!container) return;
+  const token = ++classicOfpRenderToken;
+
+  if (classicOfpPdfObserver) {
+    classicOfpPdfObserver.disconnect();
+    classicOfpPdfObserver = null;
+  }
+  Object.keys(classicOfpPdfRenderTasks).forEach(key => {
+    try { classicOfpPdfRenderTasks[key].cancel(); } catch (e) {}
+  });
+  classicOfpPdfRenderTasks = Object.create(null);
+  if (classicOfpPdfLoadingTask && classicOfpPdfLoadingTask.destroy) {
+    try { classicOfpPdfLoadingTask.destroy(); } catch (e) {}
+  }
+  classicOfpPdfLoadingTask = null;
+  classicOfpPdfDocument = null;
+  classicOfpPdfPages = [];
+
+  const pdfFile = getClassicOfpPdfFile(data);
+  if (!pdfFile) {
+    renderClassicOfpHtmlFallback(data, false);
+    return;
+  }
+
+  container.classList.add('classic-ofp-pdf-mode');
+  container.innerHTML = '<div class="classic-ofp-loading">Loading original SimBrief PDF…</div>';
+  const pdfjsLib = await waitForPdfJs(8000);
+  if (token !== classicOfpRenderToken) return;
+  if (!pdfjsLib) {
+    renderClassicOfpHtmlFallback(data, true);
+    return;
+  }
+
+  let pdf = null;
+  const urls = [pdfFile.proxyUrl, pdfFile.directUrl];
+  for (let i = 0; i < urls.length && !pdf; i++) {
+    try {
+      classicOfpPdfLoadingTask = pdfjsLib.getDocument({
+        url: urls[i],
+        withCredentials: false,
+        disableAutoFetch: false,
+        disableStream: false
+      });
+      pdf = await classicOfpPdfLoadingTask.promise;
+    } catch (e) {
+      pdf = null;
+    }
+    if (token !== classicOfpRenderToken) return;
+  }
+
+  if (!pdf) {
+    renderClassicOfpHtmlFallback(data, true);
+    return;
+  }
+
+  classicOfpPdfDocument = pdf;
+  container.innerHTML = '';
+  const viewportEl = document.getElementById('classic-ofp-viewport');
+  const availableWidth = Math.max(280, (viewportEl ? viewportEl.clientWidth : window.innerWidth) - 36);
+  const firstPage = await pdf.getPage(1);
+  const firstViewport = firstPage.getViewport({ scale: 1 });
+  classicOfpBaseScale = Math.max(0.35, Math.min(1.8, availableWidth / firstViewport.width));
+
+  for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+    if (token !== classicOfpRenderToken) return;
+    const page = pageNumber === 1 ? firstPage : await pdf.getPage(pageNumber);
+    const baseViewport = page.getViewport({ scale: 1 });
+    classicOfpPdfPages[pageNumber - 1] = page;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'ofp-pdf-page';
+    wrapper.dataset.pageIndex = String(pageNumber - 1);
+    wrapper.dataset.baseWidth = String(baseViewport.width * classicOfpBaseScale);
+    wrapper.dataset.baseHeight = String(baseViewport.height * classicOfpBaseScale);
+    wrapper.dataset.pdfRendered = 'false';
+
+    const pdfCanvas = document.createElement('canvas');
+    pdfCanvas.className = 'ofp-pdf-canvas';
+    pdfCanvas.setAttribute('aria-label', 'SimBrief OFP page ' + pageNumber);
+    const annotationCanvas = document.createElement('canvas');
+    annotationCanvas.className = 'ofp-annotation-canvas';
+    annotationCanvas.dataset.pageIndex = String(pageNumber - 1);
+    annotationCanvas.setAttribute('aria-label', 'OFP annotations');
+
+    wrapper.appendChild(pdfCanvas);
+    wrapper.appendChild(annotationCanvas);
+    container.appendChild(wrapper);
+  }
+
+  applyClassicOfpZoom();
+  initializeClassicOfpAnnotationCanvases(getFlight(currentFlightId));
+
+  if ('IntersectionObserver' in window) {
+    classicOfpPdfObserver = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        const index = Number(entry.target.dataset.pageIndex);
+        renderClassicOfpPdfPage(index);
+      });
+    }, {
+      root: viewportEl || null,
+      rootMargin: '700px 0px'
+    });
+    container.querySelectorAll('.ofp-pdf-page').forEach(page => classicOfpPdfObserver.observe(page));
+  } else {
+    for (let index = 0; index < classicOfpPdfPages.length; index++) {
+      renderClassicOfpPdfPage(index);
+    }
+  }
+
+  if (!classicOfpResizeBound) {
+    classicOfpResizeBound = true;
+    window.addEventListener('resize', () => {
+      if (!classicOfpPdfDocument) return;
+      const viewport = document.getElementById('classic-ofp-viewport');
+      const page = classicOfpPdfPages[0];
+      if (!viewport || !page) return;
+      const baseViewport = page.getViewport({ scale: 1 });
+      const width = Math.max(280, viewport.clientWidth - 36);
+      classicOfpBaseScale = Math.max(0.35, Math.min(1.8, width / baseViewport.width));
+      applyClassicOfpZoom();
+    });
+  }
+}
+
+async function renderClassicOfpPdfPage(index) {
+  if (!classicOfpPdfDocument || !classicOfpPdfPages[index]) return;
+  const container = document.getElementById('classic-ofp-container');
+  const wrapper = container && container.querySelector('.ofp-pdf-page[data-page-index="' + index + '"]');
+  if (!wrapper) return;
+
+  const pdfCanvas = wrapper.querySelector('.ofp-pdf-canvas');
+  if (!pdfCanvas) return;
+  const scale = classicOfpBaseScale * classicOfpZoom;
+  const renderKey = String(Math.round(scale * 10000) / 10000);
+  if (wrapper.dataset.renderedScale === renderKey) return;
+
+  const oldTask = classicOfpPdfRenderTasks[index];
+  if (oldTask) {
+    try { oldTask.cancel(); } catch (e) {}
+  }
+
+  try {
+    const page = classicOfpPdfPages[index];
+    const viewport = page.getViewport({ scale });
+    const outputScale = Math.min(window.devicePixelRatio || 1, 2);
+    pdfCanvas.width = Math.max(1, Math.ceil(viewport.width * outputScale));
+    pdfCanvas.height = Math.max(1, Math.ceil(viewport.height * outputScale));
+    pdfCanvas.style.width = viewport.width + 'px';
+    pdfCanvas.style.height = viewport.height + 'px';
+    const context = pdfCanvas.getContext('2d', { alpha: false });
+    const renderTask = page.render({
+      canvasContext: context,
+      viewport,
+      transform: outputScale === 1 ? null : [outputScale, 0, 0, outputScale, 0, 0]
+    });
+    classicOfpPdfRenderTasks[index] = renderTask;
+    await renderTask.promise;
+    wrapper.dataset.renderedScale = renderKey;
+    wrapper.dataset.pdfRendered = 'true';
+  } catch (e) {
+    if (e && e.name !== 'RenderingCancelledException') {
+      console.warn('Classic OFP PDF page render failed', index + 1, e);
+    }
+  } finally {
+    delete classicOfpPdfRenderTasks[index];
+  }
+}
 
 function applyClassicOfpZoom() {
   const container = document.getElementById('classic-ofp-container');
   const zoomValue = document.getElementById('ofp-zoom-value');
-  if (container) {
-    if ('zoom' in container.style) {
-      container.style.zoom = String(classicOfpZoom);
-      container.style.transform = '';
-      container.style.width = '';
-    } else {
-      container.style.zoom = '';
-      container.style.transform = 'scale(' + classicOfpZoom + ')';
-      container.style.width = (100 / classicOfpZoom) + '%';
-    }
+  if (!container) return;
+
+  if (classicOfpPdfDocument) {
+    const wrappers = container.querySelectorAll('.ofp-pdf-page');
+    wrappers.forEach(wrapper => {
+      const width = Number(wrapper.dataset.baseWidth) * classicOfpZoom;
+      const height = Number(wrapper.dataset.baseHeight) * classicOfpZoom;
+      wrapper.style.width = width + 'px';
+      wrapper.style.height = height + 'px';
+      const canvas = wrapper.querySelector('.ofp-pdf-canvas');
+      if (canvas) {
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+      }
+      wrapper.dataset.renderedScale = '';
+    });
+    initializeClassicOfpAnnotationCanvases(getFlight(currentFlightId));
+    wrappers.forEach((wrapper, index) => {
+      const rect = wrapper.getBoundingClientRect();
+      const viewport = document.getElementById('classic-ofp-viewport');
+      const viewRect = viewport ? viewport.getBoundingClientRect() : null;
+      const closeToView = !viewRect || (rect.bottom >= viewRect.top - 700 && rect.top <= viewRect.bottom + 700);
+      if (wrapper.dataset.pdfRendered === 'true' || closeToView) renderClassicOfpPdfPage(index);
+    });
+  } else {
+    container.querySelectorAll('.ofp-page').forEach(page => {
+      page.style.width = 'calc(210mm * ' + classicOfpZoom + ')';
+      page.style.maxWidth = 'none';
+      page.style.transform = 'none';
+    });
+    initializeClassicOfpAnnotationCanvases(getFlight(currentFlightId));
   }
+
   if (zoomValue) zoomValue.textContent = Math.round(classicOfpZoom * 100) + '%';
 }
+
 
 function restoreClassicOfpCanvas(canvas, dataUrl) {
   const ctx = canvas.getContext('2d');
