@@ -25,7 +25,7 @@ var airportNotamFilters = Object.create(null);
 function navigateToBriefingSection(sectionName) {
   const brfTab = document.querySelector('.tab-btn[data-tab="briefing"]');
   if (brfTab) brfTab.click();
-  const targetItem = document.querySelector(`.briefing-item[data-section="${sectionName}"]`);
+  const targetItem = document.querySelector(`.briefing-page-item[data-section="${sectionName}"]`);
   if (targetItem) targetItem.click();
 }
 
@@ -35,7 +35,7 @@ function navigateToBriefingAirport(icaoCode, scrollTargetId) {
   if (!icaoCode || !Array.isArray(currentAirportsData)) return;
   const idx = currentAirportsData.findIndex(a => a.icao === icaoCode);
   if (idx !== -1) {
-    const aptItem = document.querySelector(`.briefing-item[data-apt-index="${idx}"]`);
+    const aptItem = document.querySelector(`.briefing-page-item[data-apt-index="${idx}"]`);
     if (aptItem) aptItem.click();
     if (scrollTargetId) {
       setTimeout(() => {
