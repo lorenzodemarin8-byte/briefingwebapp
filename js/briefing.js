@@ -131,40 +131,251 @@ function extractAirportsData(data) {
   }
 }
 
+function getBriefingVisitedPages() {
+  const flight = getFlight(currentFlightId);
+  const pages = flight && flight.state && flight.state.briefingVisitedPages;
+  return Array.isArray(pages) ? pages : [];
+}
+
+function markBriefingPageVisited(pageKey, item) {
+  if (!pageKey) return;
+  const flight = getFlight(currentFlightId);
+  if (!flight) return;
+  const pages = getBriefingVisitedPages();
+  if (!pages.includes(pageKey)) {
+    pages.push(pageKey);
+    updateFlightState(currentFlightId, { briefingVisitedPages: pages });
+  }
+  if (item) item.classList.remove('unread');
+}
+
+function briefingPageButton(label, pageKey, attributes, extraClass) {
+  const visited = getBriefingVisitedPages().includes(pageKey);
+  return '<button type="button" class="briefing-page-item ' + (visited ? 'visited' : 'unread') +
+    ' ' + (extraClass || '') + '" data-page-key="' + escapeNotamHtml(pageKey) + '" ' +
+    (attributes || '') + '>' + label + '</button>';
+}
+
+function briefingAirportButton(apt, index) {
+  const code = [apt.icao || '????', apt.iata].filter(Boolean).join('/');
+  const pageKey = 'airport:' + (apt.icao || index);
+  const visited = getBriefingVisitedPages().includes(pageKey);
+  return '<button type="button" class="briefing-page-item briefing-airport-item ' +
+    (visited ? 'visited' : 'unread') + '" data-page-key="' + escapeNotamHtml(pageKey) +
+    '" data-apt-index="' + index + '">' +
+    '<span class="briefing-airport-code">' + escapeNotamHtml(code) + '</span>' +
+    '<span class="briefing-airport-type">' + escapeNotamHtml(apt.type || '') + '</span></button>';
+}
+
+function briefingGroupMarkup(title, key, innerHtml, expanded) {
+  return '<div class="briefing-subsection">' +
+    '<button type="button" class="briefing-subsection-toggle" data-menu-target="' + key +
+    '" aria-expanded="' + String(Boolean(expanded)) + '">' +
+    '<span>' + title + '</span>' +
+    '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>' +
+    '</button><div class="briefing-subsection-content" id="' + key + '" ' +
+    (expanded ? '' : 'hidden') + '>' + innerHtml + '</div></div>';
+}
+
+function briefingSectionMarkup(title, key, innerHtml, expanded) {
+  return '<section class="briefing-section">' +
+    '<button type="button" class="briefing-section-toggle" data-menu-target="' + key +
+    '" aria-expanded="' + String(Boolean(expanded)) + '">' +
+    '<span>' + title + '</span>' +
+    '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>' +
+    '</button><div class="briefing-section-content" id="' + key + '" ' +
+    (expanded ? '' : 'hidden') + '>' + innerHtml + '</div></section>';
+}
+
+function getFlightFirList(data) {
+  const fixes = data && data.navlog && data.navlog.fix;
+  const list = Array.isArray(fixes) ? fixes : fixes ? [fixes] : [];
+  const seen = new Set();
+  return list.map(fix => String(fix && fix.fir || '').trim()).filter(fir => {
+    if (!fir || seen.has(fir)) return false;
+    seen.add(fir);
+    return true;
+  });
+}
+
 function renderBriefingMenu() {
-  const listEl = document.getElementById('brf-wx-menu-list');
-  if (!listEl) return;
-  listEl.innerHTML = '';
+  const menuEl = document.getElementById('briefing-menu');
+  if (!menuEl) return;
+  const data = (getFlight(currentFlightId) || {}).raw || {};
+  const mainAirports = currentAirportsData.map((apt, index) => ({ apt, index }))
+    .filter(x => ['Departure', 'Arrival', 'Arrival Alternate'].includes(x.apt.type));
+  const enrouteAirports = currentAirportsData.map((apt, index) => ({ apt, index }))
+    .filter(x => ['Enroute Alternate', 'Enroute Airport'].includes(x.apt.type));
+  const firs = getFlightFirList(data);
 
-  currentAirportsData.forEach((apt, index) => {
-    const div = document.createElement('div');
-    div.className = 'briefing-item brf-apt-item';
-    div.dataset.aptIndex = index;
+  const flightPlanDefs = [
+    ['General', 'section:general'], ['Fuel', 'section:fuel'],
+    ['MEL/CDL Information', 'section:mel'], ['ATC', 'section:atc'],
+    ['Dispatch Info', 'section:dispatch'], ['Crew Alert and Bulletin', 'section:crew'],
+    ['Classic OFP', 'section:classic-ofp'], ['TLR', 'section:tlr']
+  ];
+  const flightPlan = flightPlanDefs.map(def =>
+    briefingPageButton(def[0], def[1], 'data-section="' + def[0] + '"')).join('');
 
-    let title = apt.icao || '????';
-    if (apt.iata) title += `/${apt.iata}`;
+  const journeyDefs = [
+    ['Flight Times and Fuel', 'section:journey-times', 'Flight Times and Fuel'],
+    ['Duty Assignments', 'section:duty-assignments', 'Duty Assignment & Delays']
+  ];
+  const journeyLog = journeyDefs.map(def =>
+    briefingPageButton(def[0], def[1], 'data-section="' + def[2] + '"')).join('');
 
-    div.innerHTML = `
-      <div class="brf-apt-item-main">${title}</div>
-      <div class="brf-apt-item-sub">${apt.type}</div>
-    `;
-    listEl.appendChild(div);
+  const mainAirportItems = mainAirports.map(x => briefingAirportButton(x.apt, x.index)).join('') ||
+    '<div class="briefing-airport-empty">No main airports available</div>';
+  const enrouteItems = enrouteAirports.map(x => briefingAirportButton(x.apt, x.index)).join('') ||
+    '<div class="briefing-airport-empty">No enroute airports available</div>';
+  const firItems = firs.map(fir => briefingPageButton(escapeNotamHtml(fir), 'fir:' + fir,
+    'data-placeholder-title="FIR ' + escapeNotamHtml(fir) + '"')).join('') ||
+    '<div class="briefing-airport-empty">No FIR data available</div>';
+
+  const wxNotams = '<div class="briefing-global-filter notam-segmented" role="group" aria-label="Filter airports">' +
+    '<button type="button" class="notam-filter-btn ' + (activeNotamFilter === 'all' ? 'active' : '') + '" data-notam-filter="all">All</button>' +
+    '<button type="button" class="notam-filter-btn ' + (activeNotamFilter === 'flagged' ? 'active' : '') + '" data-notam-filter="flagged">Flagged</button>' +
+    '</div>' +
+    briefingGroupMarkup('Main Airports', 'brf-main-airports', mainAirportItems, true) +
+    briefingGroupMarkup('Enroute Airports', 'brf-enroute-airports', enrouteItems, false) +
+    briefingGroupMarkup('FIRs', 'brf-firs', firItems, false);
+
+  const chartLabels = ['UAD', 'SIGWX with Route', 'VAA/TCA', 'CDA', 'SIGWX',
+    'Satellite Maps', 'Radar', 'Surface Fronts', 'Dispatcher Maps', 'Vertical Profile'];
+  const charts = chartLabels.map(label => briefingPageButton(label, 'chart:' + label,
+    'data-placeholder-title="' + escapeNotamHtml(label) + '"')).join('');
+
+  menuEl.innerHTML =
+    briefingSectionMarkup('Flight Plan', 'brf-flight-plan', flightPlan, true) +
+    briefingSectionMarkup('Journey Log', 'brf-journey-log', journeyLog, true) +
+    briefingSectionMarkup('WX / RAIM / NOTAM', 'brf-wx-raim-notam', wxNotams, true) +
+    briefingSectionMarkup('Charts', 'brf-charts', charts, false) +
+    '<section class="briefing-section briefing-empty-section"><div class="briefing-section-title">Added Contents</div></section>' +
+    '<section class="briefing-section briefing-empty-section"><div class="briefing-section-title">Other Documents</div></section>' +
+    '<section class="briefing-section briefing-empty-section"><div class="briefing-section-title">Attachments</div></section>';
+
+  menuEl.querySelectorAll('[data-menu-target]').forEach(button => {
+    button.addEventListener('click', () => {
+      const target = document.getElementById(button.dataset.menuTarget);
+      if (!target) return;
+      const expanded = button.getAttribute('aria-expanded') === 'true';
+      button.setAttribute('aria-expanded', String(!expanded));
+      target.hidden = expanded;
+    });
   });
 
-  bindBriefingTabs();
   bindNotamFilterControls();
   applyBriefingAirportMenuFilter();
+  bindBriefingTabs();
 }
 
 function applyBriefingAirportMenuFilter() {
   const flaggedIds = getFlaggedNotamIds();
-  document.querySelectorAll('#brf-wx-menu-list .brf-apt-item').forEach(item => {
+  document.querySelectorAll('#briefing-menu .briefing-airport-item').forEach(item => {
     const apt = currentAirportsData[Number(item.dataset.aptIndex)];
     const hasFlagged = Boolean(apt && Array.isArray(apt.notams) &&
       apt.notams.some(notam => flaggedIds.includes(String(notam.notam_id || 'UNKNOWN'))));
     item.style.display = activeNotamFilter === 'flagged' && !hasFlagged ? 'none' : '';
   });
 }
+
+function hideAllBriefingPages() {
+  const ids = [
+    'briefing-general-container', 'briefing-fuel-container', 'briefing-atc-container',
+    'briefing-dispatch-container', 'briefing-airport-container', 'briefing-mel-container',
+    'briefing-crew-alert-container', 'briefing-journey-times-container',
+    'briefing-journey-delays-container', 'classic-ofp-tools', 'classic-ofp-viewport',
+    'briefing-placeholder'
+  ];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+}
+
+function selectBriefingPage(item) {
+  if (!item) return;
+  document.querySelectorAll('.briefing-page-item.active').forEach(el => el.classList.remove('active'));
+  item.classList.add('active');
+  markBriefingPageVisited(item.dataset.pageKey, item);
+  hideAllBriefingPages();
+
+  const title = document.getElementById('topbar-title');
+  const flight = getFlight(currentFlightId);
+  const section = item.dataset.section;
+  const aptIndex = item.dataset.aptIndex;
+  const placeholderTitle = item.dataset.placeholderTitle;
+
+  if (aptIndex !== undefined) {
+    const apt = currentAirportsData[Number(aptIndex)];
+    if (!apt) return;
+    const titleText = (apt.icao || '????') + (apt.iata ? '/' + apt.iata : '') +
+      (apt.name ? ' - ' + apt.name : '');
+    if (title) title.textContent = titleText;
+    const airportContainer = document.getElementById('briefing-airport-container');
+    if (airportContainer) airportContainer.style.display = 'flex';
+    renderAirportSection(Number(aptIndex));
+    return;
+  }
+
+  if (title) title.textContent = placeholderTitle || section || item.textContent.trim();
+  if (section === 'General') {
+    const el = document.getElementById('briefing-general-container');
+    if (el) el.style.display = 'flex';
+    renderGeneralSection(flight);
+  } else if (section === 'Fuel') {
+    const el = document.getElementById('briefing-fuel-container');
+    if (el) el.style.display = 'flex';
+    renderFuelSection(flight);
+  } else if (section === 'MEL/CDL Information') {
+    const el = document.getElementById('briefing-mel-container');
+    if (el) el.style.display = 'flex';
+  } else if (section === 'ATC') {
+    const el = document.getElementById('briefing-atc-container');
+    if (el) el.style.display = 'flex';
+    renderAtcSection(flight);
+  } else if (section === 'Dispatch Info') {
+    const el = document.getElementById('briefing-dispatch-container');
+    if (el) el.style.display = 'flex';
+    renderDispatchSection(flight);
+  } else if (section === 'Crew Alert and Bulletin') {
+    const el = document.getElementById('briefing-crew-alert-container');
+    if (el) el.style.display = 'flex';
+    renderCrewAlertSection(flight);
+  } else if (section === 'Flight Times and Fuel') {
+    const el = document.getElementById('briefing-journey-times-container');
+    if (el) el.style.display = 'flex';
+    if (typeof renderJourneyTimes === 'function') renderJourneyTimes(flight);
+  } else if (section === 'Duty Assignment & Delays') {
+    const el = document.getElementById('briefing-journey-delays-container');
+    if (el) el.style.display = 'flex';
+    if (typeof renderJourneyDelays === 'function') renderJourneyDelays(flight);
+  } else if (section === 'Classic OFP') {
+    const tools = document.getElementById('classic-ofp-tools');
+    const viewport = document.getElementById('classic-ofp-viewport');
+    if (tools) tools.style.display = 'flex';
+    if (viewport) viewport.style.display = 'flex';
+    renderClassicOfpText(flight && flight.raw);
+    initClassicOfpAnnotationTools(flight);
+  } else {
+    const placeholder = document.getElementById('briefing-placeholder');
+    if (placeholder) placeholder.style.display = 'block';
+  }
+}
+
+function bindBriefingTabs() {
+  const menu = document.getElementById('briefing-menu');
+  if (!menu) return;
+  menu.querySelectorAll('.briefing-page-item').forEach(item => {
+    item.addEventListener('click', () => selectBriefingPage(item));
+  });
+}
+
+function openBriefingGeneral() {
+  const generalItem = document.querySelector('#briefing-menu .briefing-page-item[data-section="General"]');
+  if (generalItem) selectBriefingPage(generalItem);
+}
+
 
 function renderGeneralSection(flight) {
   if (!flight) return;
