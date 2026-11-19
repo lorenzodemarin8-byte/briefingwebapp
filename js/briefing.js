@@ -2,133 +2,62 @@
    Navigazione sidebar Briefing, General, Fuel UI, MEL/CDL, Crew Alert/Bulletins, ATC, Dispatch, WX/RAIM/NOTAM, Classic OFP.
 */
 
+function normalizeSimBriefList(value) {
+  if (value === undefined || value === null || value === '') return [];
+  return Array.isArray(value) ? value : [value];
+}
+
 function extractAirportsData(data) {
   currentAirportsData = [];
   if (!data) return;
 
-  let allNotams = [];
-  if (data.notams && data.notams.notamdrec) {
-    allNotams = Array.isArray(data.notams.notamdrec) ? data.notams.notamdrec : [data.notams.notamdrec];
-  }
+  const allNotams = normalizeSimBriefList(data.notams && data.notams.notamdrec);
 
   function getAptNotams(icao) {
-    return allNotams.filter(n => n.cns_location_id === icao || n.icao_id === icao || n.location_icao === icao);
+    if (!icao) return [];
+    return allNotams.filter(n =>
+      n && (n.cns_location_id === icao || n.icao_id === icao || n.location_icao === icao)
+    );
+  }
+
+  function addAirportRecord(apt, type, runways) {
+    if (!apt || !apt.icao_code) return;
+    currentAirportsData.push({
+      type,
+      icao: apt.icao_code,
+      iata: apt.iata_code,
+      icao_code: apt.icao_code,
+      plan_rwy: apt.plan_rwy,
+      name: apt.name,
+      metar_ceiling: apt.metar_ceiling,
+      metar_visibility: apt.metar_visibility,
+      metar: apt.metar,
+      metar_time: apt.metar_time,
+      metar_category: apt.metar_category,
+      taf: apt.taf,
+      taf_time: apt.taf_time,
+      runways: runways || null,
+      notams: getAptNotams(apt.icao_code)
+    });
   }
 
   if (data.origin) {
-    currentAirportsData.push({
-      type: 'Departure',
-      icao: data.origin.icao_code,
-      iata: data.origin.iata_code,
-      icao_code: data.origin.icao_code,
-      plan_rwy: data.origin.plan_rwy,
-      name: data.origin.name,
-      metar_ceiling: data.origin.metar_ceiling,
-      metar_visibility: data.origin.metar_visibility,
-      metar: data.origin.metar,
-      metar_time: data.origin.metar_time,
-      metar_category: data.origin.metar_category,
-      taf: data.origin.taf,
-      taf_time: data.origin.taf_time,
-      runways: (data.tlr && data.tlr.takeoff) ? data.tlr.takeoff.runway : null,
-      notams: getAptNotams(data.origin.icao_code)
-    });
+    addAirportRecord(data.origin, 'Departure',
+      data.tlr && data.tlr.takeoff ? data.tlr.takeoff.runway : null);
   }
-
   if (data.destination) {
-    currentAirportsData.push({
-      type: 'Arrival',
-      icao: data.destination.icao_code,
-      iata: data.destination.iata_code,
-      icao_code: data.destination.icao_code,
-      plan_rwy: data.destination.plan_rwy,
-      name: data.destination.name,
-      metar_ceiling: data.destination.metar_ceiling,
-      metar_visibility: data.destination.metar_visibility,
-      metar: data.destination.metar,
-      metar_time: data.destination.metar_time,
-      metar_category: data.destination.metar_category,
-      taf: data.destination.taf,
-      taf_time: data.destination.taf_time,
-      runways: (data.tlr && data.tlr.landing) ? data.tlr.landing.runway : null,
-      notams: getAptNotams(data.destination.icao_code)
-    });
+    addAirportRecord(data.destination, 'Arrival',
+      data.tlr && data.tlr.landing ? data.tlr.landing.runway : null);
   }
 
-  if (data.alternate) {
-    let altns = Array.isArray(data.alternate) ? data.alternate : [data.alternate];
-    altns.forEach(alt => {
-      if (alt && alt.icao_code) {
-        currentAirportsData.push({
-          type: 'Arrival Alternate',
-          icao: alt.icao_code,
-          iata: alt.iata_code,
-          icao_code: alt.icao_code,
-          plan_rwy: alt.plan_rwy,
-          name: alt.name,
-          metar_ceiling: alt.metar_ceiling,
-          metar_visibility: alt.metar_visibility,
-          metar: alt.metar,
-          metar_time: alt.metar_time,
-          metar_category: alt.metar_category,
-          taf: alt.taf,
-          taf_time: alt.taf_time,
-          runways: null,
-          notams: getAptNotams(alt.icao_code)
-        });
-      }
-    });
-  }
-
-  if (data.takeoff_altn) {
-    let toAltns = Array.isArray(data.takeoff_altn) ? data.takeoff_altn : [data.takeoff_altn];
-    toAltns.forEach(alt => {
-      if (alt && alt.icao_code) {
-        currentAirportsData.push({
-          type: 'Takeoff Alternate',
-          icao: alt.icao_code,
-          iata: alt.iata_code,
-          icao_code: alt.icao_code,
-          plan_rwy: alt.plan_rwy,
-          name: alt.name,
-          metar_ceiling: alt.metar_ceiling,
-          metar_visibility: alt.metar_visibility,
-          metar: alt.metar,
-          metar_time: alt.metar_time,
-          metar_category: alt.metar_category,
-          taf: alt.taf,
-          taf_time: alt.taf_time,
-          runways: null,
-          notams: getAptNotams(alt.icao_code)
-        });
-      }
-    });
-  }
-
-  if (data.enroute_altn) {
-    let erAltns = Array.isArray(data.enroute_altn) ? data.enroute_altn : [data.enroute_altn];
-    erAltns.forEach(alt => {
-      if (alt && alt.icao_code) {
-        currentAirportsData.push({
-          type: 'Enroute Alternate',
-          icao: alt.icao_code,
-          iata: alt.iata_code,
-          icao_code: alt.icao_code,
-          plan_rwy: alt.plan_rwy,
-          name: alt.name,
-          metar_ceiling: alt.metar_ceiling,
-          metar_visibility: alt.metar_visibility,
-          metar: alt.metar,
-          metar_time: alt.metar_time,
-          metar_category: alt.metar_category,
-          taf: alt.taf,
-          taf_time: alt.taf_time,
-          runways: null,
-          notams: getAptNotams(alt.icao_code)
-        });
-      }
-    });
-  }
+  normalizeSimBriefList(data.alternate).forEach(alt =>
+    addAirportRecord(alt, 'Arrival Alternate'));
+  normalizeSimBriefList(data.takeoff_altn).forEach(alt =>
+    addAirportRecord(alt, 'Takeoff Alternate'));
+  normalizeSimBriefList(data.enroute_altn).forEach(alt =>
+    addAirportRecord(alt, 'Enroute Alternate'));
+  normalizeSimBriefList(data.enroute_station).forEach(station =>
+    addAirportRecord(station, 'Enroute Station'));
 }
 
 function getBriefingVisitedPages() {
@@ -187,26 +116,116 @@ function briefingSectionMarkup(title, key, innerHtml, expanded) {
     (expanded ? '' : 'hidden') + '>' + innerHtml + '</div></section>';
 }
 
-function getFlightFirList(data) {
-  const fixes = data && data.navlog && data.navlog.fix;
-  const list = Array.isArray(fixes) ? fixes : fixes ? [fixes] : [];
+function getPlanHtmlText(data, sectionName) {
+  const html = data && data.text && data.text.plan_html;
+  if (!html) return '';
+  let sectionHtml = String(html);
+  const markerPattern = /<!--BKMK\/\/\/([^]*?)\/\/\/\d+-->/g;
+  const markers = [];
+  let match;
+  while ((match = markerPattern.exec(sectionHtml)) !== null) {
+    markers.push({ name: match[1].trim(), end: markerPattern.lastIndex, index: match.index });
+  }
+  const marker = markers.find(x => x.name.toLowerCase() === String(sectionName).toLowerCase());
+  if (marker) {
+    const next = markers.find(x => x.index > marker.index);
+    sectionHtml = sectionHtml.slice(marker.end, next ? next.index : sectionHtml.length);
+  }
+  const holder = document.createElement('div');
+  holder.innerHTML = sectionHtml;
+  return (holder.textContent || holder.innerText || '').replace(/\r/g, '');
+}
+
+function addFirNameToMap(map, code, name) {
+  const id = String(code || '').trim().toUpperCase();
+  const firName = String(name || '').trim().replace(/\*+$/, '').trim();
+  if (/^[A-Z0-9]{4}$/.test(id) && firName) map[id] = firName;
+}
+
+function collectFirNamesFromPlanHtml(data, map) {
+  const text = getPlanHtmlText(data, 'NOTAM') + '\n' + getPlanHtmlText(data, 'Weather');
+  let match;
+  const inline = /^([A-Z0-9]{4})\s{2,}(.+?\bFIR(?:\/UIR)?\b.*)$/gim;
+  while ((match = inline.exec(text)) !== null) addFirNameToMap(map, match[1], match[2]);
+
+  const namedThenCode = /^([A-Z][A-Z /()-]+?\bFIR(?:\/UIR)?)[* \t]*\n\s*-?([A-Z0-9]{4})\b/gim;
+  while ((match = namedThenCode.exec(text)) !== null) addFirNameToMap(map, match[2], match[1]);
+}
+
+function getFlightFirEntries(data) {
+  const fixes = normalizeSimBriefList(data && data.navlog && data.navlog.fix);
+  const names = Object.create(null);
+  const orderedCodes = [];
   const seen = new Set();
-  return list.map(fix => String(fix && fix.fir || '').trim()).filter(fir => {
-    if (!fir || seen.has(fir)) return false;
-    seen.add(fir);
-    return true;
+
+  fixes.forEach(fix => {
+    const crossings = normalizeSimBriefList(fix && fix.fir_crossing && fix.fir_crossing.fir);
+    crossings.forEach(crossing => {
+      if (!crossing || typeof crossing !== 'object') return;
+      addFirNameToMap(names, crossing.fir_icao || crossing.icao || crossing.code,
+        crossing.fir_name || crossing.name);
+    });
+
+    const rawFir = fix && fix.fir;
+    const code = typeof rawFir === 'string' ? rawFir.trim().toUpperCase()
+      : rawFir && typeof rawFir === 'object'
+        ? String(rawFir.fir_icao || rawFir.icao || rawFir.code || '').trim().toUpperCase()
+        : '';
+    if (code && /^[A-Z0-9]{4}$/.test(code) && !seen.has(code)) {
+      seen.add(code);
+      orderedCodes.push(code);
+    }
+
+    crossings.forEach(crossing => {
+      const crossingCode = String(crossing && (crossing.fir_icao || crossing.icao || crossing.code) || '').trim().toUpperCase();
+      if (crossingCode && /^[A-Z0-9]{4}$/.test(crossingCode) && !seen.has(crossingCode)) {
+        seen.add(crossingCode);
+        orderedCodes.push(crossingCode);
+      }
+    });
   });
+
+  // ATC's filed enroute FIRs are a fallback for layouts without FIR tags on navlog fixes.
+  if (!orderedCodes.length && data && data.atc) {
+    normalizeSimBriefList(data.atc.fir_enroute).forEach(value => {
+      const code = String(value || '').trim().toUpperCase();
+      if (/^[A-Z0-9]{4}$/.test(code) && !seen.has(code)) {
+        seen.add(code);
+        orderedCodes.push(code);
+      }
+    });
+  }
+
+  collectFirNamesFromPlanHtml(data, names);
+  normalizeSimBriefList(data && data.sigmets && data.sigmets.sigmet).forEach(sigmet => {
+    if (sigmet) addFirNameToMap(names, sigmet.fir, sigmet.fir_name);
+  });
+
+  return orderedCodes.map(code => ({ code, name: names[code] || '' }));
+}
+
+function getFirNotams(data, firCode) {
+  const records = normalizeSimBriefList(data && data.notams && data.notams.notamdrec);
+  const code = String(firCode || '').toUpperCase();
+  return records.filter(notam => notam &&
+    String(notam.cns_location_id || notam.icao_id || '').toUpperCase() === code);
+}
+
+function getFirEntriesForCurrentFlight() {
+  const flight = getFlight(currentFlightId);
+  return getFlightFirEntries(flight && flight.raw ? flight.raw : {});
 }
 
 function renderBriefingMenu() {
   const menuEl = document.getElementById('briefing-menu');
   if (!menuEl) return;
-  const data = (getFlight(currentFlightId) || {}).raw || {};
+  const flight = getFlight(currentFlightId);
+  const data = flight && flight.raw ? flight.raw : {};
   const mainAirports = currentAirportsData.map((apt, index) => ({ apt, index }))
     .filter(x => ['Departure', 'Arrival', 'Arrival Alternate'].includes(x.apt.type));
   const enrouteAirports = currentAirportsData.map((apt, index) => ({ apt, index }))
-    .filter(x => ['Enroute Alternate', 'Enroute Airport'].includes(x.apt.type));
-  const firs = getFlightFirList(data);
+    .filter(x => ['Enroute Alternate', 'Enroute Station'].includes(x.apt.type));
+  const firs = getFlightFirEntries(data);
 
   const flightPlanDefs = [
     ['General', 'section:general'], ['Fuel', 'section:fuel'],
@@ -228,16 +247,21 @@ function renderBriefingMenu() {
     '<div class="briefing-airport-empty">No main airports available</div>';
   const enrouteItems = enrouteAirports.map(x => briefingAirportButton(x.apt, x.index)).join('') ||
     '<div class="briefing-airport-empty">No enroute airports available</div>';
-  const firItems = firs.map(fir => briefingPageButton(escapeNotamHtml(fir), 'fir:' + fir,
-    'data-placeholder-title="FIR ' + escapeNotamHtml(fir) + '"')).join('') ||
-    '<div class="briefing-airport-empty">No FIR data available</div>';
+  const firItems = firs.map(fir => {
+    const code = escapeNotamHtml(fir.code);
+    const name = escapeNotamHtml(fir.name || 'Flight Information Region');
+    const label = '<span class="briefing-airport-code">' + code + '</span>' +
+      '<span class="briefing-airport-type">' + name + '</span>';
+    const attrs = 'data-fir-code="' + code + '" data-fir-name="' + name + '"';
+    return briefingPageButton(label, 'fir:' + fir.code, attrs, 'briefing-airport-item briefing-fir-item');
+  }).join('') || '<div class="briefing-airport-empty">No FIR data available</div>';
 
-  const wxNotams = '<div class="briefing-global-filter notam-segmented" role="group" aria-label="Filter airports">' +
+  const wxNotams = '<div class="briefing-global-filter notam-segmented" role="group" aria-label="Filter airports and FIRs">' +
     '<button type="button" class="notam-filter-btn ' + (activeNotamFilter === 'all' ? 'active' : '') + '" data-notam-filter="all">All</button>' +
     '<button type="button" class="notam-filter-btn ' + (activeNotamFilter === 'flagged' ? 'active' : '') + '" data-notam-filter="flagged">Flagged</button>' +
     '</div>' +
     briefingGroupMarkup('Main Airports', 'brf-main-airports', mainAirportItems, true) +
-    briefingGroupMarkup('Enroute Airports', 'brf-enroute-airports', enrouteItems, false) +
+    briefingGroupMarkup('Enroute Airports', 'brf-enroute-airports', enrouteItems, true) +
     briefingGroupMarkup('FIRs', 'brf-firs', firItems, false);
 
   const chartLabels = ['UAD', 'SIGWX with Route', 'VAA/TCA', 'CDA', 'SIGWX',
@@ -271,10 +295,18 @@ function renderBriefingMenu() {
 
 function applyBriefingAirportMenuFilter() {
   const flaggedIds = getFlaggedNotamIds();
+  const flight = getFlight(currentFlightId);
+  const data = flight && flight.raw ? flight.raw : {};
   document.querySelectorAll('#briefing-menu .briefing-airport-item').forEach(item => {
-    const apt = currentAirportsData[Number(item.dataset.aptIndex)];
-    const hasFlagged = Boolean(apt && Array.isArray(apt.notams) &&
-      apt.notams.some(notam => flaggedIds.includes(String(notam.notam_id || 'UNKNOWN'))));
+    let hasFlagged = false;
+    if (item.dataset.firCode) {
+      hasFlagged = getFirNotams(data, item.dataset.firCode)
+        .some(notam => flaggedIds.includes(String(notam.notam_id || 'UNKNOWN')));
+    } else {
+      const apt = currentAirportsData[Number(item.dataset.aptIndex)];
+      hasFlagged = Boolean(apt && Array.isArray(apt.notams) &&
+        apt.notams.some(notam => flaggedIds.includes(String(notam.notam_id || 'UNKNOWN'))));
+    }
     item.style.display = activeNotamFilter === 'flagged' && !hasFlagged ? 'none' : '';
   });
 }
@@ -304,7 +336,18 @@ function selectBriefingPage(item) {
   const flight = getFlight(currentFlightId);
   const section = item.dataset.section;
   const aptIndex = item.dataset.aptIndex;
+  const firCode = item.dataset.firCode;
   const placeholderTitle = item.dataset.placeholderTitle;
+
+  if (firCode) {
+    const fir = getFlightFirEntries(flight && flight.raw ? flight.raw : {}).find(x => x.code === firCode);
+    const firName = (fir && fir.name) || item.dataset.firName || 'Flight Information Region';
+    if (title) title.textContent = firCode + ' - ' + firName;
+    const airportContainer = document.getElementById('briefing-airport-container');
+    if (airportContainer) airportContainer.style.display = 'flex';
+    renderFirSection(firCode, firName);
+    return;
+  }
 
   if (aptIndex !== undefined) {
     const apt = currentAirportsData[Number(aptIndex)];
@@ -354,7 +397,7 @@ function selectBriefingPage(item) {
     const tools = document.getElementById('classic-ofp-tools');
     const viewport = document.getElementById('classic-ofp-viewport');
     if (tools) tools.style.display = 'flex';
-    if (viewport) viewport.style.display = 'flex';
+    if (viewport) viewport.style.display = 'block';
     renderClassicOfpText(flight && flight.raw);
     initClassicOfpAnnotationTools(flight);
   } else {
