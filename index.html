@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=69">
+  <link rel="stylesheet" href="css/style.css?v=70">
 </head>
 <body>
   <!-- TOP BAR & INFO VOLO -->
@@ -21,15 +21,22 @@
       <span class="info-chip" id="fib-ofpdate"></span>
       <span class="status-badge" id="fib-status">NOT ACCEPTED</span>
     </div>
-    <div class="topbar-nav">
-      <button class="icon-btn" id="home-nav-btn" title="My Flights">
-        <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="3" y1="6" x2="21" y2="6"/>
-          <line x1="3" y1="11" x2="21" y2="11"/>
-          <line x1="3" y1="16" x2="13" y2="16"/>
-          <path d="M16 19.5 L22 15.5 L19.5 19.5 L22 22 Z" fill="currentColor" stroke="none"/>
-        </svg>
-      </button>
+    <div class="topbar-nav" id="topbar-nav">
+      <div class="topbar-left-slot" id="topbar-left-slot">
+        <button class="icon-btn" id="home-nav-btn" title="My Flights" aria-label="My Flights">
+          <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="6" x2="21" y2="6"/>
+            <line x1="3" y1="11" x2="21" y2="11"/>
+            <line x1="3" y1="16" x2="13" y2="16"/>
+            <path d="M16 19.5 L22 15.5 L19.5 19.5 L22 22 Z" fill="currentColor" stroke="none"/>
+          </svg>
+        </button>
+        <button class="icon-btn" id="briefing-sidebar-toggle" type="button" title="Apri menu Briefing" aria-label="Apri menu Briefing" aria-expanded="true" style="display:none;">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+      </div>
       <span class="topbar-title" id="topbar-title">My Flights</span>
       <div class="topbar-right-group">
         <button class="icon-btn" id="ofp-refresh-btn" title="Refresh OFP da SimBrief" style="display:none;">
@@ -355,24 +362,8 @@
   <!-- BRIEFING VIEW -->
   <main id="view-briefing" class="view" style="display:none;">
     <div class="briefing-container">
-      <aside class="briefing-sidebar">
-        <div class="briefing-category">Flight Plan</div>
-        <div class="briefing-item" data-section="General">General</div>
-        <div class="briefing-item" data-section="Fuel">Fuel</div>
-        <div class="briefing-item" data-section="MEL/CDL Information">MEL/CDL Information</div>
-        <div class="briefing-item" data-section="ATC">ATC</div>
-        <div class="briefing-item" data-section="Dispatch Info">Dispatch Info</div>
-        <div class="briefing-item" data-section="Crew Alert and Bulletin">Crew Alert and Bulletin</div>
-        <div class="briefing-item active" data-section="Classic OFP">Classic OFP</div>
-        <div class="briefing-category">Journey Log</div>
-        <div class="briefing-item" data-section="Flight Times and Fuel">Flight Times and Fuel</div>
-        <div class="briefing-item" data-section="Duty Assignment & Delays">Duty Assignment &amp; Delays</div>
-        <div class="briefing-category">WX / RAIM / NOTAM</div>
-        <div class="briefing-sidebar-filter notam-segmented" role="group" aria-label="Filter airports">
-          <button type="button" class="notam-filter-btn active" data-notam-filter="all">All</button>
-          <button type="button" class="notam-filter-btn" data-notam-filter="flagged">Flagged</button>
-        </div>
-        <div id="brf-wx-menu-list"></div>
+      <aside class="briefing-sidebar" id="briefing-sidebar">
+        <div class="briefing-menu-scroll" id="briefing-menu"></div>
       </aside>
       <section class="briefing-content">
         <!-- GENERAL CONTAINER -->
@@ -510,13 +501,18 @@
             </div>
           </div>
           <div class="widget briefing-rwy-widget" id="brf-apt-rwy-widget" style="display:none;">
-            <div class="widget-header gen-widget-header" style="justify-content: flex-start; padding: 12px 22px;">
-              <span class="gen-header-text" style="text-transform: none;">Runways</span>
+            <div class="widget-header gen-widget-header briefing-collapsible-header">
+              <span class="gen-header-text">Runways</span>
+              <button type="button" class="briefing-collapse-btn" id="brf-apt-rwy-toggle" aria-expanded="false" aria-controls="brf-apt-rwy-content" title="Mostra piste">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
             </div>
-            <table class="gen-data-table">
-              <thead><tr><th></th><th>LENGTH</th><th>ELEVATION</th><th>BEARING (MAG)</th><th>BEARING (TRUE)</th><th>WIND COMPONENT</th></tr></thead>
-              <tbody id="brf-apt-rwy-tbody"></tbody>
-            </table>
+            <div id="brf-apt-rwy-content" class="briefing-rwy-content" style="display:none;">
+              <table class="gen-data-table">
+                <thead><tr><th></th><th>LENGTH</th><th>ELEVATION</th><th>BEARING (MAG)</th><th>BEARING (TRUE)</th><th>WIND COMPONENT</th></tr></thead>
+                <tbody id="brf-apt-rwy-tbody"></tbody>
+              </table>
+            </div>
           </div>
           <div class="widget briefing-notam-widget" id="brf-apt-notam-widget" style="display:none;">
             <div class="widget-header gen-widget-header" style="justify-content: flex-start; padding: 12px 22px;">
@@ -532,44 +528,19 @@
               <span class="gen-header-text" style="text-transform: none;">MEL / CDL Information</span>
             </div>
             <div class="widget-body" style="padding: 22px;">
-              <div class="mel-status-box">
-                <span class="mel-status-icon">&#10003;</span>
-                <div>
-                  <div style="font-weight:600; font-size:14px;">NO MEL / CDL ITEMS IN EFFECT</div>
-                  <div style="font-size:12px; color:var(--text-2); margin-top:3px;">Aircraft is fully serviceable. No operational limitations or fuel penalties applied.</div>
-                </div>
-              </div>
-              <table class="gen-data-table" style="margin-top:16px;">
-                <thead>
-                  <tr><th>ITEM</th><th>CATEGORY</th><th>DESCRIPTION</th><th>EXPIRY</th><th>OPERATIONAL IMPACT</th></tr>
-                </thead>
-                <tbody>
-                  <tr><td colspan="5" style="text-align:center; color:var(--text-2); padding:16px;">Nil items recorded</td></tr>
-                </tbody>
-              </table>
+              <div class="mel-na-content">N/A</div>
             </div>
           </div>
         </div>
         <!-- CREW ALERT AND BULLETIN CONTAINER -->
         <div id="briefing-crew-alert-container" class="briefing-general-container" style="display:none;">
-          <div class="widget">
-            <div class="widget-header gen-widget-header" style="justify-content: flex-start; padding: 12px 22px;">
-              <span class="gen-header-text" style="text-transform: none;">Crew Alert &amp; Operational Bulletins</span>
-            </div>
-            <div class="widget-body" style="padding: 22px;">
-              <div style="margin-bottom:16px;">
-                <div style="font-size:11.5px; font-weight:600; color:var(--text-2); text-transform:uppercase; margin-bottom:6px;">Dispatch Remarks</div>
-                <div id="brf-crew-alert-dx" class="dispatch-text" style="background:var(--input-bg); padding:12px; border-radius:6px; border:1px solid var(--panel-border);"></div>
-              </div>
-              <div>
-                <div style="font-size:11.5px; font-weight:600; color:var(--text-2); text-transform:uppercase; margin-bottom:6px;">Safety &amp; Route Advisories</div>
-                <div style="background:var(--input-bg); padding:12px; border-radius:6px; border:1px solid var(--panel-border); font-size:13px; color:var(--text); line-height:1.5;">
-                  Standard noise abatement departure procedures in effect for departure runway.<br>
-                  Ensure EFB charts and databases are up to date prior to pushback.<br>
-                  Verify fuel uplift with fuel receipt before block out.
-                </div>
-              </div>
-            </div>
+          <div class="widget crew-message-widget">
+            <div class="widget-header gen-widget-header"><span class="gen-header-text">Crew Alert</span></div>
+            <div class="widget-body crew-message-body"><pre id="brf-crew-alert-text" class="crew-message-text">NIL</pre></div>
+          </div>
+          <div class="widget crew-message-widget">
+            <div class="widget-header gen-widget-header"><span class="gen-header-text">Crew Bulletin</span></div>
+            <div class="widget-body crew-message-body"><pre id="brf-crew-bulletin-text" class="crew-message-text">NIL</pre></div>
           </div>
         </div>
         <!-- JOURNEY LOG - FLIGHT TIMES AND FUEL -->
@@ -722,8 +693,27 @@
             </div>
           </div>
         </div>
-        <div id="classic-ofp-container" class="classic-ofp-container"></div>
-        <div id="briefing-placeholder" style="display:none; padding: 40px; color: var(--text-2); text-align: center;">Contenuto in fase di sviluppo...</div>
+        <div id="classic-ofp-tools" class="classic-ofp-tools" style="display:none;">
+          <div class="classic-ofp-tool-group">
+            <button type="button" class="ofp-tool-btn active" data-ofp-tool="pen">Pen</button>
+            <button type="button" class="ofp-tool-btn" data-ofp-tool="highlight">Highlight</button>
+            <button type="button" class="ofp-tool-btn" data-ofp-tool="eraser">Eraser</button>
+            <select id="ofp-annotation-color" class="brf-select" aria-label="Colore annotazioni">
+              <option value="#1f5fbf">Blue</option><option value="#d14b45">Red</option><option value="#202020">Black</option>
+            </select>
+            <button type="button" class="ofp-tool-btn" data-ofp-action="undo">Undo</button>
+            <button type="button" class="ofp-tool-btn" data-ofp-action="clear">Clear</button>
+          </div>
+          <div class="classic-ofp-zoom-group">
+            <button type="button" class="ofp-tool-btn" data-ofp-action="zoom-out" aria-label="Zoom out">−</button>
+            <span id="ofp-zoom-value">100%</span>
+            <button type="button" class="ofp-tool-btn" data-ofp-action="zoom-in" aria-label="Zoom in">+</button>
+          </div>
+        </div>
+        <div id="classic-ofp-viewport" class="classic-ofp-viewport" style="display:none;">
+          <div id="classic-ofp-container" class="classic-ofp-container"></div>
+        </div>
+        <div id="briefing-placeholder" style="display:none;"></div>
       </section>
     </div>
   </main>
@@ -856,15 +846,15 @@
     </div>
   </div>
 
-  <script src="js/storage.js?v=69"></script>
-  <script src="js/simbrief.js?v=69"></script>
-  <script src="js/utils.js?v=69"></script>
-  <script src="js/fuel-engine.js?v=69"></script>
-  <script src="js/myflights.js?v=69"></script>
-  <script src="js/dashboard.js?v=69"></script>
-  <script src="js/briefing.js?v=69"></script>
-  <script src="js/journeylog.js?v=69"></script>
-  <script src="js/navlog.js?v=69"></script>
-  <script src="js/app.js?v=69"></script>
+  <script src="js/storage.js?v=70"></script>
+  <script src="js/simbrief.js?v=70"></script>
+  <script src="js/utils.js?v=70"></script>
+  <script src="js/fuel-engine.js?v=70"></script>
+  <script src="js/myflights.js?v=70"></script>
+  <script src="js/dashboard.js?v=70"></script>
+  <script src="js/briefing.js?v=70"></script>
+  <script src="js/journeylog.js?v=70"></script>
+  <script src="js/navlog.js?v=70"></script>
+  <script src="js/app.js?v=70"></script>
 </body>
 </html>
