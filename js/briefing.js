@@ -1242,7 +1242,7 @@ function renderFirSection(firCode, firName) {
 
   const grouped = {};
   notams.forEach(notam => {
-    const category = notam.notam_qcode_category || decodeQCodeCategory(notam.notam_qcode);
+    const category = String(notam.notam_qcode_category || decodeQCodeCategory(notam.notam_qcode)).toUpperCase();
     if (!grouped[category]) grouped[category] = [];
     grouped[category].push(notam);
   });
