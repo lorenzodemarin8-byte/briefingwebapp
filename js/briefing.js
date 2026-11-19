@@ -144,12 +144,41 @@ function addFirNameToMap(map, code, name) {
 
 function collectFirNamesFromPlanHtml(data, map) {
   const text = getPlanHtmlText(data, 'NOTAM') + '\n' + getPlanHtmlText(data, 'Weather');
+  const codes = [];
+  const seen = new Set();
   let match;
-  const inline = /^([A-Z0-9]{4})\s{2,}(.+?\bFIR(?:\/UIR)?\b.*)$/gim;
-  while ((match = inline.exec(text)) !== null) addFirNameToMap(map, match[1], match[2]);
 
-  const namedThenCode = /^([A-Z][A-Z /()-]+?\bFIR(?:\/UIR)?)[* \t]*\n\s*-?([A-Z0-9]{4})\b/gim;
-  while ((match = namedThenCode.exec(text)) !== null) addFirNameToMap(map, match[2], match[1]);
+  const inline = /^([A-Z0-9]{4})\s{2,}(.+?\bFIR(?:\/UIR)?\b.*)$/gim;
+  while ((match = inline.exec(text)) !== null) {
+    addFirNameToMap(map, match[1], match[2]);
+    const code = match[1].toUpperCase();
+    if (!seen.has(code)) { seen.add(code); codes.push(code); }
+  }
+
+  const namedThenCode = /^([A-Z][A-Z /()-]+?\bFIR(?:\/UIR)?)[* \t]*\n\s*-([A-Z0-9]{4})\b/gim;
+  while ((match = namedThenCode.exec(text)) !== null) {
+    addFirNameToMap(map, match[2], match[1]);
+    const code = match[2].toUpperCase();
+    if (!seen.has(code)) { seen.add(code); codes.push(code); }
+  }
+  return codes;
+}
+
+function getFlightAirportIcaoSet(data) {
+  const airportCodes = new Set();
+  const add = airport => {
+    normalizeSimBriefList(airport).forEach(item => {
+      const code = String(item && item.icao_code || '').trim().toUpperCase();
+      if (/^[A-Z0-9]{4}$/.test(code)) airportCodes.add(code);
+    });
+  };
+  add(data && data.origin);
+  add(data && data.destination);
+  add(data && data.alternate);
+  add(data && data.takeoff_altn);
+  add(data && data.enroute_altn);
+  add(data && data.enroute_station);
+  return airportCodes;
 }
 
 function getFlightFirEntries(data) {
@@ -157,6 +186,14 @@ function getFlightFirEntries(data) {
   const names = Object.create(null);
   const orderedCodes = [];
   const seen = new Set();
+
+  const appendCode = value => {
+    const code = String(value || '').trim().toUpperCase();
+    if (/^[A-Z0-9]{4}$/.test(code) && !seen.has(code)) {
+      seen.add(code);
+      orderedCodes.push(code);
+    }
+  };
 
   fixes.forEach(fix => {
     const crossings = normalizeSimBriefList(fix && fix.fir_crossing && fix.fir_crossing.fir);
@@ -171,38 +208,42 @@ function getFlightFirEntries(data) {
       : rawFir && typeof rawFir === 'object'
         ? String(rawFir.fir_icao || rawFir.icao || rawFir.code || '').trim().toUpperCase()
         : '';
-    if (code && /^[A-Z0-9]{4}$/.test(code) && !seen.has(code)) {
-      seen.add(code);
-      orderedCodes.push(code);
-    }
+    appendCode(code);
 
     crossings.forEach(crossing => {
-      const crossingCode = String(crossing && (crossing.fir_icao || crossing.icao || crossing.code) || '').trim().toUpperCase();
-      if (crossingCode && /^[A-Z0-9]{4}$/.test(crossingCode) && !seen.has(crossingCode)) {
-        seen.add(crossingCode);
-        orderedCodes.push(crossingCode);
-      }
+      appendCode(crossing && (crossing.fir_icao || crossing.icao || crossing.code));
     });
   });
 
-  // ATC's filed enroute FIRs are a fallback for layouts without FIR tags on navlog fixes.
+  // ATC FIR fields are used only when the route fixes do not expose a FIR sequence.
   if (!orderedCodes.length && data && data.atc) {
-    normalizeSimBriefList(data.atc.fir_enroute).forEach(value => {
-      const code = String(value || '').trim().toUpperCase();
-      if (/^[A-Z0-9]{4}$/.test(code) && !seen.has(code)) {
-        seen.add(code);
-        orderedCodes.push(code);
-      }
+    ['fir_orig', 'fir_dest', 'fir_altn', 'fir_etops', 'fir_enroute'].forEach(key => {
+      normalizeSimBriefList(data.atc[key]).forEach(value => {
+        String(value || '').split(/[,;\s]+/).forEach(appendCode);
+      });
     });
   }
 
-  collectFirNamesFromPlanHtml(data, names);
+  // Preserve any additional FIR headings printed by SimBrief's NOTAM/Weather sections.
+  collectFirNamesFromPlanHtml(data, names).forEach(appendCode);
+
+  // Append residual NOTAM locations that are not one of the flight's airports.
+  // Do not trust icao_name here: SimBrief can use an ACC/FIC name instead of the FIR name.
+  const airportCodes = getFlightAirportIcaoSet(data);
+  const notamRecords = normalizeSimBriefList(data && data.notams && data.notams.notamdrec);
+  notamRecords.forEach(notam => {
+    if (!notam) return;
+    const code = String(notam.cns_location_id || notam.icao_id || '').trim().toUpperCase();
+    if (/^[A-Z0-9]{4}$/.test(code) && !airportCodes.has(code)) appendCode(code);
+  });
+
   normalizeSimBriefList(data && data.sigmets && data.sigmets.sigmet).forEach(sigmet => {
-    if (sigmet) addFirNameToMap(names, sigmet.fir, sigmet.fir_name);
+    if (sigmet) addFirNameToMap(names, sigmet.fir || sigmet.fir_icao, sigmet.fir_name);
   });
 
   return orderedCodes.map(code => ({ code, name: names[code] || '' }));
 }
+
 
 function getFirNotams(data, firCode) {
   const records = normalizeSimBriefList(data && data.notams && data.notams.notamdrec);
