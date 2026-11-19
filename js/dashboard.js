@@ -751,18 +751,21 @@ function renderDashNotams(wxAirports, which) {
 
   let html = '';
   sortedCats.forEach((category, categoryIndex) => {
-    html += '<div class="dash-notam-category-wrapper">';
-    html += '<div class="notam-category-heading-row"><div class="dash-notam-cat-title">' +
-      escapeNotamHtml(category) + '</div>';
-    if (categoryIndex === 0) {
-      html += '<label class="notam-airport-filter"><span class="notam-airport-filter-label">Show:</span>' +
+    const firstCategory = categoryIndex === 0;
+    if (firstCategory) {
+      html += '<div class="notam-category-heading-row"><div class="dash-notam-cat-title">' +
+        escapeNotamHtml(category) + '</div>' +
+        '<label class="notam-airport-filter"><span class="notam-airport-filter-label">Show:</span>' +
         '<select class="brf-select notam-airport-filter-select" data-airport-notam-filter data-icao="' +
         escapeNotamHtml(icao) + '" aria-label="Show all or flagged NOTAMs">' +
         '<option value="all"' + (selectedFilter === 'all' ? ' selected' : '') + '>All</option>' +
         '<option value="flagged"' + (selectedFilter === 'flagged' ? ' selected' : '') + '>Flagged</option>' +
-        '</select></label>';
+        '</select></label></div>';
+      html += '<div class="dash-notam-category-wrapper">';
+    } else {
+      html += '<div class="dash-notam-category-wrapper"><div class="dash-notam-cat-title">' +
+        escapeNotamHtml(category) + '</div>';
     }
-    html += '</div>';
     grouped[category].forEach(notam => {
       const notamId = String(notam.notam_id || 'UNKNOWN');
       const safeId = escapeNotamHtml(notamId);
