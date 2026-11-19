@@ -652,6 +652,7 @@ function setActiveNotamFilter(filter) {
   syncNotamFilterControls();
   applyDashboardNotamFilter();
   applyBriefingNotamFilter();
+  if (typeof applyBriefingAirportMenuFilter === 'function') applyBriefingAirportMenuFilter();
 }
 
 function refreshNotamFlagViews() {
@@ -659,10 +660,13 @@ function refreshNotamFlagViews() {
   document.querySelectorAll('.notam-flag, .dash-notam-flag').forEach(button => {
     const card = button.closest('[data-notam-id]');
     if (!card) return;
-    button.classList.toggle('flagged', flagged.includes(card.dataset.notamId));
+    const isFlagged = flagged.includes(card.dataset.notamId);
+    button.classList.toggle('flagged', isFlagged);
+    button.setAttribute('aria-pressed', String(isFlagged));
   });
   applyDashboardNotamFilter();
   applyBriefingNotamFilter();
+  if (typeof applyBriefingAirportMenuFilter === 'function') applyBriefingAirportMenuFilter();
   const flight = getFlight(currentFlightId);
   if (flight && typeof renderFlightChecklist === 'function') renderFlightChecklist(flight);
 }
