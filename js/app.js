@@ -14,7 +14,40 @@ function router() {
   }
 }
 
+function setBriefingSidebarOpen(open) {
+  const sidebar = document.getElementById('briefing-sidebar');
+  const nav = document.getElementById('topbar-nav');
+  const toggle = document.getElementById('briefing-sidebar-toggle');
+  if (sidebar) sidebar.classList.toggle('is-collapsed', !open);
+  if (nav) nav.classList.toggle('sidebar-open', Boolean(open));
+  if (toggle) {
+    toggle.setAttribute('aria-expanded', String(Boolean(open)));
+    toggle.setAttribute('aria-label', open ? 'Chiudi menu Briefing' : 'Apri menu Briefing');
+    toggle.title = open ? 'Chiudi menu Briefing' : 'Apri menu Briefing';
+    toggle.innerHTML = open
+      ? '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg>'
+      : '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>';
+  }
+}
+
+function activateBriefingView() {
+  document.body.classList.add('briefing-mode');
+  const nav = document.getElementById('topbar-nav');
+  if (nav) nav.classList.add('briefing-layout');
+  setBriefingSidebarOpen(true);
+  if (typeof openBriefingGeneral === 'function') openBriefingGeneral();
+}
+
+function deactivateBriefingView() {
+  document.body.classList.remove('briefing-mode');
+  const nav = document.getElementById('topbar-nav');
+  if (nav) nav.classList.remove('briefing-layout', 'sidebar-open');
+  const sidebar = document.getElementById('briefing-sidebar');
+  if (sidebar) sidebar.classList.remove('is-collapsed');
+}
+
 function showHome() {
+  deactivateBriefingView();
   if (cdmInterval) {
     clearInterval(cdmInterval);
     cdmInterval = null;
@@ -51,6 +84,7 @@ function showHome() {
 
 function showDashboard(id) {
   try {
+    deactivateBriefingView();
     activeNotamFilter = 'all';
     prevCdmState = { tobt: "", tsat: "", ctot: "" };
     isFirstCdmFetch = true;
@@ -200,6 +234,15 @@ function initInteractions() {
     });
   }
 
+  const briefingSidebarToggle = document.getElementById('briefing-sidebar-toggle');
+  if (briefingSidebarToggle) {
+    briefingSidebarToggle.addEventListener('click', () => {
+      const sidebar = document.getElementById('briefing-sidebar');
+      const isOpen = sidebar && !sidebar.classList.contains('is-collapsed');
+      setBriefingSidebarOpen(!isOpen);
+    });
+  }
+
   initPager();
   setupAcceptanceLogic();
   setupSubmitLogic();
@@ -234,25 +277,12 @@ function initInteractions() {
       const title = document.getElementById('topbar-title');
 
       if (tab === 'dashboard') {
+        deactivateBriefingView();
         if (title) title.textContent = 'Dashboard';
       } else if (tab === 'briefing') {
-        const activeItem = document.querySelector('.briefing-item.active');
-        if (activeItem) {
-          if (activeItem.dataset.section) {
-            if (title) title.textContent = activeItem.dataset.section;
-          } else if (activeItem.dataset.aptIndex !== undefined) {
-            const apt = currentAirportsData[activeItem.dataset.aptIndex];
-            if (apt) {
-              let tText = apt.icao || '????';
-              if (apt.iata) tText += `/${apt.iata}`;
-              if (apt.name) tText += ` - ${apt.name}`;
-              if (title) title.textContent = tText;
-            }
-          }
-        } else {
-          if (title) title.textContent = 'Briefing';
-        }
+        activateBriefingView();
       } else if (tab === 'navlog') {
+        deactivateBriefingView();
         if (title) title.textContent = 'NavLog';
         if (currentFlightId) renderNavLog(currentFlightId);
       } else {
