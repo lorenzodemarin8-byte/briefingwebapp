@@ -1017,17 +1017,21 @@ function renderAirportSection(index) {
     let notamHtml = '';
 
     sortedCats.forEach((category, categoryIndex) => {
-      notamHtml += '<div class="notam-category-wrapper"><div class="notam-category-heading-row">' +
-        '<div class="notam-category-title">' + escapeNotamHtml(category) + '</div>';
-      if (categoryIndex === 0) {
-        notamHtml += '<label class="notam-airport-filter"><span class="notam-airport-filter-label">Show:</span>' +
+      const firstCategory = categoryIndex === 0;
+      if (firstCategory) {
+        notamHtml += '<div class="notam-category-heading-row"><div class="notam-category-title">' +
+          escapeNotamHtml(category) + '</div>' +
+          '<label class="notam-airport-filter"><span class="notam-airport-filter-label">Show:</span>' +
           '<select class="brf-select notam-airport-filter-select" data-airport-notam-filter data-icao="' +
           escapeNotamHtml(apt.icao || '') + '" aria-label="Show all or flagged NOTAMs">' +
           '<option value="all"' + (selectedFilter === 'all' ? ' selected' : '') + '>All</option>' +
           '<option value="flagged"' + (selectedFilter === 'flagged' ? ' selected' : '') + '>Flagged</option>' +
-          '</select></label>';
+          '</select></label></div>';
+        notamHtml += '<div class="notam-category-wrapper">';
+      } else {
+        notamHtml += '<div class="notam-category-wrapper"><div class="notam-category-title">' +
+          escapeNotamHtml(category) + '</div>';
       }
-      notamHtml += '</div>';
 
       grouped[category].forEach(notam => {
         const notamId = String(notam.notam_id || 'UNKNOWN');
@@ -1046,7 +1050,7 @@ function renderAirportSection(index) {
       notamHtml += '</div>';
     });
 
-    notamBody.innerHTML = notamHtml;
+        notamBody.innerHTML = notamHtml;
     notamBody.querySelectorAll('.notam-flag').forEach(button => {
       button.addEventListener('click', () => {
         const card = button.closest('.notam-box');
