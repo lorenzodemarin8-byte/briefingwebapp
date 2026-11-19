@@ -208,7 +208,8 @@ function getFirNotams(data, firCode) {
   const records = normalizeSimBriefList(data && data.notams && data.notams.notamdrec);
   const code = String(firCode || '').toUpperCase();
   return records.filter(notam => notam &&
-    String(notam.cns_location_id || notam.icao_id || '').toUpperCase() === code);
+    [notam.cns_location_id, notam.icao_id, notam.location_icao]
+      .some(value => String(value || '').toUpperCase() === code));
 }
 
 function getFirEntriesForCurrentFlight() {
@@ -982,6 +983,12 @@ function renderAirportSection(index) {
   const weatherType = apt.type === 'Departure' ? 'origin'
     : apt.type === 'Arrival' ? 'destination' : 'alternate';
   const metrics = getAirportWeatherMetrics(flight.raw || {}, weatherType, apt);
+  const airportWeatherContent = document.getElementById('brf-apt-airport-weather-content');
+  const firWeatherContent = document.getElementById('brf-fir-weather-content');
+  const vmcBadge = document.getElementById('brf-apt-vmc-badge');
+  if (airportWeatherContent) airportWeatherContent.style.display = '';
+  if (firWeatherContent) firWeatherContent.style.display = 'none';
+  if (vmcBadge) vmcBadge.style.display = '';
 
   setT('brf-apt-param-ceiling', metrics.ceiling);
   setT('brf-apt-param-vis', metrics.visibility);
@@ -1587,7 +1594,7 @@ function initializeClassicOfpAnnotationCanvases(flight) {
   const annotations = getClassicOfpAnnotations(flight);
   const canvases = document.querySelectorAll('#classic-ofp-container .ofp-annotation-canvas');
   canvases.forEach(canvas => {
-    const page = canvas.closest('.ofp-page');
+    const page = canvas.closest('.ofp-page, .ofp-pdf-page');
     if (!page) return;
     const rect = page.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
@@ -1599,7 +1606,7 @@ function initializeClassicOfpAnnotationCanvases(flight) {
     const ctx = canvas.getContext('2d');
     if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     canvas.style.pointerEvents = 'auto';
-    canvas.style.touchAction = 'pan-y';
+    canvas.style.touchAction = 'pan-x pan-y';
     canvas.classList.add('drawing-enabled');
 
     if (!canvas.dataset.annotationBound) {
@@ -1718,6 +1725,9 @@ function initClassicOfpAnnotationTools(flight) {
       } else if (action === 'zoom-out') {
         classicOfpZoom = Math.max(0.6, Math.round((classicOfpZoom - 0.1) * 10) / 10);
         applyClassicOfpZoom();
+      } else if (action === 'zoom-fit') {
+        classicOfpZoom = 1;
+        applyClassicOfpZoom();
       } else {
         const canvas = document.querySelector('#classic-ofp-container .ofp-annotation-canvas[data-page-index="' + classicOfpCurrentPage + '"]');
         if (!canvas) return;
@@ -1737,7 +1747,7 @@ function initClassicOfpAnnotationTools(flight) {
     };
   });
 
-  document.querySelectorAll('#classic-ofp-container .ofp-page').forEach(page => {
+  document.querySelectorAll('#classic-ofp-container .ofp-page, #classic-ofp-container .ofp-pdf-page').forEach(page => {
     page.addEventListener('pointerdown', () => {
       classicOfpCurrentPage = Number(page.dataset.pageIndex) || 0;
     }, { passive: true });
