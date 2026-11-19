@@ -1125,6 +1125,168 @@ function getClassicOfpAnnotations(flight) {
   return annotations && typeof annotations === 'object' ? annotations : {};
 }
 
+function escapeRegexText(value) {
+  return String(value || '').replace(/[.*+?^$()|[\]\\]/g, '\\$&');
+}
+
+function extractFirWeatherTextForCategory(weatherText, firCode, firName, heading) {
+  if (!weatherText) return 'NIL';
+  const lines = String(weatherText).split(/\r?\n/);
+  let start = -1;
+  const code = String(firCode || '').toUpperCase();
+  const name = String(firName || '').toUpperCase();
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].toUpperCase();
+    if (line.includes(code) && (line.includes('FIR') || (name && line.includes(name)))) {
+      start = i;
+      break;
+    }
+  }
+
+  let scoped = '';
+  if (start >= 0) {
+    let end = lines.length;
+    for (let i = start + 1; i < lines.length; i++) {
+      if (/^\s*[A-Z0-9]{4}\s{2,}.*\bFIR(?:\/UIR)?\b/i.test(lines[i]) ||
+          /^\s*(DEPARTURE AIRPORT|DESTINATION AIRPORT|DESTINATION ALTERNATE|FUEL ENROUTE AIRPORT)\s*:/i.test(lines[i])) {
+        end = i;
+        break;
+      }
+    }
+    scoped = lines.slice(start, end).join('\n');
+  } else {
+    const upper = String(weatherText).toUpperCase();
+    if (upper.includes(code) || (name && upper.includes(name))) scoped = String(weatherText);
+  }
+
+  if (!scoped) return 'NIL';
+  const categoryPattern = new RegExp('(?:^|\\n)\\s*' + escapeRegexText(heading) +
+    '\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*(?:AIRMETs|SIGMETs|Tropical Cyclone SIGMETs|Volcanic Ash SIGMETs)\\s*:|$)', 'i');
+  const match = categoryPattern.exec(scoped);
+  if (!match) return 'NIL';
+  const value = match[1].trim();
+  if (!value || /^(?:NIL|NO WX DATA AVAILABLE|NO DATA AVAILABLE)$/i.test(value)) return 'NIL';
+  return value;
+}
+
+function getFirWeatherMessages(data, firCode, firName) {
+  const records = normalizeSimBriefList(data && data.sigmets && data.sigmets.sigmet);
+  const buckets = { WA: [], WS: [], WC: [], WV: [] };
+  records.forEach(record => {
+    if (!record) return;
+    const code = String(record.fir || record.fir_icao || '').trim().toUpperCase();
+    if (code !== String(firCode).toUpperCase()) return;
+    const type = String(record.type || '').trim().toUpperCase();
+    if (!buckets[type]) return;
+    const message = String(record.text || record.title || record.message || '').trim();
+    if (message) buckets[type].push(message);
+  });
+
+  const weatherText = getPlanHtmlText(data, 'Weather');
+  return {
+    airmets: buckets.WA.length ? buckets.WA.join('\n\n') : extractFirWeatherTextForCategory(weatherText, firCode, firName, 'AIRMETs'),
+    sigmets: buckets.WS.length ? buckets.WS.join('\n\n') : extractFirWeatherTextForCategory(weatherText, firCode, firName, 'SIGMETs'),
+    tropical: buckets.WC.length ? buckets.WC.join('\n\n') : extractFirWeatherTextForCategory(weatherText, firCode, firName, 'Tropical Cyclone SIGMETs'),
+    volcanic: buckets.WV.length ? buckets.WV.join('\n\n') : extractFirWeatherTextForCategory(weatherText, firCode, firName, 'Volcanic Ash SIGMETs')
+  };
+}
+
+function renderFirSection(firCode, firName) {
+  const flight = getFlight(currentFlightId);
+  if (!flight || !flight.raw) return;
+  if (!flight.state) flight.state = {};
+  if (!Array.isArray(flight.state.flaggedNotams)) flight.state.flaggedNotams = [];
+
+  const setText = (id, value) => {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value || 'NIL';
+  };
+
+  const airportWeatherContent = document.getElementById('brf-apt-airport-weather-content');
+  const firWeatherContent = document.getElementById('brf-fir-weather-content');
+  const vmcBadge = document.getElementById('brf-apt-vmc-badge');
+  if (airportWeatherContent) airportWeatherContent.style.display = 'none';
+  if (firWeatherContent) firWeatherContent.style.display = 'flex';
+  if (vmcBadge) vmcBadge.style.display = 'none';
+
+  const weather = getFirWeatherMessages(flight.raw, firCode, firName);
+  setText('brf-fir-airmets', weather.airmets);
+  setText('brf-fir-sigmets', weather.sigmets);
+  setText('brf-fir-tropical-sigmets', weather.tropical);
+  setText('brf-fir-volcanic-sigmets', weather.volcanic);
+
+  const runwayWidget = document.getElementById('brf-apt-rwy-widget');
+  if (runwayWidget) runwayWidget.style.display = 'none';
+
+  const notamWidget = document.getElementById('brf-apt-notam-widget');
+  const notamBody = document.getElementById('brf-apt-notam-body');
+  if (!notamWidget || !notamBody) return;
+
+  const notams = getFirNotams(flight.raw, firCode);
+  notamWidget.style.display = 'flex';
+  notamBody.dataset.airportIcao = firCode;
+
+  if (!notams.length) {
+    notamBody.innerHTML = '<div class="briefing-airport-empty">NIL — no FIR NOTAMs available for ' +
+      escapeNotamHtml(firCode) + '</div>';
+    return;
+  }
+
+  const grouped = {};
+  notams.forEach(notam => {
+    const category = notam.notam_qcode_category || decodeQCodeCategory(notam.notam_qcode);
+    if (!grouped[category]) grouped[category] = [];
+    grouped[category].push(notam);
+  });
+  const catOrder = { RUNWAY: 1, SID: 2, STAR: 3, 'APPROACH PROCEDURES': 4, AIRPORT: 5 };
+  const categories = Object.keys(grouped).sort((a, b) => (catOrder[a] || 99) - (catOrder[b] || 99));
+  const selectedFilter = getAirportNotamFilter(firCode);
+  let html = '';
+
+  categories.forEach((category, categoryIndex) => {
+    if (categoryIndex === 0) {
+      html += '<div class="notam-category-heading-row"><div class="notam-category-title">' +
+        escapeNotamHtml(category) + '</div>' +
+        '<label class="notam-airport-filter"><span class="notam-airport-filter-label">Show:</span>' +
+        '<select class="brf-select notam-airport-filter-select" data-airport-notam-filter data-icao="' +
+        escapeNotamHtml(firCode) + '" aria-label="Show all or flagged FIR NOTAMs">' +
+        '<option value="all"' + (selectedFilter === 'all' ? ' selected' : '') + '>All</option>' +
+        '<option value="flagged"' + (selectedFilter === 'flagged' ? ' selected' : '') + '>Flagged</option>' +
+        '</select></label></div><div class="notam-category-wrapper">';
+    } else {
+      html += '<div class="notam-category-wrapper"><div class="notam-category-title">' +
+        escapeNotamHtml(category) + '</div>';
+    }
+
+    grouped[category].forEach(notam => {
+      const notamId = String(notam.notam_id || 'UNKNOWN');
+      const isFlagged = getFlaggedNotamIds().includes(notamId);
+      const startDate = formatNotamDate(notam.notam_effective_dtg || notam.notam_created_dtg);
+      const endDate = formatNotamDate(notam.notam_expire_dtg || notam.notam_expire_dtg_estimated);
+      html += '<div class="notam-box" data-notam-id="' + escapeNotamHtml(notamId) + '">' +
+        '<div class="notam-top-row"><div class="notam-badge">' + escapeNotamHtml(category) + '</div>' +
+        '<button type="button" class="notam-flag' + (isFlagged ? ' flagged' : '') +
+        '" aria-label="Flag NOTAM" aria-pressed="' + isFlagged + '">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg></button></div>' +
+        '<div class="notam-header">' + escapeNotamHtml(notamId) + ' - ' +
+        escapeNotamHtml(startDate) + ' - ' + escapeNotamHtml(endDate) + '</div>' +
+        '<div class="notam-body">' + formatNotamText(notam.notam_report || notam.notam_text || '') + '</div></div>';
+    });
+    html += '</div>';
+  });
+
+  notamBody.innerHTML = html;
+  notamBody.querySelectorAll('.notam-flag').forEach(button => {
+    button.addEventListener('click', () => {
+      const card = button.closest('.notam-box');
+      if (card) toggleNotamFlag(card.dataset.notamId);
+    });
+  });
+  bindAirportNotamFilterControls(notamBody);
+  applyBriefingNotamFilter();
+}
+
 function renderClassicOfpText(data) {
   const container = document.getElementById('classic-ofp-container');
   if (!container) return;
