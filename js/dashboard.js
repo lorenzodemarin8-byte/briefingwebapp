@@ -593,26 +593,16 @@ function formatNotamText(rawText) {
   let formatted = escapeNotamHtml(rawText);
   formatted = formatted.replace(/\bRWY\b(?:\s*([0-9]{2}[LCR]?))?/gi, (match, runwayIdent) => {
     const runway = runwayIdent
-      ? ` <span class="notam-rwy-ident">${runwayIdent}</span>`
+      ? ' <span class="notam-rwy-ident">' + runwayIdent + '</span>'
       : '';
-    return `<span class="notam-hl-warn">RWY</span>${runway}`;
+    return '<span class="notam-hl-warn">RWY</span>' + runway;
   });
   formatted = formatted.replace(/\b(TWY|VOR|LOC|NDB|ILS|RNP|RNAV|DME|STAR|SID|GLS|GNSS|GPS)\b/gi,
     '<span class="notam-hl-warn">$1</span>');
   formatted = formatted.replace(/\b(CLSD|NOT AVAILABLE|NOT AVBL|DO NOT USE)\b|U\/S/gi,
-    '<span class="notam-hl-danger">function formatNotamText(rawText) {
-  const escaped = escapeNotamHtml(rawText);
-  const pattern = /(RWY\s*([0-9]{2}[LCR]?))|(\b(?:TWY|VOR|LOC|NDB|ILS|RNP|RNAV|DME|STAR|SID|GLS|GNSS|GPS)\b)|(\bCLSD\b|U\/S|\bNOT AVAILABLE\b|\bNOT AVBL\b|\bDO NOT USE\b)/gi;
-  return escaped.replace(pattern, (match, runway, runwayIdent, facility, restriction) => {
-    if (runway) return `<span class="notam-hl-warn">RWY</span> <span class="notam-rwy-ident">${runwayIdent}</span>`;
-    if (facility) return `<span class="notam-hl-warn">${facility}</span>`;
-    if (restriction) return `<span class="notam-hl-danger">${restriction}</span>`;
-    return match;
-  });
-}</span>');
+    match => '<span class="notam-hl-danger">' + match + '</span>');
   return formatted;
 }
-
 function getFlaggedNotamIds() {
   const flight = getFlight(currentFlightId);
   const ids = flight && flight.state && flight.state.flaggedNotams;
