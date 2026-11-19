@@ -885,7 +885,8 @@ function extractCrewMessages(planHtml) {
   const holder = document.createElement('div');
   holder.innerHTML = planHtml;
   const pre = holder.querySelector('pre');
-  const text = pre ? pre.textContent : holder.textContent || '';
+  // Read the whole plan document: SimBrief page-break headings can close the original PRE element.
+  const text = holder.textContent || (pre ? pre.textContent : '');
   const alertMarker = /={3,}\s*CREW ALERT\s*={3,}/i;
   const bulletinMarker = /={3,}\s*CREW BULLETIN\s*={3,}/i;
   const alertMatch = alertMarker.exec(text);
