@@ -139,7 +139,7 @@ function getPlanHtmlText(data, sectionName) {
 function addFirNameToMap(map, code, name) {
   const id = String(code || '').trim().toUpperCase();
   const firName = String(name || '').trim().replace(/\*+$/, '').trim();
-  if (/^[A-Z0-9]{4}$/.test(id) && firName) map[id] = firName;
+  if (/^[A-Z0-9]{4}$/.test(id) && firName && !map[id]) map[id] = firName;
 }
 
 function collectFirNamesFromPlanHtml(data, map) {
@@ -148,7 +148,7 @@ function collectFirNamesFromPlanHtml(data, map) {
   const inline = /^([A-Z0-9]{4})\s{2,}(.+?\bFIR(?:\/UIR)?\b.*)$/gim;
   while ((match = inline.exec(text)) !== null) addFirNameToMap(map, match[1], match[2]);
 
-  const namedThenCode = /^([A-Z][A-Z /()-]+?\bFIR(?:\/UIR)?)[* \t]*\n\s*-?([A-Z0-9]{4})\b/gim;
+  const namedThenCode = /^([A-Z][A-Z /()-]+?\bFIR(?:\/UIR)?)[* \t]*\n\s*-([A-Z0-9]{4})\b/gim;
   while ((match = namedThenCode.exec(text)) !== null) addFirNameToMap(map, match[2], match[1]);
 }
 
