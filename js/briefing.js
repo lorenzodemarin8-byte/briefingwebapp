@@ -1060,27 +1060,231 @@ function renderAirportSection(index) {
   }
 }
 
-function renderClassicOfpText(data) {}
+var classicOfpZoom = 1;
+var classicOfpTool = 'pen';
+var classicOfpCurrentPage = 0;
+var classicOfpUndoByPage = Object.create(null);
+
+function getClassicOfpAnnotations(flight) {
+  const annotations = flight && flight.state && flight.state.classicOfpAnnotations;
+  return annotations && typeof annotations === 'object' ? annotations : {};
+}
 
 function renderClassicOfpText(data) {
   const container = document.getElementById('classic-ofp-container');
   if (!container) return;
-
   const html = data && data.text && data.text.plan_html;
   if (!html) {
     container.innerHTML = '<p class="classic-ofp-empty">Testo OFP non disponibile per questo volo.</p>';
     return;
   }
 
-  const pages = html
-    .split(/<h2[^>]*page-break-after[^>]*>[\s\S]*?<\/h2>/i)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0);
-
-  container.innerHTML = pages
-    .map((page) => `<div class="ofp-page"><pre class="ofp-page-text">${page}</pre></div>`)
-    .join('');
+  const pages = html.split(/<h2[^>]*page-break-after[^>]*>[\s\S]*?<\/h2>/i)
+    .map(page => page.trim()).filter(Boolean);
+  container.innerHTML = pages.map((page, index) =>
+    '<div class="ofp-page" data-page-index="' + index + '">' +
+      '<div class="ofp-page-content"><pre class="ofp-page-text">' + page + '</pre></div>' +
+      '<canvas class="ofp-annotation-canvas" data-page-index="' + index + '" aria-label="OFP annotations"></canvas>' +
+    '</div>'
+  ).join('');
+  applyClassicOfpZoom();
+  initializeClassicOfpAnnotationCanvases(getFlight(currentFlightId));
 }
+
+function applyClassicOfpZoom() {
+  const container = document.getElementById('classic-ofp-container');
+  const zoomValue = document.getElementById('ofp-zoom-value');
+  if (container) {
+    if ('zoom' in container.style) {
+      container.style.zoom = String(classicOfpZoom);
+      container.style.transform = '';
+      container.style.width = '';
+    } else {
+      container.style.zoom = '';
+      container.style.transform = 'scale(' + classicOfpZoom + ')';
+      container.style.width = (100 / classicOfpZoom) + '%';
+    }
+  }
+  if (zoomValue) zoomValue.textContent = Math.round(classicOfpZoom * 100) + '%';
+}
+
+function restoreClassicOfpCanvas(canvas, dataUrl) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (!dataUrl) return;
+  const image = new Image();
+  image.onload = () => {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.drawImage(image, 0, 0, rect.width, rect.height);
+  };
+  image.src = dataUrl;
+}
+
+function initializeClassicOfpAnnotationCanvases(flight) {
+  const annotations = getClassicOfpAnnotations(flight);
+  const canvases = document.querySelectorAll('#classic-ofp-container .ofp-annotation-canvas');
+  canvases.forEach(canvas => {
+    const page = canvas.closest('.ofp-page');
+    if (!page) return;
+    const rect = page.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.round(rect.width * dpr));
+    canvas.height = Math.max(1, Math.round(rect.height * dpr));
+    canvas.style.width = rect.width + 'px';
+    canvas.style.height = rect.height + 'px';
+    const ctx = canvas.getContext('2d');
+    if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    canvas.style.pointerEvents = 'auto';
+    canvas.style.touchAction = 'pan-y';
+    canvas.classList.add('drawing-enabled');
+
+    if (!canvas.dataset.annotationBound) {
+      canvas.dataset.annotationBound = '1';
+      canvas.addEventListener('pointerdown', event => {
+        if (event.pointerType === 'touch') return;
+        const activeFlight = getFlight(currentFlightId);
+        if (!activeFlight) return;
+        event.preventDefault();
+        classicOfpCurrentPage = Number(canvas.dataset.pageIndex) || 0;
+        if (!classicOfpUndoByPage[classicOfpCurrentPage]) classicOfpUndoByPage[classicOfpCurrentPage] = [];
+        classicOfpUndoByPage[classicOfpCurrentPage].push(canvas.toDataURL('image/png'));
+        canvas._ofpDrawing = true;
+        canvas._ofpLastPoint = null;
+        if (canvas.setPointerCapture) canvas.setPointerCapture(event.pointerId);
+        const bounds = canvas.getBoundingClientRect();
+        const point = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+        canvas._ofpLastPoint = point;
+        const context = canvas.getContext('2d');
+        if (!context) return;
+        context.save();
+        context.globalCompositeOperation = classicOfpTool === 'eraser' ? 'destination-out' : 'source-over';
+        context.globalAlpha = classicOfpTool === 'highlight' ? 0.28 : 1;
+        context.strokeStyle = classicOfpTool === 'eraser'
+          ? 'rgba(0,0,0,1)'
+          : (document.getElementById('ofp-annotation-color') || {}).value || '#1f5fbf';
+        context.fillStyle = context.strokeStyle;
+        context.lineWidth = classicOfpTool === 'eraser' ? 22 : classicOfpTool === 'highlight' ? 18 : 2.6;
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        context.beginPath();
+        context.arc(point.x, point.y, context.lineWidth / 2, 0, Math.PI * 2);
+        context.fill();
+        context.restore();
+      });
+
+      canvas.addEventListener('pointermove', event => {
+        if (!canvas._ofpDrawing || !canvas._ofpLastPoint) return;
+        event.preventDefault();
+        const bounds = canvas.getBoundingClientRect();
+        const next = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+        const context = canvas.getContext('2d');
+        if (!context) return;
+        context.save();
+        context.globalCompositeOperation = classicOfpTool === 'eraser' ? 'destination-out' : 'source-over';
+        context.globalAlpha = classicOfpTool === 'highlight' ? 0.28 : 1;
+        context.strokeStyle = classicOfpTool === 'eraser'
+          ? 'rgba(0,0,0,1)'
+          : (document.getElementById('ofp-annotation-color') || {}).value || '#1f5fbf';
+        context.lineWidth = classicOfpTool === 'eraser' ? 22 : classicOfpTool === 'highlight' ? 18 : 2.6;
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        context.beginPath();
+        context.moveTo(canvas._ofpLastPoint.x, canvas._ofpLastPoint.y);
+        context.lineTo(next.x, next.y);
+        context.stroke();
+        context.restore();
+        canvas._ofpLastPoint = next;
+      });
+
+      const finishStroke = () => {
+        if (!canvas._ofpDrawing) return;
+        canvas._ofpDrawing = false;
+        canvas._ofpLastPoint = null;
+        const current = getFlight(currentFlightId);
+        if (!current) return;
+        if (!current.state) current.state = {};
+        const saved = getClassicOfpAnnotations(current);
+        saved[canvas.dataset.pageIndex] = canvas.toDataURL('image/png');
+        updateFlightState(currentFlightId, { classicOfpAnnotations: saved });
+      };
+      canvas.addEventListener('pointerup', finishStroke);
+      canvas.addEventListener('pointercancel', finishStroke);
+      canvas.addEventListener('lostpointercapture', finishStroke);
+    }
+
+    restoreClassicOfpCanvas(canvas, annotations[canvas.dataset.pageIndex] || '');
+  });
+
+  containerImagesReload();
+}
+
+function containerImagesReload() {
+  const container = document.getElementById('classic-ofp-container');
+  if (!container) return;
+  container.querySelectorAll('img').forEach(image => {
+    if (image.dataset.ofpResizeBound) return;
+    image.dataset.ofpResizeBound = '1';
+    image.addEventListener('load', () => initializeClassicOfpAnnotationCanvases(getFlight(currentFlightId)));
+  });
+}
+
+function saveClassicOfpCanvas(canvas, dataUrl) {
+  const flight = getFlight(currentFlightId);
+  if (!flight) return;
+  const annotations = getClassicOfpAnnotations(flight);
+  annotations[canvas.dataset.pageIndex] = dataUrl;
+  updateFlightState(currentFlightId, { classicOfpAnnotations: annotations });
+}
+
+function initClassicOfpAnnotationTools(flight) {
+  const toolbar = document.getElementById('classic-ofp-tools');
+  if (!toolbar) return;
+  toolbar.querySelectorAll('[data-ofp-tool]').forEach(button => {
+    button.onclick = () => {
+      classicOfpTool = button.dataset.ofpTool;
+      toolbar.querySelectorAll('[data-ofp-tool]').forEach(b => b.classList.toggle('active', b === button));
+    };
+  });
+  toolbar.querySelectorAll('[data-ofp-action]').forEach(button => {
+    button.onclick = () => {
+      const action = button.dataset.ofpAction;
+      if (action === 'zoom-in') {
+        classicOfpZoom = Math.min(1.8, Math.round((classicOfpZoom + 0.1) * 10) / 10);
+        applyClassicOfpZoom();
+      } else if (action === 'zoom-out') {
+        classicOfpZoom = Math.max(0.6, Math.round((classicOfpZoom - 0.1) * 10) / 10);
+        applyClassicOfpZoom();
+      } else {
+        const canvas = document.querySelector('#classic-ofp-container .ofp-annotation-canvas[data-page-index="' + classicOfpCurrentPage + '"]');
+        if (!canvas) return;
+        const context = canvas.getContext('2d');
+        if (!context) return;
+        const undo = classicOfpUndoByPage[classicOfpCurrentPage] || [];
+        if (action === 'undo' && undo.length) {
+          const previous = undo.pop();
+          restoreClassicOfpCanvas(canvas, previous);
+          saveClassicOfpCanvas(canvas, previous);
+        } else if (action === 'clear') {
+          undo.push(canvas.toDataURL('image/png'));
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          saveClassicOfpCanvas(canvas, canvas.toDataURL('image/png'));
+        }
+      }
+    };
+  });
+
+  document.querySelectorAll('#classic-ofp-container .ofp-page').forEach(page => {
+    page.addEventListener('pointerdown', () => {
+      classicOfpCurrentPage = Number(page.dataset.pageIndex) || 0;
+    }, { passive: true });
+  });
+  initializeClassicOfpAnnotationCanvases(flight);
+}
+
 
 function bindBriefingTabs() {
   document.querySelectorAll('.briefing-item').forEach(item => {
