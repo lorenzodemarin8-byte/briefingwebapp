@@ -233,12 +233,17 @@ function getFlightFirEntries(data) {
   const notamRecords = normalizeSimBriefList(data && data.notams && data.notams.notamdrec);
   notamRecords.forEach(notam => {
     if (!notam) return;
-    const code = String(notam.cns_location_id || notam.icao_id || '').trim().toUpperCase();
-    if (/^[A-Z0-9]{4}$/.test(code) && !airportCodes.has(code)) appendCode(code);
+    [notam.cns_location_id, notam.icao_id].forEach(value => {
+      const code = String(value || '').trim().toUpperCase();
+      if (/^[A-Z0-9]{4}$/.test(code) && !airportCodes.has(code)) appendCode(code);
+    });
   });
 
   normalizeSimBriefList(data && data.sigmets && data.sigmets.sigmet).forEach(sigmet => {
-    if (sigmet) addFirNameToMap(names, sigmet.fir || sigmet.fir_icao, sigmet.fir_name);
+    if (!sigmet) return;
+    const code = sigmet.fir || sigmet.fir_icao;
+    appendCode(code);
+    addFirNameToMap(names, code, sigmet.fir_name);
   });
 
   return orderedCodes.map(code => ({ code, name: names[code] || '' }));
