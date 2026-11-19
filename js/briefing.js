@@ -764,15 +764,7 @@ function renderAirportSection(index) {
   if (apt.notams && apt.notams.length > 0 && notamWidget && notamBody) {
     notamWidget.style.display = 'flex';
 
-    let notamHtml = `
-      <div class="notam-filter-bar">
-        <span>Show:</span>
-        <div class="notam-segmented" role="group" aria-label="Filter NOTAMs">
-          <button type="button" class="notam-filter-btn" data-notam-filter="all">All</button>
-          <button type="button" class="notam-filter-btn" data-notam-filter="flagged">Flagged</button>
-        </div>
-      </div>
-    `;
+    let notamHtml = '';
 
     const grouped = {};
     apt.notams.forEach(n => {
@@ -794,25 +786,25 @@ function renderAirportSection(index) {
         const start = formatNotamDate(n.notam_effective_dtg || n.notam_created_dtg);
         const end = formatNotamDate(n.notam_expire_dtg || n.notam_expire_dtg_estimated);
 
-        let rawText = n.notam_report || n.notam_text || '';
-
-        let safeText = rawText
-          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-          .replace(/\b(TWY|RWY|VOR|LOC|NDB|ILS|RNP|RNAV|DME|STAR|SID|GLS|GNSS|GPS)\b/g, '<span class="notam-hl-warn">$1</span>')
-          .replace(/(\bCLSD\b|U\/S|\bNOT AVAILABLE\b|\bNOT AVBL\b|\bDO NOT USE\b)/g, '<span class="notam-hl-danger">$1</span>');
+        const rawText = n.notam_report || n.notam_text || '';
+        const safeText = formatNotamText(rawText);
+        const safeNotamId = escapeNotamHtml(notamId);
+        const safeCategory = escapeNotamHtml(cat);
+        const safeStart = escapeNotamHtml(start);
+        const safeEnd = escapeNotamHtml(end);
 
         let isFlagged = getFlaggedNotamIds().includes(String(notamId));
         let flagClass = isFlagged ? 'flagged' : '';
 
         notamHtml += `
-          <div class="notam-box" data-notam-id="${notamId}">
+          <div class="notam-box" data-notam-id="${safeNotamId}">
             <div class="notam-top-row">
-              <div class="notam-badge">${cat}</div>
-              <button class="notam-flag ${flagClass}" aria-label="Flag NOTAM">
+              <div class="notam-badge">${safeCategory}</div>
+              <button type="button" class="notam-flag ${flagClass}" aria-label="Flag NOTAM" aria-pressed="${isFlagged}">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
               </button>
             </div>
-            <div class="notam-header">${notamId} - ${start} - ${end}</div>
+            <div class="notam-header">${safeNotamId} - ${safeStart} - ${safeEnd}</div>
             <div class="notam-body">${safeText}</div>
           </div>
         `;
