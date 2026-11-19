@@ -51,6 +51,7 @@ function showHome() {
 
 function showDashboard(id) {
   try {
+    activeNotamFilter = 'all';
     prevCdmState = { tobt: "", tsat: "", ctot: "" };
     isFirstCdmFetch = true;
 
