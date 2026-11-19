@@ -880,13 +880,43 @@ function renderDispatchSection(flight) {
   if (dxEl) dxEl.textContent = rmk;
 }
 
-function renderCrewAlertSection(flight) {
-  if (!flight) return;
-  const data = flight.raw || {};
-  const dxEl = document.getElementById('brf-crew-alert-dx');
-  if (dxEl) {
-    dxEl.textContent = (data.general && data.general.dx_rmk && data.general.dx_rmk.trim() !== '') ? data.general.dx_rmk : 'NIL DISPATCH REMARKS';
+function extractCrewMessages(planHtml) {
+  if (!planHtml) return { alert: 'NIL', bulletin: 'NIL' };
+  const holder = document.createElement('div');
+  holder.innerHTML = planHtml;
+  const pre = holder.querySelector('pre');
+  const text = pre ? pre.textContent : holder.textContent || '';
+  const alertMarker = /={3,}\s*CREW ALERT\s*={3,}/i;
+  const bulletinMarker = /={3,}\s*CREW BULLETIN\s*={3,}/i;
+  const alertMatch = alertMarker.exec(text);
+  const bulletinMatch = bulletinMarker.exec(text);
+  if (!alertMatch || !bulletinMatch || bulletinMatch.index <= alertMatch.index) {
+    return { alert: 'NIL', bulletin: 'NIL' };
   }
+  const alertStart = alertMatch.index + alertMatch[0].length;
+  const bulletinStart = bulletinMatch.index + bulletinMatch[0].length;
+  const afterBulletin = text.slice(bulletinStart);
+  const routeIndex = afterBulletin.search(/\n\s*Route\s*(?:\n|$)/i);
+  let alert = text.slice(alertStart, bulletinMatch.index);
+  let bulletin = routeIndex >= 0 ? afterBulletin.slice(0, routeIndex) : afterBulletin;
+  const clean = value => value
+    .replace(/^\s*\n+/, '')
+    .replace(/\n\s*=+\s*$/gm, '')
+    .replace(/\s+$/, '')
+    .trim();
+  alert = clean(alert);
+  bulletin = clean(bulletin);
+  return { alert: alert || 'NIL', bulletin: bulletin || 'NIL' };
+}
+
+function renderCrewAlertSection(flight) {
+  const data = flight && flight.raw ? flight.raw : {};
+  const planHtml = data.text && data.text.plan_html;
+  const messages = extractCrewMessages(planHtml);
+  const alertEl = document.getElementById('brf-crew-alert-text');
+  const bulletinEl = document.getElementById('brf-crew-bulletin-text');
+  if (alertEl) alertEl.textContent = messages.alert;
+  if (bulletinEl) bulletinEl.textContent = messages.bulletin;
 }
 
 function renderAirportSection(index) {
@@ -913,141 +943,124 @@ function renderAirportSection(index) {
 
   setVmcBadge(document.getElementById('brf-apt-vmc-badge'), metrics);
 
-  // Runway con calcolo dinamico del vento
+  // Runway widget: collapsed by default, with a user-controlled disclosure button.
   const rwyWidget = document.getElementById('brf-apt-rwy-widget');
   const rwyTbody = document.getElementById('brf-apt-rwy-tbody');
-
-  if ((apt.type === 'Departure' || apt.type === 'Arrival') && apt.runways && rwyWidget && rwyTbody) {
-    rwyWidget.style.display = 'flex';
-    rwyTbody.innerHTML = '';
-
-    let rwyList = Array.isArray(apt.runways) ? apt.runways : [apt.runways];
-
-    rwyList.forEach(r => {
-      let rName = r.identifier ? `RW${String(r.identifier).padStart(2, '0')}` : '---';
-      let rLenFt = parseFloat(r.length || r.length_tora || r.length_lda);
-      let rLen = !isNaN(rLenFt) ? Math.round(rLenFt * 0.3048) + ' m' : '---';
-      let rElev = r.elevation ? r.elevation + ' ft' : '---';
-      let rMag = r.magnetic_course || '---';
-      let rTrue = r.true_course || '---';
-
-      const windComps = computeRunwayWind(r, apt.metar);
-      let hwRaw = windComps.hw;
-      let hwVal = '---';
-      let hwClass = 'wind-green';
-      let hwArrow = '';
-
-      if (!isNaN(hwRaw)) {
-        if (hwRaw < 0) {
-          hwArrow = '↑';
-          hwVal = Math.abs(hwRaw);
-          hwClass = hwVal > 10 ? 'wind-red' : 'wind-amber';
-        } else {
-          hwArrow = '↓';
-          hwVal = hwRaw;
-          hwClass = 'wind-green';
-        }
+  const rwyContent = document.getElementById('brf-apt-rwy-content');
+  const rwyToggle = document.getElementById('brf-apt-rwy-toggle');
+  if (rwyWidget && rwyContent && rwyToggle) {
+    if ((apt.type === 'Departure' || apt.type === 'Arrival') && apt.runways) {
+      rwyWidget.style.display = 'flex';
+      rwyContent.style.display = 'none';
+      rwyToggle.setAttribute('aria-expanded', 'false');
+      rwyToggle.title = 'Mostra piste';
+      rwyToggle.onclick = () => {
+        const expanded = rwyToggle.getAttribute('aria-expanded') === 'true';
+        rwyToggle.setAttribute('aria-expanded', String(!expanded));
+        rwyContent.style.display = expanded ? 'none' : 'block';
+        rwyToggle.title = expanded ? 'Mostra piste' : 'Nascondi piste';
+      };
+      if (rwyTbody) {
+        rwyTbody.innerHTML = '';
+        const rwyList = Array.isArray(apt.runways) ? apt.runways : [apt.runways];
+        rwyList.forEach(r => {
+          const rName = r.identifier ? 'RW' + String(r.identifier).padStart(2, '0') : '---';
+          const rLenFt = parseFloat(r.length || r.length_tora || r.length_lda);
+          const rLen = !isNaN(rLenFt) ? Math.round(rLenFt * 0.3048) + ' m' : '---';
+          const rElev = r.elevation ? r.elevation + ' ft' : '---';
+          const rMag = r.magnetic_course || '---';
+          const rTrue = r.true_course || '---';
+          const windComps = computeRunwayWind(r, apt.metar);
+          const hwRaw = windComps.hw;
+          let hwVal = '---', hwClass = 'wind-green', hwArrow = '';
+          if (!isNaN(hwRaw)) {
+            if (hwRaw < 0) {
+              hwArrow = '↑'; hwVal = Math.abs(hwRaw);
+              hwClass = hwVal > 10 ? 'wind-red' : 'wind-amber';
+            } else {
+              hwArrow = '↓'; hwVal = hwRaw; hwClass = 'wind-green';
+            }
+          }
+          const xwRaw = windComps.xw;
+          const xwVal = !isNaN(xwRaw) ? Math.abs(xwRaw) : '---';
+          const xwClass = !isNaN(xwRaw) && xwVal > 10 ? 'wind-amber' : 'wind-green';
+          const row = document.createElement('tr');
+          row.innerHTML = '<td>' + rName + '</td><td>' + rLen + '</td><td>' + rElev + '</td>' +
+            '<td>' + rMag + '</td><td>' + rTrue + '</td><td><div class="wind-comp-cell">' +
+            '<div class="wind-box ' + hwClass + '"><span>' + hwArrow + '</span><span>' + hwVal + '</span></div>' +
+            '<div class="wind-box ' + xwClass + '"><span>' + xwVal + '</span></div></div></td>';
+          rwyTbody.appendChild(row);
+        });
       }
-
-      let xwRaw = windComps.xw;
-      let xwVal = '---';
-      let xwClass = 'wind-green';
-      if (!isNaN(xwRaw)) {
-        xwVal = Math.abs(xwRaw);
-        xwClass = xwVal > 10 ? 'wind-amber' : 'wind-green';
-      }
-
-      let row = document.createElement('tr');
-      row.innerHTML = `
-        <td>${rName}</td>
-        <td>${rLen}</td>
-        <td>${rElev}</td>
-        <td>${rMag}</td>
-        <td>${rTrue}</td>
-        <td>
-          <div class="wind-comp-cell">
-            <div class="wind-box ${hwClass}"><span>${hwArrow}</span><span>${hwVal}</span></div>
-            <div class="wind-box ${xwClass}"><span>${xwVal}</span></div>
-          </div>
-        </td>
-      `;
-      rwyTbody.appendChild(row);
-    });
-  } else if (rwyWidget) {
-    rwyWidget.style.display = 'none';
+    } else {
+      rwyWidget.style.display = 'none';
+    }
   }
 
-  // NOTAMs
+  // NOTAMs: local All / Flagged selector is specific to this airport.
   const notamWidget = document.getElementById('brf-apt-notam-widget');
   const notamBody = document.getElementById('brf-apt-notam-body');
 
   if (apt.notams && apt.notams.length > 0 && notamWidget && notamBody) {
     notamWidget.style.display = 'flex';
-
+    notamBody.dataset.airportIcao = apt.icao || '';
+    const selectedFilter = getAirportNotamFilter(apt.icao);
+    const grouped = {};
+    apt.notams.forEach(notam => {
+      const category = decodeQCodeCategory(notam.notam_qcode);
+      if (!grouped[category]) grouped[category] = [];
+      grouped[category].push(notam);
+    });
+    const catOrder = { RUNWAY: 1, SID: 2, STAR: 3, 'APPROACH PROCEDURES': 4, AIRPORT: 5 };
+    const sortedCats = Object.keys(grouped).sort((a,b) => (catOrder[a] || 99) - (catOrder[b] || 99));
     let notamHtml = '';
 
-    const grouped = {};
-    apt.notams.forEach(n => {
-      const cat = decodeQCodeCategory(n.notam_qcode);
-      if (!grouped[cat]) grouped[cat] = [];
-      grouped[cat].push(n);
+    sortedCats.forEach((category, categoryIndex) => {
+      notamHtml += '<div class="notam-category-wrapper"><div class="notam-category-heading-row">' +
+        '<div class="notam-category-title">' + escapeNotamHtml(category) + '</div>';
+      if (categoryIndex === 0) {
+        notamHtml += '<label class="notam-airport-filter"><span class="notam-airport-filter-label">Show:</span>' +
+          '<select class="brf-select notam-airport-filter-select" data-airport-notam-filter data-icao="' +
+          escapeNotamHtml(apt.icao || '') + '" aria-label="Show all or flagged NOTAMs">' +
+          '<option value="all"' + (selectedFilter === 'all' ? ' selected' : '') + '>All</option>' +
+          '<option value="flagged"' + (selectedFilter === 'flagged' ? ' selected' : '') + '>Flagged</option>' +
+          '</select></label>';
+      }
+      notamHtml += '</div>';
+
+      grouped[category].forEach(notam => {
+        const notamId = String(notam.notam_id || 'UNKNOWN');
+        const safeId = escapeNotamHtml(notamId);
+        const start = formatNotamDate(notam.notam_effective_dtg || notam.notam_created_dtg);
+        const end = formatNotamDate(notam.notam_expire_dtg || notam.notam_expire_dtg_estimated);
+        const isFlagged = getFlaggedNotamIds().includes(notamId);
+        notamHtml += '<div class="notam-box" data-notam-id="' + safeId + '">' +
+          '<div class="notam-top-row"><div class="notam-badge">' + escapeNotamHtml(category) + '</div>' +
+          '<button type="button" class="notam-flag' + (isFlagged ? ' flagged' : '') +
+          '" aria-label="Flag NOTAM" aria-pressed="' + isFlagged + '">' +
+          '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg></button></div>' +
+          '<div class="notam-header">' + safeId + ' - ' + escapeNotamHtml(start) + ' - ' + escapeNotamHtml(end) + '</div>' +
+          '<div class="notam-body">' + formatNotamText(notam.notam_report || notam.notam_text || '') + '</div></div>';
+      });
+      notamHtml += '</div>';
     });
 
-    const catOrder = { 'RUNWAY': 1, 'SID': 2, 'STAR': 3, 'APPROACH PROCEDURES': 4, 'AIRPORT': 5 };
-    const sortedCats = Object.keys(grouped).sort((a, b) => (catOrder[a] || 99) - (catOrder[b] || 99));
-
-    for (const cat of sortedCats) {
-      const list = grouped[cat];
-      notamHtml += `<div class="notam-category-wrapper">`;
-      notamHtml += `<div class="notam-category-title">${cat}</div>`;
-
-      list.forEach(n => {
-        const notamId = n.notam_id || 'UNKNOWN';
-        const start = formatNotamDate(n.notam_effective_dtg || n.notam_created_dtg);
-        const end = formatNotamDate(n.notam_expire_dtg || n.notam_expire_dtg_estimated);
-
-        const rawText = n.notam_report || n.notam_text || '';
-        const safeText = formatNotamText(rawText);
-        const safeNotamId = escapeNotamHtml(notamId);
-        const safeCategory = escapeNotamHtml(cat);
-        const safeStart = escapeNotamHtml(start);
-        const safeEnd = escapeNotamHtml(end);
-
-        let isFlagged = getFlaggedNotamIds().includes(String(notamId));
-        let flagClass = isFlagged ? 'flagged' : '';
-
-        notamHtml += `
-          <div class="notam-box" data-notam-id="${safeNotamId}">
-            <div class="notam-top-row">
-              <div class="notam-badge">${safeCategory}</div>
-              <button type="button" class="notam-flag ${flagClass}" aria-label="Flag NOTAM" aria-pressed="${isFlagged}">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
-              </button>
-            </div>
-            <div class="notam-header">${safeNotamId} - ${safeStart} - ${safeEnd}</div>
-            <div class="notam-body">${safeText}</div>
-          </div>
-        `;
-      });
-      notamHtml += `</div>`;
-    }
-
     notamBody.innerHTML = notamHtml;
-
     notamBody.querySelectorAll('.notam-flag').forEach(button => {
       button.addEventListener('click', () => {
         const card = button.closest('.notam-box');
         if (card) toggleNotamFlag(card.dataset.notamId);
       });
     });
-    bindNotamFilterControls();
+    bindAirportNotamFilterControls(notamBody);
     applyBriefingNotamFilter();
-    applyBriefingAirportMenuFilter();
-
   } else if (notamWidget) {
     notamWidget.style.display = 'none';
+    if (notamBody) notamBody.innerHTML = '';
   }
 }
+
+function renderClassicOfpText(data) {}
 
 function renderClassicOfpText(data) {
   const container = document.getElementById('classic-ofp-container');
