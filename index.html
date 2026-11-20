@@ -364,18 +364,29 @@
         <!-- GENERAL CONTAINER -->
         <div id="briefing-general-container" class="briefing-general-container" style="display:none;">
           <div class="widget gen-widget">
-            <div class="widget-header gen-widget-header">
-              <span class="gen-header-text" id="gen-dep">----</span>
-              <span class="gen-header-plane">&rarr;</span>
-              <span class="gen-header-text" id="gen-arr">----</span>
+            <div class="widget-header gen-widget-header gen-flight-header">
+              <span class="gen-header-meta" id="gen-ofp-edition">1/0/0</span>
+              <div class="gen-header-route">
+                <div class="gen-header-airport"><span class="gen-header-text" id="gen-dep">----</span><span class="gen-header-name" id="gen-dep-name"></span></div>
+                <svg class="gen-header-plane" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12.5 21 4l-5.5 16-3.2-6.2L3 12.5Z"/><path d="m12.3 13.8 4.1-4.1"/></svg>
+                <div class="gen-header-airport"><span class="gen-header-text" id="gen-arr">----</span><span class="gen-header-name" id="gen-arr-name"></span></div>
+              </div>
+              <span class="gen-header-meta gen-header-release" id="gen-release">—</span>
             </div>
-            <div class="gen-info-grid-5">
+            <div class="gen-info-grid-6 gen-scheduled-grid">
               <div class="gen-stat"><span class="gen-stat-label">ATC</span><span class="gen-stat-value" id="gen-callsign">---</span></div>
-              <div class="gen-stat"><span class="gen-stat-label">STD</span><span class="gen-stat-value" id="gen-std">---</span></div>
-              <div class="gen-stat"><span class="gen-stat-label">STA</span><span class="gen-stat-value" id="gen-sta">---</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">STD / OFF</span><span class="gen-stat-value" id="gen-std">---</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">STA / BLOCK</span><span class="gen-stat-value" id="gen-sta">---</span></div>
               <div class="gen-stat"><span class="gen-stat-label">A/C TYPE</span><span class="gen-stat-value" id="gen-actype">---</span></div>
               <div class="gen-stat"><span class="gen-stat-label">REG NO</span><span class="gen-stat-value" id="gen-reg">---</span></div>
             </div>
+            <div class="gen-cdm-grid" id="gen-cdm-grid" hidden>
+              <div class="gen-stat"><span class="gen-stat-label">ETD / OUT</span><span class="gen-stat-value" id="gen-cdm-etd">—</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">TAKEOFF</span><span class="gen-stat-value" id="gen-cdm-off">—</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">LANDING</span><span class="gen-stat-value" id="gen-cdm-on">—</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">ON BLOCK</span><span class="gen-stat-value" id="gen-cdm-eta">—</span></div>
+            </div>
+            <div class="gen-ctot-row" id="gen-ctot-row" hidden><span>CTOT</span><strong id="gen-ctot">—</strong></div>
             <div class="gen-divider"></div>
             <div class="gen-info-grid-6">
               <div class="gen-stat"><span class="gen-stat-label">CRZ SYS</span><span class="gen-stat-value" id="gen-crzsys">---</span></div>
@@ -389,11 +400,10 @@
               <div class="gen-stat"><span class="gen-stat-label">AVG FF KGS/HR</span><span class="gen-stat-value" id="gen-avgff">---</span></div>
               <div class="gen-stat"><span class="gen-stat-label">FUEL BIAS</span><span class="gen-stat-value" id="gen-fuelbias">---</span></div>
               <div class="gen-stat"><span class="gen-stat-label">TKOF ALTN</span><span class="gen-stat-value" id="gen-tkofaltn">-</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">DEST ELEV</span><span class="gen-stat-value" id="gen-dest-elev">—</span></div>
+              <div class="gen-stat"><span class="gen-stat-label">MXSHR</span><span class="gen-stat-value" id="gen-maxshear">—</span></div>
             </div>
           </div>
-        </div>
-        <!-- FUEL CONTAINER -->
-        <div id="briefing-fuel-container" class="briefing-general-container" style="display:none;">
           <div class="widget gen-weight-widget" style="margin-bottom: 14px;">
             <table class="gen-data-table">
               <thead><tr><th>Weight (kg)</th><th>Planned</th><th>Actual</th><th>Operational Limit</th><th>Structural Limit</th></tr></thead>
@@ -406,6 +416,17 @@
               </tbody>
             </table>
           </div>
+          <div class="widget gen-route-widget">
+            <div class="widget-header">Route</div>
+            <div class="widget-body gen-route-body" id="gen-route-summary">Route not available</div>
+          </div>
+          <div class="widget gen-alternates-widget">
+            <div class="widget-header">Destination Alternates</div>
+            <div class="widget-body"></div>
+          </div>
+        </div>
+        <!-- FUEL CONTAINER -->
+        <div id="briefing-fuel-container" class="briefing-general-container" style="display:none;">
           <div class="widget briefing-fuel-widget">
             <div class="widget-header gen-widget-header" style="justify-content: space-between; padding: 8px 16px;">
               <span class="gen-header-text" style="text-transform: none;">Fuel</span>
