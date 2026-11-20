@@ -470,9 +470,9 @@ function renderGeneralSection(flight) {
   setT('gen-release', releaseDate);
   setT('gen-callsign', atc.callsign || '—');
   setT('gen-std', `${unixToHHMM(times.sched_out)} / ${unixToHHMM(times.sched_off)}`);
-  setT('gen-sta', `${unixToHHMM(times.est_in || times.sched_in)} / ${formatHHMM(times.sched_block)}`);
-  const engineText = aircraft.engines ? ` - ${aircraft.engines}` : '';
-  setT('gen-actype', `${aircraft.name || aircraft.icaocode || '—'}${engineText}`);
+  setT('gen-sta', `${unixToHHMM(times.est_on)} / ${unixToHHMM(times.sched_in)}`);
+  setT('gen-actype', aircraft.name || aircraft.icaocode || '—');
+  setT('gen-engines', aircraft.engines || '');
   setT('gen-reg', aircraft.reg || '—');
   const machStr = general.cruise_mach ? `M${general.cruise_mach}` : '';
   const ciStr = general.costindex ? `CI ${general.costindex}` : '';
@@ -658,8 +658,6 @@ function renderFuelSection(flight) {
   setT('gen-w-lw-op', opLw);
 
   const weightFieldPairs = [
-    ['gen-w-dow-plan', 'fuel-w-dow-plan'],
-    ['gen-w-load-plan', 'fuel-w-load-plan'],
     ['gen-w-zfw-plan', 'fuel-w-zfw-plan'],
     ['gen-w-tow-plan', 'fuel-w-tow-plan'],
     ['gen-w-lw-plan', 'fuel-w-lw-plan'],
@@ -694,20 +692,6 @@ function renderFuelSection(flight) {
   setupWeightLimitCheck('gen-w-zfw-act', null, 'gen-w-zfw-struct', 'zfw');
   setupWeightLimitCheck('gen-w-tow-act', 'gen-w-tow-op', 'gen-w-tow-struct', 'tow');
   setupWeightLimitCheck('gen-w-lw-act', 'gen-w-lw-op', 'gen-w-lw-struct', 'lw');
-  const fuelLoadInp = document.getElementById('fuel-w-load-act');
-  if (fuelLoadInp) {
-    const newFuelLoadInp = fuelLoadInp.cloneNode(true);
-    fuelLoadInp.parentNode.replaceChild(newFuelLoadInp, fuelLoadInp);
-    newFuelLoadInp.value = savedWeights.load || '';
-    newFuelLoadInp.addEventListener('input', (e) => {
-      if (!flight.state) flight.state = {};
-      if (!flight.state.actualWeights) flight.state.actualWeights = {};
-      flight.state.actualWeights.load = e.target.value;
-      updateFlightState(currentFlightId, { actualWeights: flight.state.actualWeights });
-      const generalLoad = document.getElementById('gen-w-load-act');
-      if (generalLoad) generalLoad.value = e.target.value;
-    });
-  }
   setupWeightLimitCheck('fuel-w-zfw-act', null, 'fuel-w-zfw-struct', 'zfw');
   setupWeightLimitCheck('fuel-w-tow-act', 'fuel-w-tow-op', 'fuel-w-tow-struct', 'tow');
   setupWeightLimitCheck('fuel-w-lw-act', 'fuel-w-lw-op', 'fuel-w-lw-struct', 'lw');
