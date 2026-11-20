@@ -119,22 +119,47 @@ function briefingSectionMarkup(title, key, innerHtml, expanded) {
 function getPlanHtmlText(data, sectionName) {
   const html = data && data.text && data.text.plan_html;
   if (!html) return '';
-  let sectionHtml = String(html);
+
+  let source = String(html);
   const markerPattern = /<!--BKMK\/\/\/([^]*?)\/\/\/\d+-->/g;
-  const markers = [];
+  let markers = [];
   let match;
-  while ((match = markerPattern.exec(sectionHtml)) !== null) {
-    markers.push({ name: match[1].trim(), end: markerPattern.lastIndex, index: match.index });
+
+  const scanMarkers = value => {
+    const found = [];
+    const pattern = /<!--BKMK\/\/\/([^]*?)\/\/\/\d+-->/g;
+    let item;
+    while ((item = pattern.exec(value)) !== null) {
+      found.push({ name: item[1].trim(), end: pattern.lastIndex, index: item.index });
+    }
+    return found;
+  };
+
+  markers = scanMarkers(source);
+  // Some XML-to-JSON transports leave the HTML entities encoded one extra time.
+  if (!markers.length && /&lt;!--BKMK/i.test(source)) {
+    const decoder = document.createElement('textarea');
+    decoder.innerHTML = source;
+    const decoded = decoder.value || decoder.textContent || '';
+    if (decoded && decoded !== source) {
+      source = decoded;
+      markers = scanMarkers(source);
+    }
   }
-  const marker = markers.find(x => x.name.toLowerCase() === String(sectionName).toLowerCase());
-  if (marker) {
-    const next = markers.find(x => x.index > marker.index);
-    sectionHtml = sectionHtml.slice(marker.end, next ? next.index : sectionHtml.length);
+
+  let sectionHtml = source;
+  if (markers.length) {
+    const marker = markers.find(item => item.name.toLowerCase() === String(sectionName).toLowerCase());
+    if (!marker) return '';
+    const next = markers.find(item => item.index > marker.index);
+    sectionHtml = source.slice(marker.end, next ? next.index : source.length);
   }
+
   const holder = document.createElement('div');
   holder.innerHTML = sectionHtml;
   return (holder.textContent || holder.innerText || '').replace(/\r/g, '');
 }
+
 
 function addFirNameToMap(map, code, name) {
   const id = String(code || '').trim().toUpperCase();
