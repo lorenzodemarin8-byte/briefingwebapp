@@ -1599,7 +1599,7 @@ function releaseClassicOfpPdfPage(index) {
   }
 }
 
-async function renderClassicOfpPdfPage(index) {
+async async function renderClassicOfpPdfPage(index) {
   const pdfDocument = classicOfpPdfDocument;
   if (!pdfDocument) return;
   const container = document.getElementById('classic-ofp-container');
