@@ -45,6 +45,20 @@ function extractFlightId(data) {
   return `${orig}-${dest}-${sched}`;
 }
 
+function extractOfpEdition(data) {
+  const planHtml = data && data.text && data.text.plan_html ? String(data.text.plan_html) : '';
+  const plainText = planHtml
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/\s+/g, ' ');
+  const match = plainText.match(/\bOFP\s*(\d+\s*\/\s*\d+\s*\/\s*\d+)\b/i);
+  if (match) return match[1].replace(/\s+/g, '');
+
+  const general = (data && data.general) || {};
+  return `${general.release || 1}/0/${general.etops || 0}`;
+}
+
 function extractCallsign(data) {
   if (data.general) {
     const airline = data.general.icao_airline || data.general.iata_airline || '';
