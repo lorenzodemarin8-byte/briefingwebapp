@@ -650,7 +650,7 @@ function renderFuelSection(flight) {
   setT('brf-f-taxi-time', formatHHMM(calcs.taxiTime));
 
   const discMaxValue = document.getElementById('brf-f-max-disc');
-  if (discMaxValue) discMaxValue.textContent = calcs.maxDiscKg + ' kg (' + calcs.bottleneckReason + ')';
+  if (discMaxValue) discMaxValue.textContent = calcs.maxDiscKg + ' (' + calcs.bottleneckReason + ')';
 
   const sel = document.getElementById('brf-f-altn-select');
   if (sel) {
