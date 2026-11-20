@@ -427,6 +427,18 @@
         </div>
         <!-- FUEL CONTAINER -->
         <div id="briefing-fuel-container" class="briefing-general-container" style="display:none;">
+          <div class="widget gen-weight-widget" style="margin-bottom: 14px;">
+            <table class="gen-data-table">
+              <thead><tr><th>Weight (kg)</th><th>Planned</th><th>Actual</th><th>Operational Limit</th><th>Structural Limit</th></tr></thead>
+              <tbody>
+                <tr><td>DOW</td><td id="fuel-w-dow-plan"></td><td></td><td></td><td></td></tr>
+                <tr><td>LOAD</td><td id="fuel-w-load-plan"></td><td><input type="number" id="fuel-w-load-act" class="act-weight-input" placeholder=""></td><td></td><td></td></tr>
+                <tr><td>ZFW</td><td id="fuel-w-zfw-plan"></td><td><input type="number" id="fuel-w-zfw-act" class="act-weight-input" placeholder=""></td><td></td><td id="fuel-w-zfw-struct"></td></tr>
+                <tr><td>TOW</td><td id="fuel-w-tow-plan"></td><td><input type="number" id="fuel-w-tow-act" class="act-weight-input" placeholder=""></td><td id="fuel-w-tow-op"></td><td id="fuel-w-tow-struct"></td></tr>
+                <tr><td>LW</td><td id="fuel-w-lw-plan"></td><td><input type="number" id="fuel-w-lw-act" class="act-weight-input" placeholder=""></td><td id="fuel-w-lw-op"></td><td id="fuel-w-lw-struct"></td></tr>
+              </tbody>
+            </table>
+          </div>
           <div class="widget briefing-fuel-widget">
             <div class="widget-header gen-widget-header" style="justify-content: space-between; padding: 8px 16px;">
               <span class="gen-header-text" style="text-transform: none;">Fuel</span>
