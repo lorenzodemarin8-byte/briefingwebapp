@@ -3382,3 +3382,37 @@ canvas#signature-pad, canvas#submit-signature-pad { width: 100%; height: 100%; d
 .classic-ofp-container:not(.is-pinch-preview) {
   will-change: auto;
 }
+
+
+/* General briefing layout refinements */
+.gen-flight-header { justify-content: space-between; gap: 12px; padding: 9px 16px; }
+.gen-header-meta { flex: 0 0 110px; font-size: 11px; font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.gen-header-release { text-align: right; font-weight: 400; }
+.gen-header-route { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; gap: 14px; }
+.gen-header-airport { min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.gen-header-name { font-size: 10.5px; font-weight: 400; color: var(--text-2); text-align: center; }
+.gen-header-plane { color: var(--text-2); flex: 0 0 22px; }
+.gen-divider { background: var(--page); min-height: 10px; border: 0; }
+.gen-cdm-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 10px 20px; background: var(--panel); border-top: 1px solid var(--panel-border); }
+.gen-cdm-grid[hidden], .gen-ctot-row[hidden] { display: none !important; }
+.gen-ctot-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 7px 20px 10px; background: var(--panel); color: var(--text-2); font-size: 11px; }
+.gen-ctot-row strong { grid-column: 2; color: var(--orange-text); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.gen-route-body { padding: 14px 20px; font-size: 13px; line-height: 1.7; color: var(--text); overflow-wrap: anywhere; }
+.gen-alternates-widget .widget-body { min-height: 34px; }
+.gen-weight-widget .gen-data-table th { font-weight: 700; }
+
+/* Keep the briefing divider exactly on the sidebar edge, in both themes. */
+#view-briefing { padding: 0 !important; }
+.briefing-container { padding: 0 !important; box-sizing: border-box; }
+.briefing-sidebar { box-sizing: border-box; }
+.topbar-left-slot { box-sizing: border-box; }
+.topbar-nav.briefing-layout.sidebar-open .topbar-left-slot { border-right-color: var(--panel-border); }
+
+@media (max-width: 700px) {
+  .gen-flight-header { gap: 6px; padding: 8px 10px; }
+  .gen-header-meta { flex-basis: 68px; font-size: 9px; }
+  .gen-header-route { gap: 6px; }
+  .gen-header-text { font-size: 12px; }
+  .gen-header-name { font-size: 9px; }
+  .gen-cdm-grid { padding-left: 10px; padding-right: 10px; gap: 4px; }
+}
