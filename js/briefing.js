@@ -121,7 +121,6 @@ function getPlanHtmlText(data, sectionName) {
   if (!html) return '';
 
   let source = String(html);
-  const markerPattern = /<!--BKMK\/\/\/([^]*?)\/\/\/\d+-->/g;
   let markers = [];
   let match;
 
@@ -1337,7 +1336,6 @@ var classicOfpPdfRenderQueue = Promise.resolve();
 var classicOfpPdfPageSize = null;
 var classicOfpRenderToken = 0;
 var classicOfpResizeBound = false;
-var classicOfpPinchBound = false;
 var classicOfpPinchState = null;
 var classicOfpBaseScale = 1;
 
