@@ -99,7 +99,7 @@ function renderFlightInfoBar(flight) {
   if (fibRoute) {
     fibRoute.innerHTML = `<strong>${origin.icao_code || '----'}</strong> (${unixToHHMM(times.sched_out)}) - <strong>${destination.icao_code || '----'}</strong> (${unixToHHMM(times.sched_in)})`;
   }
-  if (fibOfp) fibOfp.textContent = general.release ? `OFP ${general.release}` : 'OFP --';
+  if (fibOfp) fibOfp.textContent = `OFP ${extractOfpEdition(data)}`;
   if (fibOfpdate) fibOfpdate.textContent = params.time_generated ? formatObsDateTime(new Date(Number(params.time_generated) * 1000).toISOString()) : '--';
 
   const isAccepted = flight.state && flight.state.accepted;
@@ -243,6 +243,7 @@ function renderDashboard(flight) {
               effectiveEtd: effectiveEtdUnix,
               effectiveEta: newEtaUnix
             });
+            if (typeof renderGeneralCdmTimes === 'function') renderGeneralCdmTimes(flight, effectiveEtdUnix, newCtot);
           }
         }
       });
@@ -888,8 +889,8 @@ function renderRouteMap(data) {
   }
 }
 
-function renderRouteSummary(data, origin, destination, general) {
-  const el = document.getElementById('route-summary');
+function renderRouteSummary(data, origin, destination, general, targetId) {
+  const el = document.getElementById(targetId || 'route-summary');
   if (!el) return;
   const route = general.route || '';
   const routeArray = route.split(' ');
