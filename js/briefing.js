@@ -1727,9 +1727,38 @@ function bindClassicOfpPinchZoom() {
   if (!viewport || viewport.dataset.pinchZoomBound === 'true') return;
   viewport.dataset.pinchZoomBound = 'true';
 
+  const finishPinch = commit => {
+    const state = classicOfpPinchState;
+    if (!state) return;
+    classicOfpPinchState = null;
+
+    const container = document.getElementById('classic-ofp-container');
+    if (container) {
+      container.classList.remove('is-pinch-preview');
+      container.style.removeProperty('--ofp-pinch-scale');
+      container.style.removeProperty('--ofp-pinch-origin-x');
+      container.style.removeProperty('--ofp-pinch-origin-y');
+    }
+
+    if (!commit || Math.abs(state.previewZoom - state.startZoom) < 0.005) {
+      const zoomValue = document.getElementById('ofp-zoom-value');
+      if (zoomValue) zoomValue.textContent = Math.round(classicOfpZoom * 100) + '%';
+      return;
+    }
+
+    classicOfpZoom = state.previewZoom;
+    applyClassicOfpZoom();
+    const ratio = classicOfpZoom / state.startZoom;
+    requestAnimationFrame(() => {
+      viewport.scrollLeft = Math.max(0, state.contentX * ratio - state.localX);
+      viewport.scrollTop = Math.max(0, state.contentY * ratio - state.localY);
+      queueVisibleClassicOfpPages();
+    });
+  };
+
   viewport.addEventListener('touchstart', event => {
     if (event.touches.length !== 2) {
-      classicOfpPinchState = null;
+      if (classicOfpPinchState) finishPinch(true);
       return;
     }
     const rect = viewport.getBoundingClientRect();
@@ -1741,44 +1770,44 @@ function bindClassicOfpPinchZoom() {
     classicOfpPinchState = {
       startDistance: Math.max(1, Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)),
       startZoom: classicOfpZoom,
+      previewZoom: classicOfpZoom,
       contentX: viewport.scrollLeft + localX,
-      contentY: viewport.scrollTop + localY
+      contentY: viewport.scrollTop + localY,
+      localX,
+      localY
     };
   }, { passive: true });
 
   viewport.addEventListener('touchmove', event => {
-    if (!classicOfpPinchState || event.touches.length !== 2) return;
+    const state = classicOfpPinchState;
+    if (!state || event.touches.length !== 2) return;
     event.preventDefault();
 
     const a = event.touches[0], b = event.touches[1];
     const distance = Math.max(1, Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY));
     const nextZoom = Math.max(0.55, Math.min(2.6,
-      classicOfpPinchState.startZoom * distance / classicOfpPinchState.startDistance));
+      state.startZoom * distance / state.startDistance));
     const rect = viewport.getBoundingClientRect();
-    const midX = (a.clientX + b.clientX) / 2;
-    const midY = (a.clientY + b.clientY) / 2;
-    const localX = midX - rect.left;
-    const localY = midY - rect.top;
-    const ratio = nextZoom / classicOfpPinchState.startZoom;
+    state.localX = (a.clientX + b.clientX) / 2 - rect.left;
+    state.localY = (a.clientY + b.clientY) / 2 - rect.top;
+    state.previewZoom = nextZoom;
 
-    if (Math.abs(nextZoom - classicOfpZoom) > 0.015) {
-      classicOfpZoom = nextZoom;
-      applyClassicOfpZoom();
+    const container = document.getElementById('classic-ofp-container');
+    if (container) {
+      container.classList.add('is-pinch-preview');
+      container.style.setProperty('--ofp-pinch-scale', String(nextZoom / state.startZoom));
+      container.style.setProperty('--ofp-pinch-origin-x', state.contentX + 'px');
+      container.style.setProperty('--ofp-pinch-origin-y', state.contentY + 'px');
     }
-    requestAnimationFrame(() => {
-      viewport.scrollLeft = Math.max(0, classicOfpPinchState.contentX * ratio - localX);
-      viewport.scrollTop = Math.max(0, classicOfpPinchState.contentY * ratio - localY);
-      queueVisibleClassicOfpPages();
-    });
+    const zoomValue = document.getElementById('ofp-zoom-value');
+    if (zoomValue) zoomValue.textContent = Math.round(nextZoom * 100) + '%';
   }, { passive: false });
 
-  const clearPinch = () => { classicOfpPinchState = null; };
   viewport.addEventListener('touchend', event => {
-    if (event.touches.length < 2) clearPinch();
+    if (event.touches.length < 2) finishPinch(true);
   }, { passive: true });
-  viewport.addEventListener('touchcancel', clearPinch, { passive: true });
+  viewport.addEventListener('touchcancel', () => finishPinch(false), { passive: true });
 }
-
 
 function restoreClassicOfpCanvas(canvas, dataUrl) {
   const ctx = canvas.getContext('2d');
