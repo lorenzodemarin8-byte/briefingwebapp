@@ -1788,26 +1788,53 @@ function restoreClassicOfpCanvas(canvas, dataUrl) {
   const image = new Image();
   image.onload = () => {
     const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = rect.width > 0 ? canvas.width / rect.width : 1;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.drawImage(image, 0, 0, rect.width, rect.height);
   };
   image.src = dataUrl;
 }
 
-function initializeClassicOfpAnnotationCanvases(flight) {
+function initializeClassicOfpAnnotationCanvases(flight, onlyPageIndex) {
   const annotations = getClassicOfpAnnotations(flight);
+  const viewport = document.getElementById('classic-ofp-viewport');
+  const viewportRect = viewport ? viewport.getBoundingClientRect() : null;
   const canvases = document.querySelectorAll('#classic-ofp-container .ofp-annotation-canvas');
+
   canvases.forEach(canvas => {
+    const pageIndex = Number(canvas.dataset.pageIndex);
+    if (onlyPageIndex !== undefined && onlyPageIndex !== null && pageIndex !== Number(onlyPageIndex)) return;
     const page = canvas.closest('.ofp-page, .ofp-pdf-page');
     if (!page) return;
+
     const rect = page.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.max(1, Math.round(rect.width * dpr));
-    canvas.height = Math.max(1, Math.round(rect.height * dpr));
-    canvas.style.width = rect.width + 'px';
-    canvas.style.height = rect.height + 'px';
+    const nearViewport = !viewportRect ||
+      (rect.bottom >= viewportRect.top - 300 && rect.top <= viewportRect.bottom + 300);
+
+    // The annotation overlay can itself consume tens of MB per page on a Retina iPad.
+    // Keep off-screen overlays at 1x1 and restore their saved image only near the viewport.
+    if (!nearViewport && !canvas._ofpDrawing) {
+      if (canvas.width !== 1 || canvas.height !== 1) {
+        canvas.width = 1;
+        canvas.height = 1;
+      }
+      canvas.dataset.annotationInitialized = 'false';
+      return;
+    }
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const targetWidth = Math.max(1, Math.round(rect.width * dpr));
+    const targetHeight = Math.max(1, Math.round(rect.height * dpr));
+    const resized = canvas.width !== targetWidth || canvas.height !== targetHeight;
+    if (resized) {
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      canvas.style.width = rect.width + 'px';
+      canvas.style.height = rect.height + 'px';
+      canvas.dataset.annotationInitialized = 'false';
+    }
+
     const ctx = canvas.getContext('2d');
     if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     canvas.style.pointerEvents = 'auto';
@@ -1888,7 +1915,10 @@ function initializeClassicOfpAnnotationCanvases(flight) {
       canvas.addEventListener('lostpointercapture', finishStroke);
     }
 
-    restoreClassicOfpCanvas(canvas, annotations[canvas.dataset.pageIndex] || '');
+    if (resized || canvas.dataset.annotationInitialized !== 'true') {
+      restoreClassicOfpCanvas(canvas, annotations[canvas.dataset.pageIndex] || '');
+      canvas.dataset.annotationInitialized = 'true';
+    }
   });
 
   containerImagesReload();
@@ -1913,6 +1943,7 @@ function saveClassicOfpCanvas(canvas, dataUrl) {
 }
 
 function initClassicOfpAnnotationTools(flight) {
+  bindClassicOfpPinchZoom();
   const toolbar = document.getElementById('classic-ofp-tools');
   if (!toolbar) return;
   toolbar.querySelectorAll('[data-ofp-tool]').forEach(button => {
@@ -1925,14 +1956,11 @@ function initClassicOfpAnnotationTools(flight) {
     button.onclick = () => {
       const action = button.dataset.ofpAction;
       if (action === 'zoom-in') {
-        classicOfpZoom = Math.min(1.8, Math.round((classicOfpZoom + 0.1) * 10) / 10);
-        applyClassicOfpZoom();
+        setClassicOfpZoom(classicOfpZoom + 0.1);
       } else if (action === 'zoom-out') {
-        classicOfpZoom = Math.max(0.6, Math.round((classicOfpZoom - 0.1) * 10) / 10);
-        applyClassicOfpZoom();
+        setClassicOfpZoom(classicOfpZoom - 0.1);
       } else if (action === 'zoom-fit') {
-        classicOfpZoom = 1;
-        applyClassicOfpZoom();
+        setClassicOfpZoom(1);
       } else {
         const canvas = document.querySelector('#classic-ofp-container .ofp-annotation-canvas[data-page-index="' + classicOfpCurrentPage + '"]');
         if (!canvas) return;
