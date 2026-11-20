@@ -553,7 +553,11 @@ function renderGeneralCdmTimes(flight, effectiveEtdOverride, ctotOverride) {
   const effectiveOut = Number(effectiveEtdOverride || state.effectiveEtd || times.est_out || baselineOut) || baselineOut;
   const delaySeconds = baselineOut && effectiveOut ? effectiveOut - baselineOut : 0;
   const cdmRow = document.getElementById('gen-cdm-grid');
-  if (cdmRow) cdmRow.hidden = !delaySeconds;
+  if (cdmRow) {
+    cdmRow.hidden = !delaySeconds;
+    cdmRow.classList.toggle('gen-cdm-late', delaySeconds > 0);
+    cdmRow.classList.toggle('gen-cdm-early', delaySeconds < 0);
+  }
   const setT = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   const adjusted = (value) => value ? unixToHHMM(Number(value) + delaySeconds) : '—';
   setT('gen-cdm-etd', effectiveOut ? unixToHHMM(effectiveOut) : '—');
@@ -565,6 +569,7 @@ function renderGeneralCdmTimes(flight, effectiveEtdOverride, ctotOverride) {
   const hasCtot = ctot && ctot !== 'NA' && ctot !== '-';
   if (ctotRow) ctotRow.hidden = !hasCtot;
   setT('gen-ctot', hasCtot ? ctot : '—');
+  if (typeof renderFuelSection === 'function') renderFuelSection(flight);
 }
 
 function setupWeightLimitCheck(inputId, opId, structId, weightKey) {
