@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   const file = String(rawFile || "").trim();
 
   // Accept only SimBrief-generated PDF filenames; never proxy arbitrary URLs.
-  if (!/^[A-Z0-9_-]+_PDF_[0-9]+\\.pdf$/i.test(file)) {
+  if (!/^[A-Z0-9_-]+_PDF_[0-9]+\.pdf$/i.test(file)) {
     return res.status(400).json({ error: "Invalid SimBrief PDF filename" });
   }
 
