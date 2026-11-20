@@ -1580,7 +1580,7 @@ function releaseClassicOfpPdfPage(index) {
   if (page && page.cleanup) {
     try { page.cleanup(); } catch (e) {}
   }
-  if (index !== 0) delete classicOfpPdfPages[index];
+  delete classicOfpPdfPages[index];
 
   const pdfCanvas = wrapper.querySelector('.ofp-pdf-canvas');
   if (pdfCanvas) {
@@ -1594,6 +1594,7 @@ function releaseClassicOfpPdfPage(index) {
   if (annotationCanvas && !annotationCanvas._ofpDrawing) {
     annotationCanvas.width = 1;
     annotationCanvas.height = 1;
+    annotationCanvas.dataset.restoreToken = String((Number(annotationCanvas.dataset.restoreToken) || 0) + 1);
     annotationCanvas.dataset.annotationInitialized = 'false';
   }
 }
@@ -1620,6 +1621,11 @@ async function renderClassicOfpPdfPage(index) {
   try {
     const page = classicOfpPdfPages[index] || await pdfDocument.getPage(index + 1);
     if (pdfDocument !== classicOfpPdfDocument) return;
+    if (!isClassicOfpPageNearViewport(wrapper)) {
+      if (page.cleanup) page.cleanup();
+      delete classicOfpPdfPages[index];
+      return;
+    }
     classicOfpPdfPages[index] = page;
 
     const viewport = page.getViewport({ scale });
@@ -1649,9 +1655,15 @@ async function renderClassicOfpPdfPage(index) {
     classicOfpPdfRenderTasks[index] = activeRenderTask;
     await activeRenderTask.promise;
     if (pdfDocument !== classicOfpPdfDocument) return;
-    wrapper.dataset.renderedScale = renderKey;
-    wrapper.dataset.pdfRendered = 'true';
-    initializeClassicOfpAnnotationCanvases(getFlight(currentFlightId), index);
+    const currentScaleKey = String(Math.round(classicOfpBaseScale * classicOfpZoom * 10000) / 10000);
+    if (currentScaleKey !== renderKey) {
+      wrapper.dataset.renderedScale = '';
+      wrapper.dataset.pdfRendered = 'false';
+    } else {
+      wrapper.dataset.renderedScale = renderKey;
+      wrapper.dataset.pdfRendered = 'true';
+      initializeClassicOfpAnnotationCanvases(getFlight(currentFlightId), index);
+    }
   } catch (e) {
     if (e && e.name !== 'RenderingCancelledException') {
       console.warn('Classic OFP PDF page render failed', index + 1, e);
@@ -1659,6 +1671,12 @@ async function renderClassicOfpPdfPage(index) {
   } finally {
     if (classicOfpPdfRenderTasks[index] === activeRenderTask) {
       delete classicOfpPdfRenderTasks[index];
+    }
+    const currentScaleKey = String(Math.round(classicOfpBaseScale * classicOfpZoom * 10000) / 10000);
+    if (pdfDocument === classicOfpPdfDocument &&
+        wrapper.dataset.renderedScale !== currentScaleKey &&
+        isClassicOfpPageNearViewport(wrapper)) {
+      queueClassicOfpPdfPage(index);
     }
   }
 }
@@ -1814,8 +1832,11 @@ function restoreClassicOfpCanvas(canvas, dataUrl) {
   if (!ctx) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (!dataUrl) return;
+  const restoreToken = (Number(canvas.dataset.restoreToken) || 0) + 1;
+  canvas.dataset.restoreToken = String(restoreToken);
   const image = new Image();
   image.onload = () => {
+    if (Number(canvas.dataset.restoreToken) !== restoreToken || canvas.width <= 1) return;
     const rect = canvas.getBoundingClientRect();
     const dpr = rect.width > 0 ? canvas.width / rect.width : 1;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
