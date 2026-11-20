@@ -298,7 +298,8 @@ function renderDashboard(flight) {
 
     let discTimeMaxSecs = calcs.maxDiscKg > 0 ? Math.round((calcs.maxDiscKg / calcs.holdingFuelFlow) * 3600) : 0;
     setW('f-disc-time', discTimeMaxSecs > 0 ? formatHHMM(discTimeMaxSecs) : '--:--');
-    setW('f-disc-kg', `${calcs.maxDiscKg} (${calcs.bottleneckReason})`);
+    setW('f-disc-kg', calcs.maxDiscKg);
+    setW('f-disc-bottleneck', calcs.bottleneckReason);
 
     const openFuelBtn = document.getElementById('open-fuel-btn');
     if (openFuelBtn) {
