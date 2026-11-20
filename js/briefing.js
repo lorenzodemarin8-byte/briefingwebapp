@@ -986,9 +986,11 @@ function extractCrewMessages(data) {
     .trim();
 
   const alert = clean(text.slice(alertStart, alertEnd));
-  const bulletin = bulletinStart >= 0
+  let bulletin = bulletinStart >= 0
     ? clean(text.slice(bulletinStart))
     : 'NIL';
+  // Some SimBrief layouts append the next page title directly after the literal NIL.
+  if (/^NIL\\s+Route[\\s\\S]*$/i.test(bulletin)) bulletin = 'NIL';
 
   return { alert: alert || 'NIL', bulletin: bulletin || 'NIL' };
 }
