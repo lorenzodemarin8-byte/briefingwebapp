@@ -3181,3 +3181,190 @@ canvas#signature-pad, canvas#submit-signature-pad { width: 100%; height: 100%; d
   .classic-ofp-viewport { padding: 8px 4px 20px; }
   .classic-ofp-container { gap: 12px; }
 }
+
+
+/* =========================================================
+   BRIEFING / FUEL / WX FINAL POLISH
+   ========================================================= */
+:root { --briefing-divider: #d7dbe0; }
+[data-theme="dark"] { --briefing-divider: #46505b; }
+
+/* One continuous divider, aligned to the exact sidebar column in the topbar and body. */
+.topbar-nav.briefing-layout,
+.topbar-nav.briefing-layout.sidebar-open {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+.topbar-nav.briefing-layout.sidebar-open .topbar-left-slot {
+  box-sizing: border-box;
+  border-right: 1px solid var(--briefing-divider) !important;
+}
+.briefing-container {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+}
+.briefing-sidebar {
+  box-sizing: border-box;
+  border: 0 !important;
+  border-right: 1px solid var(--briefing-divider) !important;
+}
+.briefing-section,
+.briefing-page-item {
+  border-bottom-color: var(--briefing-divider) !important;
+}
+[data-theme="dark"] .briefing-section,
+[data-theme="dark"] .briefing-page-item {
+  border-bottom-color: var(--briefing-divider) !important;
+}
+[data-theme="dark"] .topbar-nav.briefing-layout.sidebar-open .topbar-left-slot,
+[data-theme="dark"] .briefing-sidebar {
+  border-right-color: var(--briefing-divider) !important;
+}
+
+/* Rebuilt compact All / Flagged segmented control: a single fine, even outer border. */
+.briefing-global-filter {
+  display: flex;
+  justify-content: center !important;
+  align-items: center;
+  width: 100%;
+  padding: 10px 0 14px !important;
+}
+.briefing-global-filter .notam-segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: stretch;
+  width: 178px;
+  min-width: 0;
+  height: 30px;
+  box-sizing: border-box;
+  padding: 1px !important;
+  gap: 1px !important;
+  border: 1px solid #c8cbd0 !important;
+  border-radius: 5px !important;
+  background: #d5d6d8 !important;
+}
+.briefing-global-filter .notam-filter-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0 !important;
+  min-height: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0 8px !important;
+  border: 0 !important;
+  border-radius: 3px !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: #45484d !important;
+  font-size: 11px;
+  font-weight: 500;
+}
+.briefing-global-filter .notam-filter-btn.active {
+  background: #ffffff !important;
+  color: #1d1d1f !important;
+  box-shadow: inset 0 0 0 0.5px #c8cbd0 !important;
+}
+[data-theme="dark"] .briefing-global-filter .notam-segmented {
+  border-color: #59636e !important;
+  background: #303740 !important;
+}
+[data-theme="dark"] .briefing-global-filter .notam-filter-btn {
+  color: #c5cbd3 !important;
+  background: transparent !important;
+}
+[data-theme="dark"] .briefing-global-filter .notam-filter-btn.active {
+  color: #ffffff !important;
+  background: #4a5562 !important;
+  box-shadow: inset 0 0 0 0.5px #718090 !important;
+}
+
+/* Airport weather metrics: cleaner typography without the grey enclosing box. */
+.wx-params-grid {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 2px 0 4px !important;
+  margin: 0 0 9px !important;
+  column-gap: 18px;
+  row-gap: 7px;
+}
+.wx-param-label { font-weight: 500; }
+.wx-param-val { font-weight: 600; }
+
+/* Slightly lighter widget-header separators without changing widget geometry. */
+.widget-header,
+.gen-widget-header {
+  border-bottom-width: 0.75px;
+}
+
+/* Discretionary Fuel: grey when empty, same surface as the widget once populated. */
+.brf-disc-wrapper.has-value { background: var(--card); }
+.brf-disc-wrapper {
+  transition: background-color 0.12s ease;
+}
+.brf-disc-container {
+  display: grid;
+  grid-template-columns: minmax(0, 64fr) minmax(82px, 18fr) minmax(82px, 18fr);
+  align-items: end;
+  gap: 0;
+  padding: 14px 20px 6px;
+}
+.brf-disc-col { min-width: 0; }
+.brf-disc-reason-col { min-width: 0; padding-right: 12px; }
+.brf-disc-col:nth-child(2),
+.brf-disc-col:nth-child(3) {
+  align-items: center;
+  text-align: center;
+}
+.brf-disc-col .brf-disc-val {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 4px 0;
+}
+.brf-disc-col .act-weight-input {
+  width: 78px;
+  max-width: 100%;
+}
+.brf-disc-col .brf-text-input { min-width: 0; }
+.brf-fuel-table { table-layout: fixed; width: 100%; }
+@media (max-width: 520px) {
+  .brf-disc-container {
+    grid-template-columns: minmax(0, 60fr) minmax(64px, 20fr) minmax(70px, 20fr);
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .brf-disc-reason-col { padding-right: 7px; }
+  .brf-disc-col .act-weight-input { width: 68px; }
+}
+
+/* PDF viewer: bounded canvases, viewport scroll and two-finger zoom gestures. */
+.classic-ofp-viewport {
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 8px 22px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+}
+.classic-ofp-container {
+  width: max-content;
+  min-width: 100%;
+  min-height: 100%;
+  padding: 3px 3px 20px;
+  gap: 12px;
+}
+.ofp-pdf-page { contain: layout paint style; }
+.ofp-pdf-canvas { will-change: auto; }
+.ofp-pdf-page .ofp-annotation-canvas { touch-action: pan-x pan-y; }
