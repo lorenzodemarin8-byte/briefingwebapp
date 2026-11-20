@@ -1668,7 +1668,7 @@ async function renderClassicOfpPdfPage(index) {
     const maxBackingPixels = 8_000_000;
     const desiredScale = Math.min(window.devicePixelRatio || 1, 1.45);
     const areaScale = Math.sqrt(maxBackingPixels / Math.max(1, viewport.width * viewport.height));
-    const outputScale = Math.max(0.65, Math.min(desiredScale, areaScale));
+    const outputScale = Math.min(desiredScale, areaScale);
     pdfCanvas.width = Math.max(1, Math.ceil(viewport.width * outputScale));
     pdfCanvas.height = Math.max(1, Math.ceil(viewport.height * outputScale));
     pdfCanvas.style.width = viewport.width + 'px';
@@ -1900,7 +1900,10 @@ function initializeClassicOfpAnnotationCanvases(flight, onlyPageIndex) {
       return;
     }
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const maxAnnotationPixels = 3_000_000;
+    const desiredAnnotationDpr = Math.min(window.devicePixelRatio || 1, 1.25);
+    const annotationAreaDpr = Math.sqrt(maxAnnotationPixels / Math.max(1, rect.width * rect.height));
+    const dpr = Math.min(desiredAnnotationDpr, annotationAreaDpr);
     const targetWidth = Math.max(1, Math.round(rect.width * dpr));
     const targetHeight = Math.max(1, Math.round(rect.height * dpr));
     const resized = canvas.width !== targetWidth || canvas.height !== targetHeight;
