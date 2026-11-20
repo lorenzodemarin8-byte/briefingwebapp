@@ -657,6 +657,24 @@ function renderFuelSection(flight) {
   }
   setT('gen-w-lw-op', opLw);
 
+  const weightFieldPairs = [
+    ['gen-w-dow-plan', 'fuel-w-dow-plan'],
+    ['gen-w-load-plan', 'fuel-w-load-plan'],
+    ['gen-w-zfw-plan', 'fuel-w-zfw-plan'],
+    ['gen-w-tow-plan', 'fuel-w-tow-plan'],
+    ['gen-w-lw-plan', 'fuel-w-lw-plan'],
+    ['gen-w-zfw-struct', 'fuel-w-zfw-struct'],
+    ['gen-w-tow-op', 'fuel-w-tow-op'],
+    ['gen-w-tow-struct', 'fuel-w-tow-struct'],
+    ['gen-w-lw-op', 'fuel-w-lw-op'],
+    ['gen-w-lw-struct', 'fuel-w-lw-struct']
+  ];
+  weightFieldPairs.forEach(([sourceId, targetId]) => {
+    const source = document.getElementById(sourceId);
+    const target = document.getElementById(targetId);
+    if (source && target) target.textContent = source.textContent;
+  });
+
   const savedWeights = (flight.state && flight.state.actualWeights) || {};
   const loadInp = document.getElementById('gen-w-load-act');
   if (loadInp) {
@@ -668,12 +686,17 @@ function renderFuelSection(flight) {
       if (!flight.state.actualWeights) flight.state.actualWeights = {};
       flight.state.actualWeights.load = e.target.value;
       updateFlightState(currentFlightId, { actualWeights: flight.state.actualWeights });
+      renderFuelSection(flight);
     });
   }
 
   setupWeightLimitCheck('gen-w-zfw-act', null, 'gen-w-zfw-struct', 'zfw');
   setupWeightLimitCheck('gen-w-tow-act', 'gen-w-tow-op', 'gen-w-tow-struct', 'tow');
   setupWeightLimitCheck('gen-w-lw-act', 'gen-w-lw-op', 'gen-w-lw-struct', 'lw');
+  setupWeightLimitCheck('fuel-w-load-act', null, null, 'load');
+  setupWeightLimitCheck('fuel-w-zfw-act', null, 'fuel-w-zfw-struct', 'zfw');
+  setupWeightLimitCheck('fuel-w-tow-act', 'fuel-w-tow-op', 'fuel-w-tow-struct', 'tow');
+  setupWeightLimitCheck('fuel-w-lw-act', 'fuel-w-lw-op', 'fuel-w-lw-struct', 'lw');
 
   // Dati Carburante
   setT('brf-f-dest', dest.icao_code || '');
