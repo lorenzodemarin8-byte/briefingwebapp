@@ -307,7 +307,7 @@
                     <tr><td>Taxi Fuel</td><td id="f-taxi-time">--:--</td><td id="f-taxi-kg">---</td></tr>
                     <tr><td>Block Fuel</td><td id="f-block-time">--:--</td><td id="f-block-kg">---</td></tr>
                     <tr><td>Estimated Landing Fuel</td><td id="f-landing-time">--:--</td><td id="f-landing-kg">---</td></tr>
-                    <tr><td>Max Discretionary Fuel Cap (LAND)</td><td id="f-disc-time">--:--</td><td id="f-disc-kg">---</td></tr>
+                    <tr><td>Max Discretionary Fuel Cap (<span id="f-disc-bottleneck">--</span>)</td><td id="f-disc-time">--:--</td><td id="f-disc-kg">---</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -422,6 +422,7 @@
               <span id="fuel-limits-warning-text" class="fuel-limit-alert-text"></span>
             </div>
             <table class="gen-data-table brf-fuel-table">
+              <colgroup><col style="width:31%"><col style="width:33%"><col style="width:18%"><col style="width:18%"></colgroup>
               <tbody>
                 <tr><td>TRIP</td><td id="brf-f-dest"></td><td id="brf-f-trip-time"></td><td id="brf-f-trip-fuel"></td></tr>
                 <tr><td>MINCONT</td><td></td><td id="brf-f-cont-time"></td><td id="brf-f-cont-fuel"></td></tr>
