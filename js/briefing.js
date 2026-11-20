@@ -686,14 +686,28 @@ function renderFuelSection(flight) {
       if (!flight.state.actualWeights) flight.state.actualWeights = {};
       flight.state.actualWeights.load = e.target.value;
       updateFlightState(currentFlightId, { actualWeights: flight.state.actualWeights });
-      renderFuelSection(flight);
+      const mirrorLoad = document.getElementById('fuel-w-load-act');
+      if (mirrorLoad) mirrorLoad.value = e.target.value;
     });
   }
 
   setupWeightLimitCheck('gen-w-zfw-act', null, 'gen-w-zfw-struct', 'zfw');
   setupWeightLimitCheck('gen-w-tow-act', 'gen-w-tow-op', 'gen-w-tow-struct', 'tow');
   setupWeightLimitCheck('gen-w-lw-act', 'gen-w-lw-op', 'gen-w-lw-struct', 'lw');
-  setupWeightLimitCheck('fuel-w-load-act', null, null, 'load');
+  const fuelLoadInp = document.getElementById('fuel-w-load-act');
+  if (fuelLoadInp) {
+    const newFuelLoadInp = fuelLoadInp.cloneNode(true);
+    fuelLoadInp.parentNode.replaceChild(newFuelLoadInp, fuelLoadInp);
+    newFuelLoadInp.value = savedWeights.load || '';
+    newFuelLoadInp.addEventListener('input', (e) => {
+      if (!flight.state) flight.state = {};
+      if (!flight.state.actualWeights) flight.state.actualWeights = {};
+      flight.state.actualWeights.load = e.target.value;
+      updateFlightState(currentFlightId, { actualWeights: flight.state.actualWeights });
+      const generalLoad = document.getElementById('gen-w-load-act');
+      if (generalLoad) generalLoad.value = e.target.value;
+    });
+  }
   setupWeightLimitCheck('fuel-w-zfw-act', null, 'fuel-w-zfw-struct', 'zfw');
   setupWeightLimitCheck('fuel-w-tow-act', 'fuel-w-tow-op', 'fuel-w-tow-struct', 'tow');
   setupWeightLimitCheck('fuel-w-lw-act', 'fuel-w-lw-op', 'fuel-w-lw-struct', 'lw');
