@@ -542,6 +542,7 @@ function renderGeneralSection(flight) {
 
   if (typeof renderRouteSummary === 'function') renderRouteSummary(data, origin, destination, general, 'gen-route-summary');
   renderGeneralCdmTimes(flight);
+  if (typeof renderFuelSection === 'function') renderFuelSection(flight);
 }
 
 function renderGeneralCdmTimes(flight, effectiveEtdOverride, ctotOverride) {
@@ -569,7 +570,6 @@ function renderGeneralCdmTimes(flight, effectiveEtdOverride, ctotOverride) {
   const hasCtot = ctot && ctot !== 'NA' && ctot !== '-';
   if (ctotRow) ctotRow.hidden = !hasCtot;
   setT('gen-ctot', hasCtot ? ctot : '—');
-  if (typeof renderFuelSection === 'function') renderFuelSection(flight);
 }
 
 function setupWeightLimitCheck(inputId, opId, structId, weightKey) {
