@@ -624,10 +624,8 @@ function renderFuelSection(flight) {
   setT('brf-f-taxi-fuel', calcs.taxiFuel);
   setT('brf-f-taxi-time', formatHHMM(calcs.taxiTime));
 
-  const discInfoContainer = document.getElementById('brf-f-max-disc-container');
-  if (discInfoContainer) {
-    discInfoContainer.innerHTML = `Maximum Discretionary: <strong>${calcs.maxDiscKg} kg</strong>, <strong>${calcs.bottleneckReason}</strong>`;
-  }
+  const discMaxValue = document.getElementById('brf-f-max-disc');
+  if (discMaxValue) discMaxValue.textContent = calcs.maxDiscKg + ' kg (' + calcs.bottleneckReason + ')';
 
   const sel = document.getElementById('brf-f-altn-select');
   if (sel) {
@@ -744,6 +742,11 @@ function renderFuelSection(flight) {
     const newDisc = discInput.cloneNode(true);
     discInput.parentNode.replaceChild(newDisc, discInput);
     newDisc.value = savedFuel.discFuel || '';
+    const discWrapper = document.querySelector('.brf-disc-wrapper');
+    const syncDiscWrapperAppearance = () => {
+      if (discWrapper) discWrapper.classList.toggle('has-value', newDisc.value.trim() !== '');
+    };
+    syncDiscWrapperAppearance();
 
     if (calcs.discTimeSecs > 0) {
       if (discTimeVal) discTimeVal.textContent = formatHHMM(calcs.discTimeSecs);
@@ -759,6 +762,7 @@ function renderFuelSection(flight) {
       } else {
         if (discTimeVal) discTimeVal.textContent = '--:--';
       }
+      syncDiscWrapperAppearance();
       isBlockFuelManual = false;
       if (!flight.state) flight.state = {};
       if (!flight.state.fuelState) flight.state.fuelState = {};
@@ -931,40 +935,42 @@ function renderDispatchSection(flight) {
   if (dxEl) dxEl.textContent = rmk;
 }
 
-function extractCrewMessages(planHtml) {
-  if (!planHtml) return { alert: 'NIL', bulletin: 'NIL' };
-  const holder = document.createElement('div');
-  holder.innerHTML = planHtml;
-  const pre = holder.querySelector('pre');
-  // Read the whole plan document: SimBrief page-break headings can close the original PRE element.
-  const text = holder.textContent || (pre ? pre.textContent : '');
+function extractCrewMessages(data) {
+  // Crew Alert and Crew Bulletin belong to the dedicated Crew Information bookmark,
+  // not to the full plan_html document (which also contains Weather/SIGMET pages).
+  const text = getPlanHtmlText(data || {}, 'Crew Information');
+  if (!text) return { alert: 'NIL', bulletin: 'NIL' };
+
   const alertMarker = /={3,}\s*CREW ALERT\s*={3,}/i;
   const bulletinMarker = /={3,}\s*CREW BULLETIN\s*={3,}/i;
   const alertMatch = alertMarker.exec(text);
   const bulletinMatch = bulletinMarker.exec(text);
-  if (!alertMatch || !bulletinMatch || bulletinMatch.index <= alertMatch.index) {
-    return { alert: 'NIL', bulletin: 'NIL' };
-  }
+  if (!alertMatch) return { alert: 'NIL', bulletin: 'NIL' };
+
   const alertStart = alertMatch.index + alertMatch[0].length;
-  const bulletinStart = bulletinMatch.index + bulletinMatch[0].length;
-  const afterBulletin = text.slice(bulletinStart);
-  const routeIndex = afterBulletin.search(/\n\s*Route\s*(?:\n|$)/i);
-  let alert = text.slice(alertStart, bulletinMatch.index);
-  let bulletin = routeIndex >= 0 ? afterBulletin.slice(0, routeIndex) : afterBulletin;
-  const clean = value => value
+  const alertEnd = bulletinMatch && bulletinMatch.index > alertMatch.index
+    ? bulletinMatch.index : text.length;
+  const bulletinStart = bulletinMatch
+    ? bulletinMatch.index + bulletinMatch[0].length : -1;
+
+  const clean = value => String(value || '')
     .replace(/^\s*\n+/, '')
     .replace(/\n\s*=+\s*$/gm, '')
+    .replace(/\n\s*Route\s*(?:\n|$)[\s\S]*$/i, '')
     .replace(/\s+$/, '')
     .trim();
-  alert = clean(alert);
-  bulletin = clean(bulletin);
+
+  const alert = clean(text.slice(alertStart, alertEnd));
+  const bulletin = bulletinStart >= 0
+    ? clean(text.slice(bulletinStart))
+    : 'NIL';
+
   return { alert: alert || 'NIL', bulletin: bulletin || 'NIL' };
 }
 
 function renderCrewAlertSection(flight) {
   const data = flight && flight.raw ? flight.raw : {};
-  const planHtml = data.text && data.text.plan_html;
-  const messages = extractCrewMessages(planHtml);
+  const messages = extractCrewMessages(data);
   const alertEl = document.getElementById('brf-crew-alert-text');
   const bulletinEl = document.getElementById('brf-crew-bulletin-text');
   if (alertEl) alertEl.textContent = messages.alert;
