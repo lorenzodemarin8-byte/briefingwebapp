@@ -281,11 +281,7 @@ function renderBriefingMenu() {
     return briefingPageButton(label, 'fir:' + fir.code, attrs, 'briefing-airport-item briefing-fir-item');
   }).join('') || '<div class="briefing-airport-empty">No FIR data available</div>';
 
-  const wxNotams = '<div class="briefing-global-filter notam-segmented" role="group" aria-label="Filter airports and FIRs">' +
-    '<button type="button" class="notam-filter-btn ' + (activeNotamFilter === 'all' ? 'active' : '') + '" data-notam-filter="all">All</button>' +
-    '<button type="button" class="notam-filter-btn ' + (activeNotamFilter === 'flagged' ? 'active' : '') + '" data-notam-filter="flagged">Flagged</button>' +
-    '</div>' +
-    briefingGroupMarkup('Main Airports', 'brf-main-airports', mainAirportItems, true) +
+  const wxNotams = briefingGroupMarkup('Main Airports', 'brf-main-airports', mainAirportItems, true) +
     briefingGroupMarkup('Enroute Airports', 'brf-enroute-airports', enrouteItems, true) +
     briefingGroupMarkup('FIRs', 'brf-firs', firItems, false);
 
@@ -313,8 +309,6 @@ function renderBriefingMenu() {
     });
   });
 
-  bindNotamFilterControls();
-  applyBriefingAirportMenuFilter();
   bindBriefingTabs();
 }
 
@@ -468,12 +462,17 @@ function renderGeneralSection(flight) {
 
   setT('gen-dep', origin.iata_code ? `${origin.icao_code}/${origin.iata_code}` : (origin.icao_code || '----'));
   setT('gen-arr', destination.iata_code ? `${destination.icao_code}/${destination.iata_code}` : (destination.icao_code || '----'));
+  setT('gen-dep-name', origin.name || origin.airport_name || '');
+  setT('gen-arr-name', destination.name || destination.airport_name || '');
+  setT('gen-ofp-edition', extractOfpEdition(data));
+  const releaseDate = data.params && data.params.time_generated
+    ? formatObsDateTime(new Date(Number(data.params.time_generated) * 1000).toISOString()) : '—';
+  setT('gen-release', releaseDate);
   setT('gen-callsign', atc.callsign || '—');
-  const depL = origin.timezone !== undefined ? ` (${formatLocalTime(times.sched_out, origin.timezone)})` : '';
-  const arrL = destination.timezone !== undefined ? ` (${formatLocalTime(times.sched_in, destination.timezone)})` : '';
-  setT('gen-std', `${unixToHHMM(times.sched_out)}z${depL}`);
-  setT('gen-sta', `${unixToHHMM(times.sched_in)}z${arrL}`);
-  setT('gen-actype', aircraft.name || aircraft.icaocode || '—');
+  setT('gen-std', `${unixToHHMM(times.sched_out)} / ${unixToHHMM(times.sched_off)}`);
+  setT('gen-sta', `${unixToHHMM(times.est_in || times.sched_in)} / ${formatHHMM(times.sched_block)}`);
+  const engineText = aircraft.engines ? ` - ${aircraft.engines}` : '';
+  setT('gen-actype', `${aircraft.name || aircraft.icaocode || '—'}${engineText}`);
   setT('gen-reg', aircraft.reg || '—');
   const machStr = general.cruise_mach ? `M${general.cruise_mach}` : '';
   const ciStr = general.costindex ? `CI ${general.costindex}` : '';
@@ -530,6 +529,42 @@ function renderGeneralSection(flight) {
   }
 
   setT('gen-tkofaltn', (data.takeoff_altn && data.takeoff_altn.icao_code) || '-');
+
+  const destinationElevation = destination.elevation || destination.elevation_ft || destination.altitude;
+  setT('gen-dest-elev', destinationElevation !== undefined && destinationElevation !== null && destinationElevation !== ''
+    ? `${destinationElevation} FT` : '—');
+
+  let maxShearText = '—';
+  const planHtml = data.text && data.text.plan_html ? String(data.text.plan_html).replace(/<[^>]*>/g, ' ') : '';
+  const shearMatch = planHtml.match(/(?:MXSHR|MAX(?:IMUM)?\s+SHEAR(?:\s+RATE)?)\s*[:=]?\s*([+-]?\d+(?:\.\d+)?)\s*(?:AT|@)\s*([A-Z0-9]{2,8})/i);
+  if (shearMatch) maxShearText = `${shearMatch[1]} at ${shearMatch[2]}`;
+  setT('gen-maxshear', maxShearText);
+
+  if (typeof renderRouteSummary === 'function') renderRouteSummary(data, origin, destination, general, 'gen-route-summary');
+  renderGeneralCdmTimes(flight);
+}
+
+function renderGeneralCdmTimes(flight, effectiveEtdOverride, ctotOverride) {
+  if (!flight) return;
+  const data = flight.raw || {};
+  const times = data.times || {};
+  const state = flight.state || {};
+  const baselineOut = Number(times.sched_out) || 0;
+  const effectiveOut = Number(effectiveEtdOverride || state.effectiveEtd || times.est_out || baselineOut) || baselineOut;
+  const delaySeconds = baselineOut && effectiveOut ? effectiveOut - baselineOut : 0;
+  const cdmRow = document.getElementById('gen-cdm-grid');
+  if (cdmRow) cdmRow.hidden = !delaySeconds;
+  const setT = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const adjusted = (value) => value ? unixToHHMM(Number(value) + delaySeconds) : '—';
+  setT('gen-cdm-etd', effectiveOut ? unixToHHMM(effectiveOut) : '—');
+  setT('gen-cdm-off', adjusted(times.est_off || times.sched_off));
+  setT('gen-cdm-on', adjusted(times.est_on || times.sched_on));
+  setT('gen-cdm-eta', adjusted(times.est_in || times.sched_in));
+  const ctot = ctotOverride !== undefined ? ctotOverride : state.ctot;
+  const ctotRow = document.getElementById('gen-ctot-row');
+  const hasCtot = ctot && ctot !== 'NA' && ctot !== '-';
+  if (ctotRow) ctotRow.hidden = !hasCtot;
+  setT('gen-ctot', hasCtot ? ctot : '—');
 }
 
 function setupWeightLimitCheck(inputId, opId, structId, weightKey) {
