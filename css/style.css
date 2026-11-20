@@ -3416,3 +3416,6 @@ canvas#signature-pad, canvas#submit-signature-pad { width: 100%; height: 100%; d
   .gen-header-name { font-size: 9px; }
   .gen-cdm-grid { padding-left: 10px; padding-right: 10px; gap: 4px; }
 }
+
+.gen-cdm-late .gen-stat-value { color: var(--orange-text); }
+.gen-cdm-early .gen-stat-value { color: var(--green-text); }
