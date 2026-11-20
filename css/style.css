@@ -3368,3 +3368,17 @@ canvas#signature-pad, canvas#submit-signature-pad { width: 100%; height: 100%; d
 .ofp-pdf-page { contain: layout paint style; }
 .ofp-pdf-canvas { will-change: auto; }
 .ofp-pdf-page .ofp-annotation-canvas { touch-action: pan-x pan-y; }
+
+
+/* Pinch gesture preview: scale the visible PDF surface between fingers,
+   then let PDF.js render the committed resolution when the gesture ends. */
+.classic-ofp-container.is-pinch-preview {
+  transform: scale(var(--ofp-pinch-scale, 1)) !important;
+  transform-origin:
+    var(--ofp-pinch-origin-x, 50%)
+    var(--ofp-pinch-origin-y, 0px) !important;
+  will-change: transform;
+}
+.classic-ofp-container:not(.is-pinch-preview) {
+  will-change: auto;
+}
