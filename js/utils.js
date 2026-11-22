@@ -172,7 +172,7 @@ function formatNotamDate(dtg) {
 function parseHHMM(str, baseUnixTimestamp) {
   if (!str) return null;
   const normalized = String(str).trim();
-  const match = normalized.match(/^(\\d{2}):?(\\d{2})$/);
+  const match = normalized.match(/^(\d{2}):?(\d{2})$/);
   if (!match) return null;
   const h = parseInt(match[1], 10);
   const m = parseInt(match[2], 10);
@@ -238,18 +238,16 @@ function decodeQCodeCategory(qcode) {
 function getSimBriefNotamCategory(notam) {
   const valid = new Set(['AIRPORT', 'RUNWAY', 'SID', 'STAR', 'APPROACH PROCEDURES']);
   const provider = String(notam && notam.notam_qcode_category || '').trim()
-    .toUpperCase().replace(/[_-]+/g, ' ').replace(/\\s+/g, ' ');
-  if (valid.has(provider)) return provider;
-
+    .toUpperCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
   const decoded = decodeQCodeCategory(notam && notam.notam_qcode);
   if (decoded !== 'AIRPORT') return decoded;
 
   const text = String(notam && (notam.notam_report || notam.notam_text) || '').toUpperCase();
-  if (/\\b(?:OCA|OCH|LPV|LNAV|LNAV\\/VNAV|ILS|LOC|LOCALIZER|GLIDE ?SLOPE|DME)\\b/.test(text) &&
-      /\\b(?:APPROACH|RWY|RUNWAY|MINIMA|MINIMUM|MISSED APPROACH|RECEPTION|COVERAGE)\\b/.test(text)) {
+  if (/\b(?:OCA|OCH|LPV|LNAV|LNAV\/VNAV|ILS|LOC|LOCALIZER|GLIDE ?SLOPE|DME)\b/.test(text) &&
+      /\b(?:APPROACH|RWY|RUNWAY|MINIMA|MINIMUM|MISSED APPROACH|RECEPTION|COVERAGE)\b/.test(text)) {
     return 'APPROACH PROCEDURES';
   }
-  return 'AIRPORT';
+  return valid.has(provider) ? provider : 'AIRPORT';
 }
 
 function computeRunwayWind(r, metarText) {
