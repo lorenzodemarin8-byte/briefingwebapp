@@ -201,7 +201,7 @@ function renderNavLog(flightId) {
             </div>
             <div>${wp.dtdNm}</div>
             <div style="color:#6b7280;">${unixToHHMM(wp.plannedTimeUnix)}</div>
-            <div><input type="text" placeholder="--:--" type="time" class="navlog-input wp-time-input" data-wpid="${wp.id}" value="${actual.time}"></div>
+            <div><input type="time" class="navlog-input wp-time-input" data-wpid="\${wp.id}" value="\${String(actual.time || '').replace(/^(\d{2})(\d{2})$/, '$1:$2')}"></div>
             <div id="time-delta-${wp.id}" style="${timeColor} font-weight:600;">${timeDeltaMin === null ? '—' : `${timeDeltaMin > 0 ? '+' : ''}${timeDeltaMin} min`}</div>
             <div style="color:#6b7280;">${wp.plannedEfobKg}</div>
             <div><input type="number" placeholder="AFOB" class="navlog-input wp-afob-input" data-wpid="${wp.id}" value="${actual.afob}"></div>
