@@ -3459,3 +3459,34 @@ canvas#signature-pad, canvas#submit-signature-pad { width: 100%; height: 100%; d
   .briefing-content { min-height: 0; }
   .briefing-general-container { padding-bottom: 28px; }
 }
+
+
+/* CDM estimates sit directly beneath STD and STA without a separate gray strip. */
+.gen-stat-subvalue.gen-cdm-time {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-2);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.gen-ctot-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 20px 8px;
+  background: transparent;
+  color: var(--text-2);
+}
+.gen-ctot-row strong { color: var(--orange-text); }
+.brf-fuel-extra-breakdown {
+  padding: 8px 14px;
+  border-top: 1px solid var(--panel-border);
+  border-bottom: 1px solid var(--panel-border);
+  font-size: 12px;
+}
+.brf-fuel-extra-breakdown[hidden] { display: none !important; }
+.brf-fuel-extra-title { color: var(--text-2); font-size: 10px; font-weight: 700; letter-spacing: .04em; margin-bottom: 4px; }
+.brf-fuel-extra-row { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; font-variant-numeric: tabular-nums; }
