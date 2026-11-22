@@ -170,9 +170,13 @@ function formatNotamDate(dtg) {
 }
 
 function parseHHMM(str, baseUnixTimestamp) {
-  if (!str || str.length !== 4) return null;
-  const h = parseInt(str.slice(0, 2), 10);
-  const m = parseInt(str.slice(2, 4), 10);
+  if (!str) return null;
+  const normalized = String(str).trim();
+  const match = normalized.match(/^(\\d{2}):?(\\d{2})$/);
+  if (!match) return null;
+  const h = parseInt(match[1], 10);
+  const m = parseInt(match[2], 10);
+  if (h > 23 || m > 59 || !Number.isFinite(Number(baseUnixTimestamp))) return null;
   let d = new Date(baseUnixTimestamp * 1000);
   const schedHH = d.getUTCHours();
   d.setUTCHours(h, m, 0, 0);
@@ -199,6 +203,23 @@ function decodeQCodeCategory(qcode) {
   if (sub2 === 'PA') return 'STAR';
   if (sub2 === 'PI') return 'APPROACH PROCEDURES';
   if (sub2 === 'MR') return 'RUNWAY';
+  return 'AIRPORT';
+}
+
+function getSimBriefNotamCategory(notam) {
+  const valid = new Set(['AIRPORT', 'RUNWAY', 'SID', 'STAR', 'APPROACH PROCEDURES']);
+  const provider = String(notam && notam.notam_qcode_category || '').trim()
+    .toUpperCase().replace(/[_-]+/g, ' ').replace(/\\s+/g, ' ');
+  if (valid.has(provider)) return provider;
+
+  const decoded = decodeQCodeCategory(notam && notam.notam_qcode);
+  if (decoded !== 'AIRPORT') return decoded;
+
+  const text = String(notam && (notam.notam_report || notam.notam_text) || '').toUpperCase();
+  if (/\\b(?:OCA|OCH|LPV|LNAV|LNAV\\/VNAV|ILS|LOC|LOCALIZER|GLIDE ?SLOPE|DME)\\b/.test(text) &&
+      /\\b(?:APPROACH|RWY|RUNWAY|MINIMA|MINIMUM|MISSED APPROACH|RECEPTION|COVERAGE)\\b/.test(text)) {
+    return 'APPROACH PROCEDURES';
+  }
   return 'AIRPORT';
 }
 
