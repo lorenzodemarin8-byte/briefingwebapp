@@ -201,16 +201,17 @@ function calculateCdmEstimatedTimes(data, state, ctotOverride) {
   const flightState = state || {};
   const scheduledOut = Number(times.sched_out) || 0;
   const scheduledOff = Number(times.sched_off) || scheduledOut;
-  const scheduledOn = Number(times.sched_on) || 0;
-  const scheduledIn = Number(times.sched_in) || 0;
+  const scheduledOn = Number(times.sched_on) || Number(times.est_on) || 0;
+  const scheduledIn = Number(times.sched_in) || Number(times.est_in) || 0;
   const effectiveOut = Number(flightState.effectiveEtd) || Number(times.est_out) || scheduledOut;
 
   const rawCtot = ctotOverride !== undefined ? ctotOverride : flightState.ctot;
   const ctotText = String(rawCtot || '').replace(/[^0-9]/g, '').slice(0, 4);
   const ctotUnix = ctotText.length === 4 ? parseHHMM(ctotText, scheduledOff || effectiveOut) : null;
-  const taxiOut = Math.max(0, Number(times.taxi_out) || 0);
-  const enroute = Math.max(0, Number(times.est_time_enroute) || Number(times.sched_time_enroute) || 0);
-  const taxiIn = Math.max(0, Number(times.taxi_in) || 0);
+  const taxiOut = Math.max(0, Number(times.taxi_out) || (scheduledOff && scheduledOut ? scheduledOff - scheduledOut : 0));
+  const enroute = Math.max(0, Number(times.est_time_enroute) || Number(times.sched_time_enroute) ||
+    (scheduledOn && scheduledOff ? scheduledOn - scheduledOff : 0));
+  const taxiIn = Math.max(0, Number(times.taxi_in) || (scheduledIn && scheduledOn ? scheduledIn - scheduledOn : 0));
   const estimatedOff = ctotUnix || (effectiveOut ? effectiveOut + taxiOut : (scheduledOff || 0));
   const estimatedOn = estimatedOff ? estimatedOff + enroute : (scheduledOn || 0);
   const estimatedIn = estimatedOn ? estimatedOn + taxiIn : (scheduledIn || 0);
