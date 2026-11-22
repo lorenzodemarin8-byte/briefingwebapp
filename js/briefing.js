@@ -704,9 +704,7 @@ function renderFuelSection(flight) {
 
   const extraBreakdown = document.getElementById('brf-fuel-extra-breakdown');
   if (extraBreakdown) {
-    const visibleBuckets = calcs.extraBuckets.filter(bucket =>
-      bucket && (Number(bucket.fuel) > 0 || Number(bucket.time) > 0 || bucket.required === true || bucket.required === '1')
-    );
+    const visibleBuckets = calcs.extraBuckets.filter(bucket => bucket && bucket.label);
     extraBreakdown.innerHTML = visibleBuckets.length
       ? '<div class="brf-fuel-extra-title">Additional SimBrief Fuel</div>' +
         visibleBuckets.map(bucket =>
@@ -1476,9 +1474,14 @@ async function renderClassicOfpText(data) {
   if (!container) return;
   const pdfFile = getClassicOfpPdfFile(data);
   const htmlContent = data && data.text && data.text.plan_html ? String(data.text.plan_html) : '';
+  let htmlHash = 2166136261;
+  for (let i = 0; i < htmlContent.length; i++) {
+    htmlHash ^= htmlContent.charCodeAt(i);
+    htmlHash = Math.imul(htmlHash, 16777619);
+  }
   const cacheKey = pdfFile
-    ? `${extractFlightId(data)}|${extractOfpEdition(data)}|${pdfFile.directUrl}`
-    : `${extractFlightId(data)}|${extractOfpEdition(data)}|HTML|${htmlContent.length}|${htmlContent.slice(0, 80)}`;
+    ? `${extractOfpEdition(data)}|${pdfFile.directUrl}`
+    : `HTML|${extractOfpEdition(data)}|${htmlHash >>> 0}`;
   if (classicOfpRenderedFileKey === cacheKey && container.childElementCount > 0) {
     return;
   }
