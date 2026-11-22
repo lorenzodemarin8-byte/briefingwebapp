@@ -592,10 +592,11 @@ function setupWeightLimitCheck(inputId, opId, structId, weightKey) {
   inp.dataset.weightBound = 'true';
   inp.addEventListener('input', (e) => {
     checkLimit();
-    if (!weightKey || !flight) return;
-    if (!flight.state) flight.state = {};
-    if (!flight.state.actualWeights) flight.state.actualWeights = {};
-    flight.state.actualWeights[weightKey] = e.target.value;
+    const activeFlight = getFlight(currentFlightId);
+    if (!weightKey || !activeFlight) return;
+    if (!activeFlight.state) activeFlight.state = {};
+    if (!activeFlight.state.actualWeights) activeFlight.state.actualWeights = {};
+    activeFlight.state.actualWeights[weightKey] = e.target.value;
     const mirrorIds = {
       zfw: ['gen-w-zfw-act', 'fuel-w-zfw-act'],
       tow: ['gen-w-tow-act', 'fuel-w-tow-act'],
@@ -605,7 +606,7 @@ function setupWeightLimitCheck(inputId, opId, structId, weightKey) {
       const mirror = document.getElementById(id);
       if (mirror && mirror !== e.target) mirror.value = e.target.value;
     });
-    updateFlightState(currentFlightId, { actualWeights: flight.state.actualWeights });
+    updateFlightState(currentFlightId, { actualWeights: activeFlight.state.actualWeights });
   });
 }
 function renderFuelSection(flight) {
@@ -674,10 +675,12 @@ function renderFuelSection(flight) {
     if (loadInp.dataset.weightBound !== 'true') {
       loadInp.dataset.weightBound = 'true';
       loadInp.addEventListener('input', (e) => {
-        if (!flight.state) flight.state = {};
-        if (!flight.state.actualWeights) flight.state.actualWeights = {};
-        flight.state.actualWeights.load = e.target.value;
-        updateFlightState(currentFlightId, { actualWeights: flight.state.actualWeights });
+        const activeFlight = getFlight(currentFlightId);
+        if (!activeFlight) return;
+        if (!activeFlight.state) activeFlight.state = {};
+        if (!activeFlight.state.actualWeights) activeFlight.state.actualWeights = {};
+        activeFlight.state.actualWeights.load = e.target.value;
+        updateFlightState(currentFlightId, { actualWeights: activeFlight.state.actualWeights });
       });
     }
   }
