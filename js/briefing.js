@@ -578,42 +578,44 @@ function setupWeightLimitCheck(inputId, opId, structId, weightKey) {
 
   const flight = getFlight(currentFlightId);
   const savedWeights = (flight && flight.state && flight.state.actualWeights) || {};
-
-  const newInp = inp.cloneNode(true);
-  inp.parentNode.replaceChild(newInp, inp);
-
-  if (weightKey && savedWeights[weightKey]) {
-    newInp.value = savedWeights[weightKey];
+  if (weightKey && document.activeElement !== inp && savedWeights[weightKey] !== undefined) {
+    inp.value = savedWeights[weightKey];
   }
 
   const checkLimit = () => {
-    newInp.classList.remove('limit-exceeded');
-    const val = parseFloat(newInp.value);
+    inp.classList.remove('limit-exceeded');
+    const val = parseFloat(inp.value);
     if (isNaN(val)) return;
-
-    let opLim = opId ? parseFloat(document.getElementById(opId).textContent) : NaN;
-    let strLim = structId ? parseFloat(document.getElementById(structId).textContent) : NaN;
-
+    const opEl = opId ? document.getElementById(opId) : null;
+    const structEl = structId ? document.getElementById(structId) : null;
+    const opLim = opEl ? parseFloat(opEl.textContent) : NaN;
+    const strLim = structEl ? parseFloat(structEl.textContent) : NaN;
     if ((!isNaN(opLim) && val > opLim) || (!isNaN(strLim) && val > strLim)) {
-      newInp.classList.add('limit-exceeded');
+      inp.classList.add('limit-exceeded');
     }
   };
 
   checkLimit();
-
-  newInp.addEventListener('input', (e) => {
+  if (inp.dataset.weightBound === 'true') return;
+  inp.dataset.weightBound = 'true';
+  inp.addEventListener('input', (e) => {
     checkLimit();
-    if (weightKey && flight) {
-      if (!flight.state) flight.state = {};
-      if (!flight.state.actualWeights) flight.state.actualWeights = {};
-      flight.state.actualWeights[weightKey] = e.target.value;
-      updateFlightState(currentFlightId, { actualWeights: flight.state.actualWeights });
-
-      renderFuelSection(flight);
-    }
+    if (!weightKey || !flight) return;
+    if (!flight.state) flight.state = {};
+    if (!flight.state.actualWeights) flight.state.actualWeights = {};
+    flight.state.actualWeights[weightKey] = e.target.value;
+    const mirrorIds = {
+      zfw: ['gen-w-zfw-act', 'fuel-w-zfw-act'],
+      tow: ['gen-w-tow-act', 'fuel-w-tow-act'],
+      lw: ['gen-w-lw-act', 'fuel-w-lw-act']
+    };
+    (mirrorIds[weightKey] || []).forEach(id => {
+      const mirror = document.getElementById(id);
+      if (mirror && mirror !== e.target) mirror.value = e.target.value;
+    });
+    updateFlightState(currentFlightId, { actualWeights: flight.state.actualWeights });
   });
 }
-
 function renderFuelSection(flight) {
   if (!flight) return;
   const data = flight.raw || {};
@@ -676,17 +678,16 @@ function renderFuelSection(flight) {
   const savedWeights = (flight.state && flight.state.actualWeights) || {};
   const loadInp = document.getElementById('gen-w-load-act');
   if (loadInp) {
-    const newLoadInp = loadInp.cloneNode(true);
-    loadInp.parentNode.replaceChild(newLoadInp, loadInp);
-    newLoadInp.value = savedWeights.load || '';
-    newLoadInp.addEventListener('input', (e) => {
-      if (!flight.state) flight.state = {};
-      if (!flight.state.actualWeights) flight.state.actualWeights = {};
-      flight.state.actualWeights.load = e.target.value;
-      updateFlightState(currentFlightId, { actualWeights: flight.state.actualWeights });
-      const mirrorLoad = document.getElementById('fuel-w-load-act');
-      if (mirrorLoad) mirrorLoad.value = e.target.value;
-    });
+    if (document.activeElement !== loadInp && savedWeights.load !== undefined) loadInp.value = savedWeights.load;
+    if (loadInp.dataset.weightBound !== 'true') {
+      loadInp.dataset.weightBound = 'true';
+      loadInp.addEventListener('input', (e) => {
+        if (!flight.state) flight.state = {};
+        if (!flight.state.actualWeights) flight.state.actualWeights = {};
+        flight.state.actualWeights.load = e.target.value;
+        updateFlightState(currentFlightId, { actualWeights: flight.state.actualWeights });
+      });
+    }
   }
 
   setupWeightLimitCheck('gen-w-zfw-act', null, 'gen-w-zfw-struct', 'zfw');
@@ -708,6 +709,21 @@ function renderFuelSection(flight) {
   setT('brf-f-finres-time', formatHHMM(calcs.finresTime));
   setT('brf-f-taxi-fuel', calcs.taxiFuel);
   setT('brf-f-taxi-time', formatHHMM(calcs.taxiTime));
+
+  const extraBreakdown = document.getElementById('brf-fuel-extra-breakdown');
+  if (extraBreakdown) {
+    const visibleBuckets = calcs.extraBuckets.filter(bucket =>
+      bucket && (Number(bucket.fuel) > 0 || Number(bucket.time) > 0 || bucket.required === true || bucket.required === '1')
+    );
+    extraBreakdown.innerHTML = visibleBuckets.length
+      ? '<div class="brf-fuel-extra-title">Additional SimBrief Fuel</div>' +
+        visibleBuckets.map(bucket =>
+          '<div class="brf-fuel-extra-row"><span>' + escapeNotamHtml(String(bucket.label || 'EXTRA')) +
+          '</span><span>' + Math.round(Number(bucket.fuel) || 0) + ' kg</span></div>'
+        ).join('')
+      : '';
+    extraBreakdown.hidden = visibleBuckets.length === 0;
+  }
 
   const discMaxValue = document.getElementById('brf-f-max-disc');
   if (discMaxValue) discMaxValue.textContent = calcs.maxDiscKg + ' (' + calcs.bottleneckReason + ')';
@@ -1158,7 +1174,7 @@ function renderAirportSection(index) {
     const selectedFilter = getAirportNotamFilter(apt.icao);
     const grouped = {};
     apt.notams.forEach(notam => {
-      const category = decodeQCodeCategory(notam.notam_qcode);
+      const category = getSimBriefNotamCategory(notam);
       if (!grouped[category]) grouped[category] = [];
       grouped[category].push(notam);
     });
