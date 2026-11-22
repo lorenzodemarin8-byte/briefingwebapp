@@ -196,6 +196,35 @@ function findTocFix(data) {
   return arr.find((f) => f.ident === 'TOC') || null;
 }
 
+function calculateCdmEstimatedTimes(data, state, ctotOverride) {
+  const times = (data && data.times) || {};
+  const flightState = state || {};
+  const scheduledOut = Number(times.sched_out) || 0;
+  const scheduledOff = Number(times.sched_off) || scheduledOut;
+  const scheduledOn = Number(times.sched_on) || 0;
+  const scheduledIn = Number(times.sched_in) || 0;
+  const effectiveOut = Number(flightState.effectiveEtd) || Number(times.est_out) || scheduledOut;
+
+  const rawCtot = ctotOverride !== undefined ? ctotOverride : flightState.ctot;
+  const ctotText = String(rawCtot || '').replace(/[^0-9]/g, '').slice(0, 4);
+  const ctotUnix = ctotText.length === 4 ? parseHHMM(ctotText, scheduledOff || effectiveOut) : null;
+  const taxiOut = Math.max(0, Number(times.taxi_out) || 0);
+  const enroute = Math.max(0, Number(times.est_time_enroute) || Number(times.sched_time_enroute) || 0);
+  const taxiIn = Math.max(0, Number(times.taxi_in) || 0);
+  const estimatedOff = ctotUnix || (effectiveOut ? effectiveOut + taxiOut : (scheduledOff || 0));
+  const estimatedOn = estimatedOff ? estimatedOff + enroute : (scheduledOn || 0);
+  const estimatedIn = estimatedOn ? estimatedOn + taxiIn : (scheduledIn || 0);
+
+  return {
+    effectiveOut,
+    estimatedOff,
+    estimatedOn,
+    estimatedIn,
+    ctotUnix,
+    delaySeconds: scheduledOff && estimatedOff ? estimatedOff - scheduledOff : 0
+  };
+}
+
 function decodeQCodeCategory(qcode) {
   if (!qcode || qcode.length < 3) return 'AIRPORT';
   const sub2 = qcode.substring(1, 3).toUpperCase();
