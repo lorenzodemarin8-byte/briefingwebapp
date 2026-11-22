@@ -570,8 +570,8 @@ function setupWeightLimitCheck(inputId, opId, structId, weightKey) {
 
   const flight = getFlight(currentFlightId);
   const savedWeights = (flight && flight.state && flight.state.actualWeights) || {};
-  if (weightKey && document.activeElement !== inp && savedWeights[weightKey] !== undefined) {
-    inp.value = savedWeights[weightKey];
+  if (weightKey && document.activeElement !== inp) {
+    inp.value = savedWeights[weightKey] !== undefined ? savedWeights[weightKey] : '';
   }
 
   const checkLimit = () => {
@@ -670,7 +670,7 @@ function renderFuelSection(flight) {
   const savedWeights = (flight.state && flight.state.actualWeights) || {};
   const loadInp = document.getElementById('gen-w-load-act');
   if (loadInp) {
-    if (document.activeElement !== loadInp && savedWeights.load !== undefined) loadInp.value = savedWeights.load;
+    if (document.activeElement !== loadInp) loadInp.value = savedWeights.load !== undefined ? savedWeights.load : '';
     if (loadInp.dataset.weightBound !== 'true') {
       loadInp.dataset.weightBound = 'true';
       loadInp.addEventListener('input', (e) => {
