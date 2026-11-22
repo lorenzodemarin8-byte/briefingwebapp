@@ -240,6 +240,9 @@ function getSimBriefNotamCategory(notam) {
   const valid = new Set(['AIRPORT', 'RUNWAY', 'SID', 'STAR', 'APPROACH PROCEDURES']);
   const provider = String(notam && notam.notam_qcode_category || '').trim()
     .toUpperCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
+  const providerCategory = provider === 'APPROACH' ? 'APPROACH PROCEDURES' : provider;
+  if (valid.has(providerCategory) && providerCategory !== 'AIRPORT') return providerCategory;
+
   const decoded = decodeQCodeCategory(notam && notam.notam_qcode);
   if (decoded !== 'AIRPORT') return decoded;
 
@@ -248,7 +251,7 @@ function getSimBriefNotamCategory(notam) {
       /\b(?:APPROACH|RWY|RUNWAY|MINIMA|MINIMUM|MISSED APPROACH|RECEPTION|COVERAGE)\b/.test(text)) {
     return 'APPROACH PROCEDURES';
   }
-  return valid.has(provider) ? provider : 'AIRPORT';
+  return valid.has(providerCategory) ? providerCategory : 'AIRPORT';
 }
 
 function computeRunwayWind(r, metarText) {
