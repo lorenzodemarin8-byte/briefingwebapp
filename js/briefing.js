@@ -1395,6 +1395,7 @@ function renderFirSection(firCode, firName) {
   applyBriefingNotamFilter();
 }
 
+var classicOfpRenderedFileKey = '';
 var classicOfpPdfDocument = null;
 var classicOfpPdfPages = [];
 var classicOfpPdfObserver = null;
@@ -1473,6 +1474,15 @@ function renderClassicOfpHtmlFallback(data, reason) {
 async function renderClassicOfpText(data) {
   const container = document.getElementById('classic-ofp-container');
   if (!container) return;
+  const pdfFile = getClassicOfpPdfFile(data);
+  const htmlContent = data && data.text && data.text.plan_html ? String(data.text.plan_html) : '';
+  const cacheKey = pdfFile
+    ? `${extractFlightId(data)}|${extractOfpEdition(data)}|${pdfFile.directUrl}`
+    : `${extractFlightId(data)}|${extractOfpEdition(data)}|HTML|${htmlContent.length}|${htmlContent.slice(0, 80)}`;
+  if (classicOfpRenderedFileKey === cacheKey && container.childElementCount > 0) {
+    return;
+  }
+  classicOfpRenderedFileKey = cacheKey;
   const token = ++classicOfpRenderToken;
   classicOfpUndoByPage = Object.create(null);
   classicOfpPdfQueuedPages.clear();
@@ -1497,7 +1507,6 @@ async function renderClassicOfpText(data) {
   classicOfpPdfPages = [];
   classicOfpPdfPageSize = null;
 
-  const pdfFile = getClassicOfpPdfFile(data);
   if (!pdfFile) {
     renderClassicOfpHtmlFallback(data, false);
     return;
