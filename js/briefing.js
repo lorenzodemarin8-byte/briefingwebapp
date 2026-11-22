@@ -470,7 +470,7 @@ function renderGeneralSection(flight) {
   setT('gen-release', releaseDate);
   setT('gen-callsign', atc.callsign || '—');
   setT('gen-std', `${unixToHHMM(times.sched_out)} / ${unixToHHMM(times.sched_off)}`);
-  setT('gen-sta', `${unixToHHMM(times.est_on)} / ${unixToHHMM(times.sched_in)}`);
+  setT('gen-sta', `${unixToHHMM(times.sched_on)} / ${unixToHHMM(times.sched_in)}`);
   setT('gen-actype', aircraft.name || aircraft.icaocode || '—');
   setT('gen-engines', aircraft.engines || '');
   setT('gen-reg', aircraft.reg || '—');
@@ -548,30 +548,22 @@ function renderGeneralSection(flight) {
 function renderGeneralCdmTimes(flight, effectiveEtdOverride, ctotOverride) {
   if (!flight) return;
   const data = flight.raw || {};
-  const times = data.times || {};
   const state = flight.state || {};
-  const baselineOut = Number(times.sched_out) || 0;
-  const effectiveOut = Number(effectiveEtdOverride || state.effectiveEtd || times.est_out || baselineOut) || baselineOut;
-  const delaySeconds = baselineOut && effectiveOut ? effectiveOut - baselineOut : 0;
-  const cdmRow = document.getElementById('gen-cdm-grid');
-  if (cdmRow) {
-    cdmRow.hidden = !delaySeconds;
-    cdmRow.classList.toggle('gen-cdm-late', delaySeconds > 0);
-    cdmRow.classList.toggle('gen-cdm-early', delaySeconds < 0);
-  }
-  const setT = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  const adjusted = (value) => value ? unixToHHMM(Number(value) + delaySeconds) : '—';
-  setT('gen-cdm-etd', effectiveOut ? unixToHHMM(effectiveOut) : '—');
-  setT('gen-cdm-off', adjusted(times.est_off || times.sched_off));
-  setT('gen-cdm-on', adjusted(times.est_on || times.sched_on));
-  setT('gen-cdm-eta', adjusted(times.est_in || times.sched_in));
+  if (effectiveEtdOverride) state.effectiveEtd = Number(effectiveEtdOverride);
   const ctot = ctotOverride !== undefined ? ctotOverride : state.ctot;
-  const ctotRow = document.getElementById('gen-ctot-row');
-  const hasCtot = ctot && ctot !== 'NA' && ctot !== '-';
-  if (ctotRow) ctotRow.hidden = !hasCtot;
-  setT('gen-ctot', hasCtot ? ctot : '—');
-}
+  const estimates = calculateCdmEstimatedTimes(data, state, ctot);
+  const setT = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
+  setT('gen-cdm-etd', estimates.effectiveOut
+    ? `${unixToHHMM(estimates.effectiveOut)} / ${unixToHHMM(estimates.estimatedOff)}` : '— / —');
+  setT('gen-cdm-eta', estimates.estimatedOn
+    ? `${unixToHHMM(estimates.estimatedOn)} / ${unixToHHMM(estimates.estimatedIn)}` : '— / —');
+
+  const hasCtot = Boolean(String(ctot || '').replace(/[^0-9]/g, '').length === 4);
+  const ctotRow = document.getElementById('gen-ctot-row');
+  if (ctotRow) ctotRow.hidden = !hasCtot;
+  setT('gen-ctot', hasCtot ? `${String(ctot).replace(/[^0-9]/g, '').slice(0, 2)}:${String(ctot).replace(/[^0-9]/g, '').slice(2, 4)}z` : '—');
+}
 function setupWeightLimitCheck(inputId, opId, structId, weightKey) {
   const inp = document.getElementById(inputId);
   if (!inp) return;
