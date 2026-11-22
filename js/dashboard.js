@@ -222,18 +222,18 @@ function renderDashboard(flight) {
           } else if (newTobt) {
             effectiveEtdUnix = parseHHMM(newTobt, stdUnix);
           }
+          const cdmEstimates = calculateCdmEstimatedTimes(data, {
+            ...(flight.state || {}),
+            effectiveEtd: effectiveEtdUnix,
+            ctot: newCtot || 'NA'
+          }, newCtot);
 
           if (etdEl) {
-            etdEl.textContent = unixToHHMM(effectiveEtdUnix);
-            if (effectiveEtdUnix > stdUnix) {
-              etdEl.style.color = "var(--orange-text)";
-            } else {
-              etdEl.style.color = "";
-            }
+            etdEl.textContent = unixToHHMM(cdmEstimates.effectiveOut);
+            etdEl.style.color = cdmEstimates.effectiveOut > stdUnix ? "var(--orange-text)" : "";
           }
 
-          const delaySecs = effectiveEtdUnix - stdUnix;
-          const newEtaUnix = staUnix + delaySecs;
+          const newEtaUnix = cdmEstimates.estimatedIn || staUnix;
           if (etaEl) etaEl.textContent = unixToHHMM(newEtaUnix);
           updateDelta(staUnix, newEtaUnix);
 
@@ -249,9 +249,10 @@ function renderDashboard(flight) {
       });
     }
 
-    if (etdEl) etdEl.textContent = unixToHHMM(times.est_out || times.sched_out);
-    if (etaEl) etaEl.textContent = unixToHHMM(times.est_in || times.sched_in);
-    updateDelta(times.sched_in, (times.est_in || times.sched_in));
+    const initialCdm = calculateCdmEstimatedTimes(data, flight.state || {}, (flight.state && flight.state.ctot) || null);
+    if (etdEl) etdEl.textContent = unixToHHMM(initialCdm.effectiveOut);
+    if (etaEl) etaEl.textContent = unixToHHMM(initialCdm.estimatedIn || times.est_in || times.sched_in);
+    updateDelta(times.sched_in, (initialCdm.estimatedIn || times.est_in || times.sched_in));
     refreshCDM();
     cdmInterval = setInterval(refreshCDM, 60000);
 
