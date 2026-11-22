@@ -14,6 +14,11 @@ function getFuelCalculations(data, state) {
   const contFuel = Number(fuel.contingency) || 0;
   const finresFuel = Number(fuel.reserve) || 0;
   const taxiFuel = Number(fuel.taxi) || 0;
+  const extraBucketsRaw = data.fuel_extra && data.fuel_extra.bucket;
+  const extraBuckets = extraBucketsRaw == null ? [] : (Array.isArray(extraBucketsRaw) ? extraBucketsRaw : [extraBucketsRaw]);
+  const bucketExtraFuel = extraBuckets.reduce((sum, bucket) => sum + Math.max(0, Number(bucket && bucket.fuel) || 0), 0);
+  // SimBrief's fuel.extra is the aggregate of fuel_extra.bucket; use it only as a fallback.
+  const simbriefExtraFuel = bucketExtraFuel > 0 ? bucketExtraFuel : Math.max(0, Number(fuel.extra) || 0);
 
   const tripTime = Number(times.est_time_enroute) || 0;
   const contTime = Number(times.contfuel_time) || 0;
@@ -31,7 +36,7 @@ function getFuelCalculations(data, state) {
   let defaultAltnBurn = Number(defaultAltn.burn) || Number(fuel.alternate_burn) || 0;
   let deltaAltnFuel = altnFuel - defaultAltnBurn;
 
-  const tkofFuel = tripFuel + contFuel + altnFuel + finresFuel;
+  const tkofFuel = tripFuel + contFuel + altnFuel + finresFuel + simbriefExtraFuel;
   const tkofTime = tripTime + contTime + altnTime + finresTime;
   const minBlockFuel = tkofFuel + taxiFuel;
 
@@ -112,6 +117,7 @@ function getFuelCalculations(data, state) {
   return {
     tripFuel, tripTime,
     contFuel, contTime,
+    simbriefExtraFuel, extraBuckets,
     finresFuel, finresTime,
     taxiFuel, taxiTime,
     altnFuel, altnTime, altnIcao, altnIdx,
