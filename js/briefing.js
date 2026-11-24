@@ -721,17 +721,41 @@ function renderFuelSection(flight) {
   setT('brf-f-taxi-fuel', calcs.taxiFuel);
   setT('brf-f-taxi-time', formatHHMM(calcs.taxiTime));
 
-  const extraBreakdown = document.getElementById('brf-fuel-extra-breakdown');
-  if (extraBreakdown) {
-    const visibleBuckets = calcs.extraBuckets.filter(bucket => bucket && bucket.label);
-    extraBreakdown.innerHTML = visibleBuckets.length
-      ? '<div class="brf-fuel-extra-title">Additional SimBrief Fuel</div>' +
-        visibleBuckets.map(bucket =>
-          '<div class="brf-fuel-extra-row"><span>' + escapeNotamHtml(String(bucket.label || 'EXTRA')) +
-          '</span><span>' + Math.round(Number(bucket.fuel) || 0) + ' kg</span></div>'
-        ).join('')
-      : '';
-    extraBreakdown.hidden = visibleBuckets.length === 0;
+  // Le voci extra SimBrief sono righe normali della tabella Fuel:
+  // mostra soltanto i bucket con carburante > 0, subito prima del separatore Takeoff Fuel.
+  const extraRowsAnchor = document.getElementById('brf-fuel-tkof-separator');
+  if (extraRowsAnchor && extraRowsAnchor.parentNode) {
+    const fuelTbody = extraRowsAnchor.parentNode;
+    fuelTbody.querySelectorAll('.brf-simbrief-extra-row').forEach(row => row.remove());
+
+    const visibleBuckets = (calcs.extraBuckets || [])
+      .map(bucket => ({
+        label: String((bucket && bucket.label) || 'EXTRA').trim() || 'EXTRA',
+        fuel: Math.max(0, Number(bucket && bucket.fuel) || 0)
+      }))
+      .filter(bucket => bucket.fuel > 0);
+
+    // Fallback per OFP che forniscono solo fuel.extra senza il dettaglio fuel_extra.bucket.
+    if (visibleBuckets.length === 0 && Number(calcs.simbriefExtraFuel) > 0) {
+      visibleBuckets.push({ label: 'EXTRA', fuel: Number(calcs.simbriefExtraFuel) });
+    }
+
+    visibleBuckets.forEach(bucket => {
+      const row = document.createElement('tr');
+      row.className = 'brf-simbrief-extra-row';
+
+      const labelCell = document.createElement('td');
+      labelCell.textContent = bucket.label;
+      row.appendChild(labelCell);
+      row.appendChild(document.createElement('td'));
+      row.appendChild(document.createElement('td'));
+
+      const fuelCell = document.createElement('td');
+      fuelCell.textContent = String(Math.round(bucket.fuel));
+      row.appendChild(fuelCell);
+
+      fuelTbody.insertBefore(row, extraRowsAnchor);
+    });
   }
 
   const discMaxValue = document.getElementById('brf-f-max-disc');
