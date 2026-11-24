@@ -3481,15 +3481,7 @@ canvas#signature-pad, canvas#submit-signature-pad { width: 100%; height: 100%; d
   color: var(--text-2);
 }
 .gen-ctot-row strong { color: var(--orange-text); }
-.brf-fuel-extra-breakdown {
-  padding: 8px 14px;
-  border-top: 1px solid var(--panel-border);
-  border-bottom: 1px solid var(--panel-border);
-  font-size: 12px;
-}
-.brf-fuel-extra-breakdown[hidden] { display: none !important; }
-.brf-fuel-extra-title { color: var(--text-2); font-size: 10px; font-weight: 700; letter-spacing: .04em; margin-bottom: 4px; }
-.brf-fuel-extra-row { display: flex; justify-content: space-between; gap: 12px; padding: 2px 0; font-variant-numeric: tabular-nums; }
+
 
 
 /* Refined General CDM estimate typography and late indication. */
