@@ -554,10 +554,26 @@ function renderGeneralCdmTimes(flight, effectiveEtdOverride, ctotOverride) {
   const estimates = calculateCdmEstimatedTimes(data, state, ctot);
   const setT = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
 
-  setT('gen-cdm-etd', estimates.effectiveOut
-    ? `${unixToHHMM(estimates.effectiveOut)} / ${unixToHHMM(estimates.estimatedOff)}` : '— / —');
-  setT('gen-cdm-eta', estimates.estimatedOn
-    ? `${unixToHHMM(estimates.estimatedOn)} / ${unixToHHMM(estimates.estimatedIn)}` : '— / —');
+  const etdEl = document.getElementById('gen-cdm-etd');
+  const etaEl = document.getElementById('gen-cdm-eta');
+  if (etdEl) {
+    etdEl.textContent = estimates.effectiveOut
+      ? `${unixToHHMM(estimates.effectiveOut)} / ${unixToHHMM(estimates.estimatedOff)}` : '— / —';
+    const schedOut = Number(data.times && data.times.sched_out) || 0;
+    const schedOff = Number(data.times && data.times.sched_off) || 0;
+    const late = (schedOut && estimates.effectiveOut > schedOut + 60) ||
+      (schedOff && estimates.estimatedOff > schedOff + 60);
+    etdEl.classList.toggle('gen-cdm-late-time', Boolean(late));
+  }
+  if (etaEl) {
+    etaEl.textContent = estimates.estimatedOn
+      ? `${unixToHHMM(estimates.estimatedOn)} / ${unixToHHMM(estimates.estimatedIn)}` : '— / —';
+    const schedOn = Number(data.times && data.times.sched_on) || Number(data.times && data.times.est_on) || 0;
+    const schedIn = Number(data.times && data.times.sched_in) || Number(data.times && data.times.est_in) || 0;
+    const late = (schedOn && estimates.estimatedOn > schedOn + 60) ||
+      (schedIn && estimates.estimatedIn > schedIn + 60);
+    etaEl.classList.toggle('gen-cdm-late-time', Boolean(late));
+  }
 
   const hasCtot = Boolean(String(ctot || '').replace(/[^0-9]/g, '').length === 4);
   const ctotRow = document.getElementById('gen-ctot-row');
