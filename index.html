@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=80">
+  <link rel="stylesheet" href="css/style.css?v=81">
 </head>
 <body>
   <!-- TOP BAR & INFO VOLO -->
@@ -454,14 +454,13 @@
                 <tr><td>MINCONT</td><td></td><td id="brf-f-cont-time"></td><td id="brf-f-cont-fuel"></td></tr>
                 <tr><td>Alternate</td><td><select id="brf-f-altn-select" class="brf-select"></select></td><td id="brf-f-altn-time"></td><td id="brf-f-altn-fuel"></td></tr>
                 <tr><td>Final Reserve</td><td></td><td id="brf-f-finres-time"></td><td id="brf-f-finres-fuel"></td></tr>
-                <tr class="brf-row-separator"><td colspan="4"></td></tr>
+                <tr class="brf-row-separator" id="brf-fuel-tkof-separator"><td colspan="4"></td></tr>
                 <tr class="brf-row-bold"><td>Takeoff Fuel</td><td></td><td id="brf-f-tkof-time"></td><td id="brf-f-tkof-fuel"></td></tr>
                 <tr><td>Taxi fuel</td><td id="brf-f-orig"></td><td id="brf-f-taxi-time"></td><td id="brf-f-taxi-fuel"></td></tr>
                 <tr class="brf-row-separator"><td colspan="4"></td></tr>
                 <tr class="brf-row-bold"><td>Minimum Block Fuel</td><td></td><td></td><td id="brf-f-minblock-fuel"></td></tr>
               </tbody>
             </table>
-            <div id="brf-fuel-extra-breakdown" class="brf-fuel-extra-breakdown" hidden></div>
             <div class="brf-disc-wrapper">
               <div class="brf-disc-container">
                 <div class="brf-disc-col brf-disc-reason-col"><span class="brf-disc-label">DISCRETIONARY FUEL</span><input type="text" id="brf-disc-reason-input" class="brf-text-input" placeholder="Reason..."></div>
@@ -884,15 +883,15 @@
     window.pdfjsLib = pdfjsLib;
     window.dispatchEvent(new Event("pdfjs-ready"));
   </script>
-  <script src="js/storage.js?v=80"></script>
-  <script src="js/simbrief.js?v=80"></script>
-  <script src="js/utils.js?v=80"></script>
-  <script src="js/fuel-engine.js?v=80"></script>
-  <script src="js/myflights.js?v=80"></script>
-  <script src="js/dashboard.js?v=80"></script>
-  <script src="js/briefing.js?v=80"></script>
-  <script src="js/journeylog.js?v=80"></script>
-  <script src="js/navlog.js?v=80"></script>
-  <script src="js/app.js?v=80"></script>
+  <script src="js/storage.js?v=81"></script>
+  <script src="js/simbrief.js?v=81"></script>
+  <script src="js/utils.js?v=81"></script>
+  <script src="js/fuel-engine.js?v=81"></script>
+  <script src="js/myflights.js?v=81"></script>
+  <script src="js/dashboard.js?v=81"></script>
+  <script src="js/briefing.js?v=81"></script>
+  <script src="js/journeylog.js?v=81"></script>
+  <script src="js/navlog.js?v=81"></script>
+  <script src="js/app.js?v=81"></script>
 </body>
 </html>
