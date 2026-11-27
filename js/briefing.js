@@ -446,6 +446,83 @@ function openBriefingGeneral() {
 }
 
 
+function renderGeneralAlternates(data) {
+  const container = document.getElementById('gen-alternates-body');
+  if (!container) return;
+
+  const alternates = getAlternatesList(data);
+  container.innerHTML = '';
+
+  if (!alternates.length) {
+    const empty = document.createElement('div');
+    empty.className = 'gen-alternates-empty';
+    empty.textContent = 'No destination alternates available';
+    container.appendChild(empty);
+    return;
+  }
+
+  const table = document.createElement('table');
+  table.className = 'gen-alternates-table';
+  const thead = document.createElement('thead');
+  const headerRow = document.createElement('tr');
+  ['ALTN', 'DIST', 'LVL', 'WC', 'TIME', 'FUEL', 'VIA'].forEach(label => {
+    const th = document.createElement('th');
+    th.textContent = label;
+    headerRow.appendChild(th);
+  });
+  thead.appendChild(headerRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  alternates.forEach((alternate, index) => {
+    const row = document.createElement('tr');
+    const runway = String(alternate.plan_rwy || '').trim();
+    const icao = String(alternate.icao_code || '----').trim();
+    const airport = runway ? `${icao}/${runway}` : icao;
+
+    const rawLevel = Number(alternate.cruise_altitude);
+    const level = Number.isFinite(rawLevel) && rawLevel > 0
+      ? String(Math.round(rawLevel / 100))
+      : '—';
+
+    const rawWind = String(alternate.avg_wind_comp || '').trim().toUpperCase();
+    let wind = '—';
+    if (rawWind) {
+      const windValue = parseInt(rawWind.replace(/[^\\d]/g, ''), 10);
+      if (Number.isFinite(windValue)) {
+        const windSign = rawWind.startsWith('M') || rawWind.startsWith('-') ? 'M' : 'P';
+        wind = windSign + String(windValue).padStart(3, '0');
+      }
+    }
+
+    const eteSeconds = Number(alternate.ete);
+    let time = '—';
+    if (Number.isFinite(eteSeconds) && eteSeconds >= 0) {
+      const totalMinutes = Math.round(eteSeconds / 60);
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      time = String(hours).padStart(2, '0') + String(minutes).padStart(2, '0');
+    }
+
+    const burnValue = Number(alternate.burn);
+    const fuelValue = Number.isFinite(burnValue) && burnValue > 0
+      ? String(Math.round(burnValue))
+      : '—';
+
+    const values = [`C${index + 1} ${airport}`, alternate.distance || '—', level, wind, time, fuelValue, alternate.route || '—'];
+    values.forEach((value, cellIndex) => {
+      const cell = document.createElement('td');
+      cell.textContent = String(value);
+      if (cellIndex === 6) cell.className = 'gen-alternates-route';
+      row.appendChild(cell);
+    });
+    tbody.appendChild(row);
+  });
+
+  table.appendChild(tbody);
+  container.appendChild(table);
+}
+
 function renderGeneralSection(flight) {
   if (!flight) return;
   const data = flight.raw || {};
@@ -541,6 +618,7 @@ function renderGeneralSection(flight) {
   setT('gen-maxshear', maxShearText);
 
   if (typeof renderRouteSummary === 'function') renderRouteSummary(data, origin, destination, general, 'gen-route-summary');
+  renderGeneralAlternates(data);
   renderGeneralCdmTimes(flight);
   if (typeof renderFuelSection === 'function') renderFuelSection(flight);
 }
