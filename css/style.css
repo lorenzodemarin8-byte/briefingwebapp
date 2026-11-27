@@ -3398,7 +3398,38 @@ canvas#signature-pad, canvas#submit-signature-pad { width: 100%; height: 100%; d
 .gen-ctot-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 7px 20px 10px; background: var(--panel); color: var(--text-2); font-size: 11px; }
 .gen-ctot-row strong { grid-column: 2; color: var(--orange-text); font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .gen-route-body { padding: 14px 20px; font-size: 13px; line-height: 1.7; color: var(--text); overflow-wrap: anywhere; }
-.gen-alternates-widget .widget-body { min-height: 34px; }
+.gen-alternates-widget .widget-body { min-height: 34px; padding: 0; overflow-x: auto; }
+.gen-alternates-table { width: 100%; min-width: 680px; border-collapse: collapse; table-layout: auto; font-size: 12px; }
+.gen-alternates-table th {
+  background: var(--panel);
+  padding: 9px 10px;
+  color: var(--text-2);
+  font-size: 10px;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--panel-border);
+}
+.gen-alternates-table th:first-child, .gen-alternates-table td:first-child { text-align: left; }
+.gen-alternates-table td {
+  padding: 9px 10px;
+  color: var(--text);
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--inner-divider);
+  font-variant-numeric: tabular-nums;
+}
+.gen-alternates-table tbody tr:last-child td { border-bottom: none; }
+.gen-alternates-table td:first-child { font-weight: 600; }
+.gen-alternates-table .gen-alternates-route {
+  text-align: left;
+  white-space: normal;
+  min-width: 190px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.gen-alternates-empty { padding: 14px 16px; color: var(--text-2); font-size: 12px; }
 .gen-weight-widget .gen-data-table th { font-weight: 700; }
 
 /* Keep the briefing divider exactly on the sidebar edge, in both themes. */
