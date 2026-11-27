@@ -488,7 +488,7 @@ function renderGeneralAlternates(data) {
     const rawWind = String(alternate.avg_wind_comp || '').trim().toUpperCase();
     let wind = '—';
     if (rawWind) {
-      const windValue = parseInt(rawWind.replace(/[^\\d]/g, ''), 10);
+      const windValue = parseInt(rawWind.replace(/[^\d]/g, ''), 10);
       if (Number.isFinite(windValue)) {
         const windSign = rawWind.startsWith('M') || rawWind.startsWith('-') ? 'M' : 'P';
         wind = windSign + String(windValue).padStart(3, '0');
