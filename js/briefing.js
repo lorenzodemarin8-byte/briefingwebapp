@@ -461,6 +461,36 @@ function renderGeneralAlternates(data) {
     return;
   }
 
+  const formatTime = seconds => {
+    const value = Number(seconds);
+    if (!Number.isFinite(value) || value < 0) return null;
+    const totalMinutes = Math.round(value / 60);
+    return String(Math.floor(totalMinutes / 60)).padStart(2, '0')
+      + String(totalMinutes % 60).padStart(2, '0');
+  };
+
+  const formatTimeDifference = (seconds, referenceSeconds) => {
+    const value = Number(seconds);
+    const reference = Number(referenceSeconds);
+    if (!Number.isFinite(value) || value < 0 || !Number.isFinite(reference) || reference < 0) return '—';
+    const differenceMinutes = Math.round((value - reference) / 60);
+    const sign = differenceMinutes > 0 ? 'P' : differenceMinutes < 0 ? 'M' : 'P';
+    const absoluteMinutes = Math.abs(differenceMinutes);
+    const formatted = String(Math.floor(absoluteMinutes / 60)).padStart(2, '0')
+      + String(absoluteMinutes % 60).padStart(2, '0');
+    return sign + formatted;
+  };
+
+  const formatFuelDifference = (fuel, referenceFuel) => {
+    const value = Number(fuel);
+    const reference = Number(referenceFuel);
+    if (!Number.isFinite(value) || value < 0 || !Number.isFinite(reference) || reference < 0) return '—';
+    const difference = Math.round(value - reference);
+    const sign = difference > 0 ? 'P' : difference < 0 ? 'M' : 'P';
+    return sign + String(Math.abs(difference)).padStart(4, '0');
+  };
+
+  const primary = alternates[0] || {};
   const table = document.createElement('table');
   table.className = 'gen-alternates-table';
   const thead = document.createElement('thead');
@@ -495,27 +525,62 @@ function renderGeneralAlternates(data) {
       }
     }
 
-    const eteSeconds = Number(alternate.ete);
-    let time = '—';
-    if (Number.isFinite(eteSeconds) && eteSeconds >= 0) {
-      const totalMinutes = Math.round(eteSeconds / 60);
-      const hours = Math.floor(totalMinutes / 60);
-      const minutes = totalMinutes % 60;
-      time = String(hours).padStart(2, '0') + String(minutes).padStart(2, '0');
-    }
-
-    const burnValue = Number(alternate.burn);
-    const fuelValue = Number.isFinite(burnValue) && burnValue > 0
-      ? String(Math.round(burnValue))
+    const time = formatTime(alternate.ete) || '—';
+    const fuelNumber = Number(alternate.burn);
+    const fuel = Number.isFinite(fuelNumber) && fuelNumber >= 0
+      ? String(Math.round(fuelNumber))
       : '—';
 
-    const values = [`C${index + 1} ${airport}`, alternate.distance || '—', level, wind, time, fuelValue, alternate.route || '—'];
-    values.forEach((value, cellIndex) => {
+    const airportCell = document.createElement('td');
+    airportCell.className = 'gen-alternates-airport-cell';
+    const sequence = document.createElement('span');
+    sequence.className = 'gen-alternates-sequence';
+    sequence.textContent = `C${index + 1}`;
+    const airportName = document.createElement('strong');
+    airportName.className = 'gen-alternates-airport';
+    airportName.textContent = airport;
+    airportCell.append(sequence, airportName);
+    row.appendChild(airportCell);
+
+    [alternate.distance || '—', level, wind].forEach(value => {
       const cell = document.createElement('td');
       cell.textContent = String(value);
-      if (cellIndex === 6) cell.className = 'gen-alternates-route';
       row.appendChild(cell);
     });
+
+    const timeCell = document.createElement('td');
+    timeCell.className = 'gen-alternates-value-cell';
+    const timeMain = document.createElement('span');
+    timeMain.className = 'gen-alternates-main-value';
+    timeMain.textContent = time;
+    timeCell.appendChild(timeMain);
+    if (index > 0) {
+      const timeDiff = document.createElement('span');
+      timeDiff.className = 'gen-alternates-difference';
+      timeDiff.textContent = formatTimeDifference(alternate.ete, primary.ete);
+      timeCell.appendChild(timeDiff);
+    }
+    row.appendChild(timeCell);
+
+    const fuelCell = document.createElement('td');
+    fuelCell.className = 'gen-alternates-value-cell';
+    const fuelMain = document.createElement('span');
+    fuelMain.className = 'gen-alternates-main-value';
+    fuelMain.textContent = fuel;
+    fuelCell.appendChild(fuelMain);
+    if (index > 0) {
+      const fuelDiff = document.createElement('span');
+      fuelDiff.className = 'gen-alternates-difference';
+      fuelDiff.textContent = formatFuelDifference(alternate.burn, primary.burn);
+      fuelCell.appendChild(fuelDiff);
+    }
+    row.appendChild(fuelCell);
+
+    const routeCell = document.createElement('td');
+    routeCell.className = 'gen-alternates-route';
+    routeCell.textContent = alternate.route || '—';
+    row.appendChild(routeCell);
+
     tbody.appendChild(row);
   });
 
