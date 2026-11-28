@@ -523,6 +523,45 @@ function findTlrRunwayForAirport(data, which, icaoCode, planRwy) {
   return list[0];
 }
 
+function parseMetarCeilingVisibility(metar) {
+  const raw = String(metar || '').toUpperCase().replace(/\s+/g, ' ').trim();
+  if (!raw) return { ceiling: null, visibility: null, noCeiling: false };
+
+  let visibility = null;
+  if (/\bCAVOK\b/.test(raw)) {
+    visibility = 10000;
+  } else {
+    const metricVisibility = raw.match(/(?:^|\s)(\d{4})(?=\s|$)/);
+    if (metricVisibility) {
+      visibility = Number(metricVisibility[1]);
+    } else {
+      const statute = raw.match(/(?:^|\s)(\d+(?:\s+\d+\/\d+|\/\d+)?)SM(?=\s|$)/);
+      if (statute) {
+        const parts = statute[1].split(/\s+/);
+        let miles = 0;
+        parts.forEach(part => {
+          if (part.includes('/')) {
+            const fraction = part.split('/');
+            miles += Number(fraction[0]) / Number(fraction[1]);
+          } else {
+            miles += Number(part);
+          }
+        });
+        if (Number.isFinite(miles)) visibility = Math.round(miles * 1609.344);
+      }
+    }
+  }
+
+  const ceilingLayers = Array.from(raw.matchAll(/\b(?:BKN|OVC|VV)(\d{3})\b/g))
+    .map(match => Number(match[1]) * 100)
+    .filter(Number.isFinite);
+  const ceiling = ceilingLayers.length ? Math.min(...ceilingLayers) : null;
+  const noCeiling = /\b(?:CAVOK|NSC|NCD|SKC|CLR)\b/.test(raw) ||
+    (!ceilingLayers.length && /\b(?:FEW|SCT)\d{3}\b/.test(raw));
+
+  return { ceiling, visibility, noCeiling };
+}
+
 function getAirportWeatherMetrics(data, which, airport) {
   airport = airport || {};
   const airportCode = airport.icao_code || airport.icao || '';
@@ -532,8 +571,13 @@ function getAirportWeatherMetrics(data, which, airport) {
     return Number.isNaN(numeric) ? String(value) : `${numeric} ${unit}`;
   };
 
-  const ceiling = formatMetric(airport.metar_ceiling, 'ft');
-  const visibility = formatMetric(airport.metar_visibility, 'm');
+  const parsedMetar = parseMetarCeilingVisibility(airport.metar);
+  const ceilingValue = airport.metar_ceiling !== undefined && airport.metar_ceiling !== null && String(airport.metar_ceiling).trim() !== ''
+    ? airport.metar_ceiling : parsedMetar.ceiling;
+  const visibilityValue = airport.metar_visibility !== undefined && airport.metar_visibility !== null && String(airport.metar_visibility).trim() !== ''
+    ? airport.metar_visibility : parsedMetar.visibility;
+  const ceiling = formatMetric(ceilingValue, 'ft');
+  const visibility = formatMetric(visibilityValue, 'm');
 
   let hwc = '-';
   let cwc = '-';
@@ -548,8 +592,13 @@ function getAirportWeatherMetrics(data, which, airport) {
   }
 
   const category = String(airport.metar_category || '').toLowerCase();
-  const vmcLabel = category === 'vfr' || category === 'mvfr' ? 'VMC'
+  let vmcLabel = category === 'vfr' || category === 'mvfr' ? 'VMC'
     : category === 'ifr' || category === 'lifr' ? 'IMC' : '--';
+  if (vmcLabel === '--' && (visibilityValue !== null || parsedMetar.noCeiling)) {
+    const lowCeiling = ceilingValue !== null && ceilingValue !== undefined && Number(ceilingValue) < 1000;
+    const lowVisibility = visibilityValue !== null && visibilityValue !== undefined && Number(visibilityValue) < 5000;
+    vmcLabel = lowCeiling || lowVisibility ? 'IMC' : 'VMC';
+  }
   return {
     ceiling, visibility, hwc, cwc, vmcLabel,
     vmcClass: vmcLabel === 'VMC' ? 'vmc' : vmcLabel === 'IMC' ? 'imc' : ''
