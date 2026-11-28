@@ -752,6 +752,25 @@ function getEtopsStructuredRequiredWxMinima(airport) {
   return ceiling || visibility ? etopsFormatWxMinima({ ceiling, visibility }) : '';
 }
 
+function etopsIsRequiredWxHeader(value) {
+  const label = String(value || '').replace(/\s+/g, ' ').trim();
+  if (!label || /\b(?:FCST|FORECAST|CONSIDERED|ACTUAL)\b/i.test(label)) return false;
+  return /^(?:(?:DISP(?:ATCH)?|REQUIRED)\s+)?(?:WX|WEATHER)\s+MIN(?:IMA|IMUMS?)?$/i.test(label) ||
+    /^(?:DISP(?:ATCH)?|REQUIRED)\s+MIN(?:IMA|IMUMS?)?\s+(?:WX|WEATHER)$/i.test(label);
+}
+
+function etopsRequiredWxHeaderPosition(line) {
+  const value = String(line || '');
+  const qualified = /(?:DISP(?:ATCH)?|REQUIRED)\s+(?:WX|WEATHER)\s+MIN(?:IMA|IMUMS?)/i.exec(value);
+  if (qualified) return qualified.index;
+
+  const generic = /(?:^|\s)((?:WX|WEATHER)\s+MIN(?:IMA|IMUMS?)?|MIN(?:IMA|IMUMS?)?\s+(?:WX|WEATHER))(?=\s|$)/i.exec(value);
+  if (!generic) return -1;
+  const prefix = value.slice(0, generic.index);
+  if (/\b(?:FCST|FORECAST|CONSIDERED|ACTUAL)\s*$/i.test(prefix)) return -1;
+  return generic.index + generic[0].indexOf(generic[1]);
+}
+
 function etopsGetPlanHtml(data) {
   let html = data && data.text && data.text.plan_html ? String(data.text.plan_html) : '';
   if (!html) return '';
@@ -775,7 +794,7 @@ function etopsExtractRequiredWxFromPlanText(data, icao) {
     const rows = Array.from(table.querySelectorAll('tr'));
     for (let headerIndex = 0; headerIndex < rows.length; headerIndex++) {
       const headerCells = Array.from(rows[headerIndex].cells || []);
-      const minimaColumn = headerCells.findIndex(cell => /DISP\s*WX\s*MIN/i.test(cell.textContent || ''));
+      const minimaColumn = headerCells.findIndex(cell => etopsIsRequiredWxHeader(cell.textContent));
       if (minimaColumn < 0) continue;
 
       for (let rowIndex = headerIndex + 1; rowIndex < rows.length; rowIndex++) {
@@ -801,15 +820,14 @@ function etopsExtractRequiredWxFromPlanText(data, icao) {
   const decoder = document.createElement('textarea');
   decoder.innerHTML = plain;
   plain = (decoder.value || decoder.textContent || plain).replace(/\r/g, '');
-  if (!/DISP\s*WX\s*MIN/i.test(plain)) return '';
-
   const lines = plain.split('\n').filter(line => line.trim());
-  const headerIndex = lines.findIndex(line => /DISP\s*WX\s*MIN/i.test(line));
+  const headerIndex = lines.findIndex(line =>
+    line.split('\t').some(etopsIsRequiredWxHeader) || etopsRequiredWxHeaderPosition(line) >= 0);
   if (headerIndex < 0) return '';
   const headerLine = lines[headerIndex];
   const headerCells = headerLine.split('\t');
-  const minimaColumn = headerCells.findIndex(cell => /DISP\s*WX\s*MIN/i.test(cell));
-  const headerColumnStart = headerLine.toUpperCase().search(/DISP\s*WX\s*MIN/);
+  const minimaColumn = headerCells.findIndex(etopsIsRequiredWxHeader);
+  const headerColumnStart = etopsRequiredWxHeaderPosition(headerLine);
   const airportPattern = new RegExp('(?:^|[^A-Z0-9])' + code + '(?:$|[^A-Z0-9])', 'i');
 
   for (let index = headerIndex + 1; index < lines.length; index++) {
