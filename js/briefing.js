@@ -157,9 +157,8 @@ function getPlanHtmlText(data, sectionName) {
   const html = data && data.text && data.text.plan_html;
   if (!html) return '';
 
-  let source = String(html);
+  let source = String(html).replace(/^\s*<!\[CDATA\[/i, '').replace(/\]\]>\s*$/i, '');
   let markers = [];
-  let match;
 
   const scanMarkers = value => {
     const found = [];
@@ -172,15 +171,17 @@ function getPlanHtmlText(data, sectionName) {
   };
 
   markers = scanMarkers(source);
-  // Some XML-to-JSON transports leave the HTML entities encoded one extra time.
-  if (!markers.length && /&lt;!--BKMK/i.test(source)) {
+  // XML transports may escape plan_html once or twice, even when bookmark
+  // comments and the HTML markup are not encoded to the same depth.
+  for (let pass = 0; pass < 2; pass++) {
+    const hasEscapedMarkup = /&lt;\/?(?:!--BKMK|pre|b|h2|div|p)\b/i.test(source);
+    if (!hasEscapedMarkup) break;
     const decoder = document.createElement('textarea');
     decoder.innerHTML = source;
     const decoded = decoder.value || decoder.textContent || '';
-    if (decoded && decoded !== source) {
-      source = decoded;
-      markers = scanMarkers(source);
-    }
+    if (!decoded || decoded === source) break;
+    source = decoded;
+    markers = scanMarkers(source);
   }
 
   let sectionHtml = source;
