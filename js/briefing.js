@@ -328,9 +328,9 @@ function renderBriefingMenu() {
   }).join('') || '<div class="briefing-airport-empty">No FIR data available</div>';
 
   const wxNotams = briefingGroupMarkup('Main Airports', 'brf-main-airports', mainAirportItems, true) +
-    briefingGroupMarkup('Enroute Airports', 'brf-enroute-airports', enrouteItems, true) +
-    briefingGroupMarkup('ETOPS Suitable Airports', 'brf-etops-suitable-airports', etopsSuitableItems, true) +
-    briefingGroupMarkup('ETOPS Adequate Airports', 'brf-etops-adequate-airports', etopsAdequateItems, true) +
+    briefingGroupMarkup('Enroute Airports', 'brf-enroute-airports', enrouteItems, false) +
+    briefingGroupMarkup('ETOPS Suitable Airports', 'brf-etops-suitable-airports', etopsSuitableItems, false) +
+    briefingGroupMarkup('ETOPS Adequate Airports', 'brf-etops-adequate-airports', etopsAdequateItems, false) +
     briefingGroupMarkup('FIRs', 'brf-firs', firItems, false);
 
   const chartLabels = ['UAD', 'SIGWX with Route', 'VAA/TCA', 'CDA', 'SIGWX',
@@ -484,18 +484,29 @@ function selectBriefingPage(item) {
   }
 }
 
+// Cache chart extraction per SimBrief raw-data object. plan_html can be very large,
+// so it must never be scanned again when the user changes between chart pages.
+const simBriefChartExtractionCache = new WeakMap();
+
 function extractSimBriefCharts(data) {
-  const html = data && data.text && data.text.plan_html ? String(data.text.plan_html) : '';
-  if (!html) return {};
+  if (!data || typeof data !== 'object') return {};
+  const sourceHtml = data.text && data.text.plan_html ? String(data.text.plan_html) : '';
+  if (!sourceHtml) return {};
+  const cached = simBriefChartExtractionCache.get(data);
+  if (cached && cached.sourceHtml === sourceHtml) return cached.groups;
 
   const groups = {};
   const anchorPattern = /<a\b[^>]*class=["'][^"']*\bofpmaplink\b[^"']*["'][^>]*>[\s\S]*?<\/a>/gi;
   let match;
+  let previousAnchorEnd = 0;
 
-  while ((match = anchorPattern.exec(html))) {
+  while ((match = anchorPattern.exec(sourceHtml))) {
     const anchor = match[0];
-    const before = html.slice(0, match.index);
-    const rawLabel = (before.match(/([^<>]*)$/) || [])[1] || '';
+    // Only inspect the small fragment since the previous map link, not the entire
+    // OFP prefix (the old implementation repeatedly copied increasingly huge strings).
+    const precedingText = sourceHtml.slice(previousAnchorEnd, match.index);
+    previousAnchorEnd = anchorPattern.lastIndex;
+    const rawLabel = (precedingText.match(/([^<>]*)$/) || [])[1] || '';
     const label = rawLabel.replace(/&nbsp;|&#160;/gi, ' ').replace(/&amp;/gi, '&')
       .replace(/\s+/g, ' ').trim();
     if (!label || /NO DATA AVAILABLE/i.test(label)) continue;
@@ -521,6 +532,7 @@ function extractSimBriefCharts(data) {
     groups[key].push({ label, url });
   }
 
+  simBriefChartExtractionCache.set(data, { sourceHtml, groups });
   return groups;
 }
 
@@ -528,7 +540,6 @@ const simBriefChartPreloadCache = new Map();
 let simBriefChartPreloadFlightId = null;
 
 function preloadSimBriefCharts(data) {
-  // Keep only the current flight's chart objects in memory on iPad/mobile devices.
   if (simBriefChartPreloadFlightId !== currentFlightId) {
     simBriefChartPreloadCache.clear();
     simBriefChartPreloadFlightId = currentFlightId;
@@ -539,8 +550,10 @@ function preloadSimBriefCharts(data) {
     const preload = new Image();
     preload.decoding = 'async';
     preload.loading = 'eager';
-    preload.src = chart.url;
+    // Give SimBrief chart downloads priority over below-the-fold decorative assets.
+    try { preload.fetchPriority = 'high'; } catch (e) {}
     simBriefChartPreloadCache.set(chart.url, preload);
+    preload.src = chart.url;
   });
 }
 
