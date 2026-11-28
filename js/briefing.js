@@ -583,7 +583,7 @@ function renderChartsSection(flight, sectionTitle) {
       '<div class="pager-dots charts-dots" data-chart-dots></div>' +
     '</div>';
 
-  const image = container.querySelector('[data-chart-image]');
+  let image = container.querySelector('[data-chart-image]');
   const counter = container.querySelector('[data-chart-counter]');
   const dots = container.querySelector('[data-chart-dots]');
   const viewer = container.querySelector('[data-charts-viewer]');
@@ -595,7 +595,15 @@ function renderChartsSection(flight, sectionTitle) {
   const showChart = index => {
     activeIndex = (index + images.length) % images.length;
     const chart = images[activeIndex];
-    image.src = chart.url;
+    const preloadedImage = simBriefChartPreloadCache.get(chart.url);
+    if (preloadedImage && image !== preloadedImage) {
+      preloadedImage.className = 'charts-image';
+      preloadedImage.dataset.chartImage = '';
+      image.replaceWith(preloadedImage);
+      image = preloadedImage;
+    } else if (!preloadedImage && image.src !== chart.url) {
+      image.src = chart.url;
+    }
     image.alt = chart.label || sectionTitle;
     counter.textContent = images.length > 1 ? (activeIndex + 1) + ' / ' + images.length : '1 / 1';
     dots.querySelectorAll('.pager-dot').forEach((dot, dotIndex) => {
