@@ -1877,13 +1877,89 @@ function renderAtcSection(flight) {
   if (atcEl) atcEl.textContent = atcText.trim();
 }
 
+function dispatchValueText(value) {
+  if (value === undefined || value === null || value === '') return '';
+  if (Array.isArray(value)) {
+    return value.map(dispatchValueText).filter(Boolean).join('\n').trim();
+  }
+  if (typeof value === 'object') {
+    const preferredKeys = ['#text', '_text', 'text', 'value', '_', 'dx_rmk', 'sys_rmk'];
+    for (const key of preferredKeys) {
+      if (value[key] !== undefined && value[key] !== null) {
+        const text = dispatchValueText(value[key]);
+        if (text) return text;
+      }
+    }
+    return Object.values(value).map(dispatchValueText).filter(Boolean).join('\n').trim();
+  }
+  return String(value).trim();
+}
+
+function formatDispatchGeneratedTime(value) {
+  const raw = dispatchValueText(value);
+  if (!raw) return '';
+  const numeric = Number(raw);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    const date = new Date(numeric * 1000);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleString('en-GB', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', timeZone: 'UTC',
+        timeZoneName: 'short'
+      });
+    }
+  }
+  return raw;
+}
+
+function extractDispatchBriefingData(data) {
+  const general = data && data.general || {};
+  const crew = data && data.crew || {};
+  const params = data && data.params || {};
+  return {
+    remarks: dispatchValueText(general.dx_rmk) || 'NONE',
+    systemRemarks: dispatchValueText(general.sys_rmk),
+    dispatcher: dispatchValueText(crew.dx),
+    release: dispatchValueText(general.release),
+    generated: formatDispatchGeneratedTime(params.time_generated),
+    briefingText: getPlanHtmlText(data || {}, 'Dispatch Information').trim()
+  };
+}
+
 function renderDispatchSection(flight) {
   if (!flight) return;
   const data = flight.raw || {};
-  const general = data.general || {};
-  const rmk = (general.dx_rmk && general.dx_rmk.trim() !== '') ? general.dx_rmk : 'NONE';
-  const dxEl = document.getElementById('brf-dispatch-text');
-  if (dxEl) dxEl.textContent = rmk;
+  const dispatch = extractDispatchBriefingData(data);
+
+  const remarksEl = document.getElementById('brf-dispatch-text');
+  if (remarksEl) remarksEl.textContent = dispatch.remarks;
+
+  const briefingTextEl = document.getElementById('brf-dispatch-briefing-text');
+  if (briefingTextEl) {
+    briefingTextEl.textContent = dispatch.briefingText ||
+      'Dispatch briefing information not available in this OFP.';
+  }
+
+  const metaEl = document.getElementById('brf-dispatch-meta');
+  if (metaEl) {
+    const fields = [
+      ['OFP Release', dispatch.release],
+      ['Dispatcher', dispatch.dispatcher],
+      ['Generated', dispatch.generated]
+    ].filter(field => field[1]);
+    metaEl.innerHTML = fields.map(field =>
+      '<div class="dispatch-briefing-meta-item"><span>' +
+      escapeNotamHtml(field[0]) + '</span><strong>' +
+      escapeNotamHtml(field[1]) + '</strong></div>'
+    ).join('');
+    metaEl.hidden = fields.length === 0;
+  }
+
+  const systemRemarksEl = document.getElementById('brf-dispatch-system-remarks');
+  if (systemRemarksEl) {
+    systemRemarksEl.textContent = dispatch.systemRemarks;
+    systemRemarksEl.hidden = !dispatch.systemRemarks;
+  }
 }
 
 function extractCrewMessages(data) {
