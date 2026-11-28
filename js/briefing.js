@@ -283,6 +283,7 @@ function renderBriefingMenu() {
   if (!menuEl) return;
   const flight = getFlight(currentFlightId);
   const data = flight && flight.raw ? flight.raw : {};
+  preloadSimBriefCharts(data);
   const mainAirports = currentAirportsData.map((apt, index) => ({ apt, index }))
     .filter(x => ['Departure', 'Arrival', 'Arrival Alternate'].includes(x.apt.type));
   const enrouteAirports = currentAirportsData.map((apt, index) => ({ apt, index }))
@@ -523,33 +524,48 @@ function extractSimBriefCharts(data) {
   return groups;
 }
 
+const simBriefChartPreloadCache = new Map();
+
+function preloadSimBriefCharts(data) {
+  const groups = extractSimBriefCharts(data);
+  Object.values(groups).flat().forEach(chart => {
+    if (!chart.url || simBriefChartPreloadCache.has(chart.url)) return;
+    const preload = new Image();
+    preload.decoding = 'async';
+    preload.loading = 'eager';
+    preload.src = chart.url;
+    simBriefChartPreloadCache.set(chart.url, preload);
+  });
+}
+
 function renderChartsSection(flight, sectionTitle) {
   const container = document.getElementById('briefing-placeholder');
   if (!container) return;
 
-  const charts = extractSimBriefCharts(flight && flight.raw ? flight.raw : {});
+  const data = flight && flight.raw ? flight.raw : {};
+  const charts = extractSimBriefCharts(data);
   const images = charts[sectionTitle] || [];
   if (!images.length) {
     container.innerHTML = '<div class="charts-empty">No charts available in this OFP.</div>';
     return;
   }
 
+  // Start any missing downloads now; normally these are already cached from OFP import.
+  preloadSimBriefCharts(data);
+
   container.innerHTML =
-    '<div class="widget charts-widget">' +
-      '<div class="widget-header charts-widget-header"><span>' + sectionTitle + '</span>' +
-        '<span class="charts-counter" data-chart-counter></span></div>' +
+    '<div class="charts-page">' +
+      '<div class="charts-count-row"><span class="charts-counter" data-chart-counter></span></div>' +
       '<div class="charts-viewer" data-charts-viewer>' +
         '<button type="button" class="charts-arrow charts-prev" aria-label="Previous chart">&#8249;</button>' +
-        '<div class="charts-image-frame"><img class="charts-image" data-chart-image alt="SimBrief chart"></div>' +
+        '<div class="charts-image-frame"><img class="charts-image" data-chart-image alt="SimBrief chart" decoding="async" loading="eager"></div>' +
         '<button type="button" class="charts-arrow charts-next" aria-label="Next chart">&#8250;</button>' +
       '</div>' +
       '<div class="pager-dots charts-dots" data-chart-dots></div>' +
-      '<div class="charts-caption" data-chart-caption></div>' +
     '</div>';
 
   const image = container.querySelector('[data-chart-image]');
   const counter = container.querySelector('[data-chart-counter]');
-  const caption = container.querySelector('[data-chart-caption]');
   const dots = container.querySelector('[data-chart-dots]');
   const viewer = container.querySelector('[data-charts-viewer]');
   const previous = container.querySelector('.charts-prev');
@@ -563,7 +579,6 @@ function renderChartsSection(flight, sectionTitle) {
     image.src = chart.url;
     image.alt = chart.label || sectionTitle;
     counter.textContent = images.length > 1 ? (activeIndex + 1) + ' / ' + images.length : '1 / 1';
-    caption.textContent = chart.label || sectionTitle;
     dots.querySelectorAll('.pager-dot').forEach((dot, dotIndex) => {
       dot.classList.toggle('active', dotIndex === activeIndex);
       dot.setAttribute('aria-current', dotIndex === activeIndex ? 'true' : 'false');
