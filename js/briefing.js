@@ -15,8 +15,10 @@ function extractAirportsData(data) {
 
   function getAptNotams(icao) {
     if (!icao) return [];
+    const code = String(icao).toUpperCase();
     return allNotams.filter(n =>
-      n && (n.cns_location_id === icao || n.icao_id === icao || n.location_icao === icao)
+      n && [n.cns_location_id, n.icao_id, n.location_icao]
+        .some(value => String(value || '').toUpperCase() === code)
     );
   }
 
@@ -668,7 +670,8 @@ function etopsFormatCoordinate(lat, lon) {
 }
 function getEtopsData(data) {
   return normalizeSimBriefList(data && data.etops).filter(Boolean)
-    .find(item => etopsValue(item, 'rule') || item.entry || item.equal_time_point) || null;
+    .find(item => etopsValue(item, 'rule') || item.entry || item.equal_time_point ||
+      item.suitable_airport || item.adequate_airport) || null;
 }
 function getEtopsAirportIndex(etops) {
   const byIcao = {};
