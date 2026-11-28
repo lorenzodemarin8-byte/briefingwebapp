@@ -556,7 +556,7 @@ function parseMetarCeilingVisibility(metar) {
     .map(match => Number(match[1]) * 100)
     .filter(Number.isFinite);
   const ceiling = ceilingLayers.length ? Math.min(...ceilingLayers) : null;
-  const unknownCeiling = /\b(?:BKN|OVC|VV)\/\/\/\b/.test(raw);
+  const unknownCeiling = /\b(?:BKN|OVC|VV)\/\/\/(?:\s|$)/.test(raw);
   const noCeiling = !unknownCeiling && (
     /\b(?:CAVOK|NSC|NCD|SKC|CLR)\b/.test(raw) || !ceilingLayers.length
   );
@@ -596,7 +596,7 @@ function getAirportWeatherMetrics(data, which, airport) {
   const category = String(airport.metar_category || '').toLowerCase();
   let vmcLabel = category === 'vfr' || category === 'mvfr' ? 'VMC'
     : category === 'ifr' || category === 'lifr' ? 'IMC' : '--';
-  if (vmcLabel === '--' && (visibilityValue !== null || parsedMetar.noCeiling)) {
+  if (vmcLabel === '--' && (ceilingValue !== null || visibilityValue !== null || parsedMetar.noCeiling)) {
     const lowCeiling = ceilingValue !== null && ceilingValue !== undefined && Number(ceilingValue) < 1000;
     const lowVisibility = visibilityValue !== null && visibilityValue !== undefined && Number(visibilityValue) < 5000;
     vmcLabel = lowCeiling || lowVisibility ? 'IMC' : 'VMC';
