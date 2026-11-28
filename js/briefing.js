@@ -153,7 +153,7 @@ function briefingSectionMarkup(title, key, innerHtml, expanded) {
     (expanded ? '' : 'hidden') + '>' + innerHtml + '</div></section>';
 }
 
-function getPlanHtmlText(data, sectionName) {
+function getPlanHtmlText(data, sectionName, requireBookmark = false) {
   const html = data && data.text && data.text.plan_html;
   if (!html) return '';
 
@@ -183,6 +183,8 @@ function getPlanHtmlText(data, sectionName) {
     source = decoded;
     markers = scanMarkers(source);
   }
+
+  if (!markers.length && requireBookmark) return '';
 
   let sectionHtml = source;
   if (markers.length) {
@@ -1924,7 +1926,7 @@ function extractDispatchBriefingData(data) {
     dispatcher: dispatchValueText(crew.dx),
     release: dispatchValueText(general.release),
     generated: formatDispatchGeneratedTime(params.time_generated),
-    briefingText: getPlanHtmlText(data || {}, 'Dispatch Information').trim()
+    briefingText: getPlanHtmlText(data || {}, 'Dispatch Information', true).trim()
   };
 }
 
