@@ -191,9 +191,10 @@ function getPlanHtmlText(data, sectionName) {
     sectionHtml = source.slice(marker.end, next ? next.index : source.length);
   }
 
-  const holder = document.createElement('div');
-  holder.innerHTML = sectionHtml;
-  return (holder.textContent || holder.innerText || '').replace(/\r/g, '');
+  // Parse the extracted HTML fragment as a document so <pre> line breaks and
+  // text nodes are preserved while presentation-only tags are removed.
+  const parsedSection = new DOMParser().parseFromString(sectionHtml, 'text/html');
+  return (parsedSection.body.textContent || parsedSection.body.innerText || '').replace(/\r/g, '');
 }
 
 
