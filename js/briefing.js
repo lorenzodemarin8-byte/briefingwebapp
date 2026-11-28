@@ -844,6 +844,26 @@ function etopsGetPlanHtml(data) {
   return html;
 }
 
+function etopsTableColumnForHeader(cells, predicate) {
+  let column = 0;
+  for (const cell of Array.from(cells || [])) {
+    const span = Math.max(1, Number(cell.colSpan) || 1);
+    if (predicate(cell)) return column;
+    column += span;
+  }
+  return -1;
+}
+
+function etopsTableCellAtColumn(cells, targetColumn) {
+  let column = 0;
+  for (const cell of Array.from(cells || [])) {
+    const span = Math.max(1, Number(cell.colSpan) || 1);
+    if (targetColumn >= column && targetColumn < column + span) return cell;
+    column += span;
+  }
+  return null;
+}
+
 function etopsExtractRequiredWxFromPlanText(data, icao) {
   const html = etopsGetPlanHtml(data);
   const code = String(icao || '').trim().toUpperCase();
@@ -856,7 +876,8 @@ function etopsExtractRequiredWxFromPlanText(data, icao) {
     const rows = Array.from(table.querySelectorAll('tr'));
     for (let headerIndex = 0; headerIndex < rows.length; headerIndex++) {
       const headerCells = Array.from(rows[headerIndex].cells || []);
-      const minimaColumn = headerCells.findIndex(cell => etopsIsRequiredWxHeader(cell.textContent));
+      const minimaColumn = etopsTableColumnForHeader(headerCells,
+        cell => etopsIsRequiredWxHeader(cell.textContent));
       if (minimaColumn < 0) continue;
 
       for (let rowIndex = headerIndex + 1; rowIndex < rows.length; rowIndex++) {
@@ -864,8 +885,8 @@ function etopsExtractRequiredWxFromPlanText(data, icao) {
         const hasAirport = cells.some(cell =>
           new RegExp('(?:^|\\b)' + code + '(?:$|\\b)', 'i').test((cell.textContent || '').trim()));
         if (!hasAirport) continue;
-        const cellValue = cells[minimaColumn] ? cells[minimaColumn].textContent : '';
-        const parsed = etopsParseWxMinima(cellValue);
+        const minimaCell = etopsTableCellAtColumn(cells, minimaColumn);
+        const parsed = etopsParseWxMinima(minimaCell ? minimaCell.textContent : '');
         if (parsed) return etopsFormatWxMinima(parsed);
       }
     }
