@@ -714,7 +714,8 @@ function buildEtopsDetailMarkup(position, airportsByIcao) {
     const period = start && end ? formatObsDateTime(start) + ' – ' + formatObsDateTime(end) : '—';
     const required = etopsWxPair(etopsValue(details, 'fcst_cig'), etopsValue(details, 'fcst_vis'));
     const considered = etopsWxPair(etopsValue(details, 'metar_ceiling'), etopsValue(details, 'metar_visibility'));
-    return '<div class="etops-airport-wx-item"><div class="etops-airport-heading"><span>' + escapeNotamHtml(icao) + '</span><span>' + escapeNotamHtml(name) + '</span></div>' +
+    const airportClass = airportsByIcao[icao] ? 'etops-suitable-airport' : 'etops-adequate-airport';
+    return '<div class="etops-airport-wx-item"><div class="etops-airport-heading ' + airportClass + '"><span>' + escapeNotamHtml(icao) + '</span><span>' + escapeNotamHtml(name) + '</span></div>' +
       '<div class="etops-detail-grid"><div><span>Suitable Period</span><span>' + escapeNotamHtml(period) + '</span></div>' +
       '<div><span>Required WX Minima</span><span>' + escapeNotamHtml(required) + '</span></div>' +
       '<div><span>Considered WX Minima</span><span>' + escapeNotamHtml(considered) + '</span></div></div>' +
@@ -732,7 +733,8 @@ function buildEtopsDetailMarkup(position, airportsByIcao) {
   const generalMarkup = generalRows.map(item => '<div class="etops-detail-row-item"><span>' + escapeNotamHtml(item[0]) + '</span><span>' + escapeNotamHtml(item[1]) + '</span></div>').join('');
   const airportHeader = divAirports.length ? divAirports.map(airport => {
     const icao = etopsValue(airport, 'icao_code').toUpperCase(), info = airportsByIcao[icao] || {};
-    return '<span><strong>' + escapeNotamHtml(icao) + '</strong><small>' + escapeNotamHtml(etopsValue(info, 'name')) + '</small></span>';
+    const suitableClass = airportsByIcao[icao] ? 'etops-suitable-airport' : 'etops-adequate-airport';
+    return '<span class="' + suitableClass + '"><strong>' + escapeNotamHtml(icao) + '</strong><small>' + escapeNotamHtml(etopsValue(info, 'name')) + '</small></span>';
   }).join('') : '<span><strong>' + escapeNotamHtml(etopsValue(source, 'icao_code') || '—') + '</strong></span>';
   return '<div class="etops-detail-content"><div class="etops-airport-title"><strong>Airport</strong><div>' + airportHeader + '</div></div>' +
     '<div class="etops-section-heading"><strong>General</strong><span></span></div><div class="etops-general-fields">' + generalMarkup + '</div>' +
