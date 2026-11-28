@@ -1726,9 +1726,16 @@ function renderAirportSection(index) {
   const airportWeatherContent = document.getElementById('brf-apt-airport-weather-content');
   const firWeatherContent = document.getElementById('brf-fir-weather-content');
   const vmcBadge = document.getElementById('brf-apt-vmc-badge');
+  const etopsBadge = document.getElementById('brf-apt-etops-badge');
   if (airportWeatherContent) airportWeatherContent.style.display = '';
   if (firWeatherContent) firWeatherContent.style.display = 'none';
   if (vmcBadge) vmcBadge.style.display = '';
+  if (etopsBadge) {
+    etopsBadge.style.display = apt.etopsAirport ? 'inline-flex' : 'none';
+    etopsBadge.textContent = apt.etopsStatus || '';
+    etopsBadge.className = 'wx-badge etops-status-badge' +
+      (apt.etopsStatus === 'SUITABLE' ? ' etops-status-suitable' : ' etops-status-adequate');
+  }
 
   setT('brf-apt-param-ceiling', metrics.ceiling);
   setT('brf-apt-param-vis', metrics.visibility);
