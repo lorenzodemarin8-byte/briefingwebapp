@@ -335,7 +335,7 @@ function renderBriefingMenu() {
   const chartLabels = ['UAD', 'SIGWX with Route', 'VAA/TCA', 'CDA', 'SIGWX',
     'Satellite Maps', 'Radar', 'Surface Fronts', 'Dispatcher Maps', 'Vertical Profile'];
   const charts = chartLabels.map(label => briefingPageButton(label, 'chart:' + label,
-    'data-placeholder-title="' + escapeNotamHtml(label) + '"')).join('');
+    'data-section="chart:' + escapeNotamHtml(label) + '" data-placeholder-title="' + escapeNotamHtml(label) + '"')).join('');
 
   menuEl.innerHTML =
     briefingSectionMarkup('Flight Plan', 'brf-flight-plan', flightPlan, true) +
