@@ -1002,13 +1002,18 @@ function getEtopsAirportWxData(data, airport, suitableAirport) {
 
 function buildEtopsDetailMarkup(position, airportsByIcao, data) {
   const source = position.source, divAirports = position.airports;
+  const airportTitleItems = divAirports.map(airport => {
+    const icao = etopsValue(airport, 'icao_code').toUpperCase();
+    const wx = getEtopsAirportWxData(data, airport, airportsByIcao[icao]);
+    return '<span><strong>' + escapeNotamHtml(icao || '—') + '</strong><small>' +
+      escapeNotamHtml(wx.name || '') + '</small></span>';
+  }).join('');
+  const airportTitle = '<div class="etops-airport-title"><strong>Airport</strong><div>' +
+    (airportTitleItems || '<span><strong>—</strong><small></small></span>') + '</div></div>';
   const airportCards = divAirports.map(airport => {
     const icao = etopsValue(airport, 'icao_code').toUpperCase();
     const wx = getEtopsAirportWxData(data, airport, airportsByIcao[icao]);
     return '<div class="etops-airport-wx-item">' +
-      '<div class="etops-airport-title"><strong>Airport</strong><div><span><strong>' +
-      escapeNotamHtml(icao || '—') + '</strong><small>' + escapeNotamHtml(wx.name || '') +
-      '</small></span></div></div>' +
       '<div class="etops-detail-grid"><div><span>Suitable Period</span><span>' + escapeNotamHtml(wx.suitablePeriod) + '</span></div>' +
       '<div><span>Required WX Minima</span><span>' + escapeNotamHtml(wx.requiredWxMinima) + '</span></div>' +
       '<div><span>Considered WX Minima</span><span>' + escapeNotamHtml(wx.consideredWxMinima) + '</span></div></div>' +
@@ -1024,7 +1029,7 @@ function buildEtopsDetailMarkup(position, airportsByIcao, data) {
     ['MSA', '—']
   ];
   const generalMarkup = generalRows.map(item => '<div class="etops-detail-row-item"><span>' + escapeNotamHtml(item[0]) + '</span><span>' + escapeNotamHtml(item[1]) + '</span></div>').join('');
-  return '<div class="etops-detail-content">' +
+  return '<div class="etops-detail-content">' + airportTitle +
     '<div class="etops-section-heading"><strong>General</strong><span></span></div><div class="etops-general-fields">' + generalMarkup + '</div>' +
     '<div class="etops-section-heading"><strong>Airport WX</strong><span></span></div><div class="etops-airport-wx-list">' +
     (airportCards || '<div class="etops-no-data">Airport WX data not available</div>') + '</div></div>';
