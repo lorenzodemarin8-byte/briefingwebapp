@@ -556,8 +556,10 @@ function parseMetarCeilingVisibility(metar) {
     .map(match => Number(match[1]) * 100)
     .filter(Number.isFinite);
   const ceiling = ceilingLayers.length ? Math.min(...ceilingLayers) : null;
-  const noCeiling = /\b(?:CAVOK|NSC|NCD|SKC|CLR)\b/.test(raw) ||
-    (!ceilingLayers.length && /\b(?:FEW|SCT)\d{3}\b/.test(raw));
+  const unknownCeiling = /\b(?:BKN|OVC|VV)\/\/\/\b/.test(raw);
+  const noCeiling = !unknownCeiling && (
+    /\b(?:CAVOK|NSC|NCD|SKC|CLR)\b/.test(raw) || !ceilingLayers.length
+  );
 
   return { ceiling, visibility, noCeiling };
 }
