@@ -525,8 +525,14 @@ function extractSimBriefCharts(data) {
 }
 
 const simBriefChartPreloadCache = new Map();
+let simBriefChartPreloadFlightId = null;
 
 function preloadSimBriefCharts(data) {
+  // Keep only the current flight's chart objects in memory on iPad/mobile devices.
+  if (simBriefChartPreloadFlightId !== currentFlightId) {
+    simBriefChartPreloadCache.clear();
+    simBriefChartPreloadFlightId = currentFlightId;
+  }
   const groups = extractSimBriefCharts(data);
   Object.values(groups).flat().forEach(chart => {
     if (!chart.url || simBriefChartPreloadCache.has(chart.url)) return;
