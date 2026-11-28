@@ -3680,3 +3680,61 @@ canvas#signature-pad, canvas#submit-signature-pad { width: 100%; height: 100%; d
 .briefing-airport-item.briefing-etops-adequate .briefing-airport-code { font-weight: 400; }
 [data-theme="dark"] .etops-status-badge.etops-status-suitable { color: #75d6a0; }
 [data-theme="dark"] .etops-status-badge.etops-status-adequate { color: #c1c8d0; }
+
+
+/* ETOPS: table rows float on the app background; only expanded content is a card. */
+.etops-widget-body {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  overflow-x: auto;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+.etops-table {
+  width: 100%;
+  min-width: 720px;
+  border: 0;
+  outline: 0;
+  box-shadow: none;
+  border-collapse: separate;
+  border-spacing: 0 4px;
+  background: transparent;
+}
+.etops-table thead th {
+  background: var(--panel);
+  border: 0;
+  box-shadow: none;
+}
+.etops-position-row,
+.etops-position-row td {
+  background: var(--panel);
+  border: 0;
+  box-shadow: none;
+}
+.etops-expand-btn,
+.etops-expand-btn:hover,
+.etops-expand-btn:focus,
+.etops-expand-btn:active {
+  border: 0 !important;
+  outline: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+.etops-detail-row td,
+.etops-detail-content {
+  background: var(--card);
+  border: 0;
+  box-shadow: none;
+}
+.etops-detail-content {
+  padding: 13px 14px 16px;
+}
+.etops-airport-title {
+  margin-bottom: 10px;
+}
+.etops-airport-title > strong {
+  font-weight: 700;
+}
