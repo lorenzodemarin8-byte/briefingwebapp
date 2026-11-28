@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=82">
+  <link rel="stylesheet" href="css/style.css?v=83">
 </head>
 <body>
   <!-- TOP BAR & INFO VOLO -->
@@ -562,6 +562,10 @@
             </div>
           </div>
         </div>
+        <!-- EXTENDED OPS / EDTO-ETOPS CONTAINER -->
+        <div id="briefing-etops-container" class="briefing-general-container" style="display:none;">
+          <div class="widget etops-widget"><div class="widget-header gen-widget-header" style="justify-content:flex-start; padding:12px 22px;"><span class="gen-header-text" style="text-transform:none;">Extended OPS - EDTO/ETOPS</span></div><div class="widget-body etops-widget-body" id="etops-content"></div></div>
+        </div>
         <!-- CREW ALERT AND BULLETIN CONTAINER -->
         <div id="briefing-crew-alert-container" class="briefing-general-container" style="display:none;">
           <div class="widget crew-message-widget">
@@ -807,6 +811,10 @@
       <span>NavLog</span>
     </button>
   </footer>
+
+  <!-- POPUP EXTENDED OPS WX FORECAST -->
+  <div class="modal-overlay" id="etops-taf-modal-overlay" onclick="closeEtopsTafModal()"></div>
+  <div class="modal etops-taf-modal" id="etops-taf-modal"><div class="modal-header"><button class="modal-header-btn" type="button" onclick="closeEtopsTafModal()">Close</button><span class="modal-title">WX Forecast</span><span style="width:36px;"></span></div><div class="modal-body etops-taf-modal-body" id="etops-taf-modal-body"></div></div>
 
   <!-- POPUP FIRMA ACCETTAZIONE -->
   <div class="modal-overlay" id="signature-modal-overlay"></div>
