@@ -718,7 +718,7 @@ function etopsParseWxMinima(value) {
     const visibility = etopsFirstValue(value, ['visibility', 'vis', 'min_vis', 'required_vis']);
     return ceiling || visibility ? { ceiling, visibility } : null;
   }
-  const match = String(value || '').match(/(?:^|[^\\d])(\\d{2,5})\\s*(?:\\/|[-–—])\\s*(\\d{3,5})(?!\\d)/);
+  const match = String(value || '').match(/(?:^|[^\d])(\d{2,5})\s*(?:\/|[-–—])\s*(\d{3,5})(?!\d)/);
   return match ? { ceiling: match[1], visibility: match[2] } : null;
 }
 
@@ -755,7 +755,7 @@ function getEtopsStructuredRequiredWxMinima(airport) {
 function etopsGetPlanHtml(data) {
   let html = data && data.text && data.text.plan_html ? String(data.text.plan_html) : '';
   if (!html) return '';
-  if (!/<(?:table|tr|td|th|pre|div)\\b/i.test(html) && /&lt;(?:table|tr|td|th|pre|div)\\b/i.test(html)) {
+  if (!/<(?:table|tr|td|th|pre|div)\b/i.test(html) && /&lt;(?:table|tr|td|th|pre|div)\b/i.test(html)) {
     const decoder = document.createElement('textarea');
     decoder.innerHTML = html;
     html = decoder.value || decoder.textContent || html;
@@ -775,16 +775,16 @@ function etopsExtractRequiredWxFromPlanText(data, icao) {
     const rows = Array.from(table.querySelectorAll('tr'));
     for (let headerIndex = 0; headerIndex < rows.length; headerIndex++) {
       const headerCells = Array.from(rows[headerIndex].cells || []);
-      const minimaColumn = headerCells.findIndex(cell => /DISP\\s*WX\\s*MIN/i.test(cell.textContent || ''));
+      const minimaColumn = headerCells.findIndex(cell => /DISP\s*WX\s*MIN/i.test(cell.textContent || ''));
       if (minimaColumn < 0) continue;
 
       for (let rowIndex = headerIndex + 1; rowIndex < rows.length; rowIndex++) {
         const cells = Array.from(rows[rowIndex].cells || []);
         const hasAirport = cells.some(cell =>
-          new RegExp('(?:^|\\\\b)' + code + '(?:$|\\\\b)', 'i').test((cell.textContent || '').trim()));
+          new RegExp('(?:^|\\b)' + code + '(?:$|\\b)', 'i').test((cell.textContent || '').trim()));
         if (!hasAirport) continue;
         const cellValue = cells[minimaColumn] ? cells[minimaColumn].textContent : '';
-        const parsed = etopsParseWxMinima(cellValue) || etopsParseWxMinima(rows[rowIndex].textContent);
+        const parsed = etopsParseWxMinima(cellValue);
         if (parsed) return etopsFormatWxMinima(parsed);
       }
     }
@@ -793,17 +793,17 @@ function etopsExtractRequiredWxFromPlanText(data, icao) {
   // Text-only fallback: require the DISP WX MIN heading, then associate a nearby
   // value with the exact ICAO. This avoids mistaking FCST WX or METAR values for minima.
   let plain = html
-    .replace(/<\\s*br\\b[^>]*>/gi, '\\n')
-    .replace(/<\\/\\s*(?:tr|p|div|section|pre|h[1-6])\\s*>/gi, '\\n')
-    .replace(/<\\/\\s*(?:td|th)\\s*>/gi, '\\t')
+    .replace(/<\s*br\b[^>]*>/gi, '\n')
+    .replace(/<\/\s*(?:tr|p|div|section|pre|h[1-6])\s*>/gi, '\n')
+    .replace(/<\/\s*(?:td|th)\s*>/gi, '\t')
     .replace(/<[^>]*>/g, ' ')
     .replace(/&nbsp;|&#160;/gi, ' ');
   const decoder = document.createElement('textarea');
   decoder.innerHTML = plain;
-  plain = (decoder.value || decoder.textContent || plain).replace(/\\r/g, '');
-  if (!/DISP\\s*WX\\s*MIN/i.test(plain)) return '';
+  plain = (decoder.value || decoder.textContent || plain).replace(/\r/g, '');
+  if (!/DISP\s*WX\s*MIN/i.test(plain)) return '';
 
-  const lines = plain.split('\\n').map(line => line.replace(/\\s+/g, ' ').trim()).filter(Boolean);
+  const lines = plain.split('\n').map(line => line.replace(/\s+/g, ' ').trim()).filter(Boolean);
   const airportPattern = new RegExp('(?:^|[^A-Z0-9])' + code + '(?:$|[^A-Z0-9])', 'i');
   for (let index = 0; index < lines.length; index++) {
     if (!airportPattern.test(lines[index])) continue;
