@@ -803,18 +803,38 @@ function etopsExtractRequiredWxFromPlanText(data, icao) {
   plain = (decoder.value || decoder.textContent || plain).replace(/\r/g, '');
   if (!/DISP\s*WX\s*MIN/i.test(plain)) return '';
 
-  const lines = plain.split('\n').map(line => line.replace(/\s+/g, ' ').trim()).filter(Boolean);
+  const lines = plain.split('\n').filter(line => line.trim());
+  const headerIndex = lines.findIndex(line => /DISP\s*WX\s*MIN/i.test(line));
+  if (headerIndex < 0) return '';
+  const headerLine = lines[headerIndex];
+  const headerCells = headerLine.split('\t');
+  const minimaColumn = headerCells.findIndex(cell => /DISP\s*WX\s*MIN/i.test(cell));
+  const headerColumnStart = headerLine.toUpperCase().search(/DISP\s*WX\s*MIN/);
   const airportPattern = new RegExp('(?:^|[^A-Z0-9])' + code + '(?:$|[^A-Z0-9])', 'i');
-  for (let index = 0; index < lines.length; index++) {
-    if (!airportPattern.test(lines[index])) continue;
-    const sameLine = etopsParseWxMinima(lines[index]);
-    if (sameLine) return etopsFormatWxMinima(sameLine);
+
+  for (let index = headerIndex + 1; index < lines.length; index++) {
+    const line = lines[index];
+    if (!airportPattern.test(line)) continue;
+
+    // Prefer the same table column (HTML cell index or fixed-width OFP position).
+    let candidate = minimaColumn >= 0 ? (line.split('\t')[minimaColumn] || '') : '';
+    if (!candidate && headerColumnStart >= 0) candidate = line.slice(headerColumnStart, headerColumnStart + 32);
+    let parsed = etopsParseWxMinima(candidate);
+    if (parsed) return etopsFormatWxMinima(parsed);
+
+    // If the row is not column-aligned, accept a pair only when it is unambiguous.
+    const pairs = Array.from(line.matchAll(/(?:^|[^\d])(\d{2,5})\s*(?:\/|[-–—])\s*(\d{3,5})(?!\d)/g));
+    if (pairs.length === 1) return etopsFormatWxMinima({ ceiling: pairs[0][1], visibility: pairs[0][2] });
+
+    // Some text layouts wrap a row onto the next line. Do not guess if multiple pairs appear.
     for (let distance = 1; distance <= 2; distance++) {
-      for (const candidateIndex of [index - distance, index + distance]) {
-        if (candidateIndex < 0 || candidateIndex >= lines.length) continue;
-        const parsed = etopsParseWxMinima(lines[candidateIndex]);
-        if (parsed) return etopsFormatWxMinima(parsed);
+      const nextLine = lines[index + distance];
+      if (!nextLine || airportPattern.test(nextLine)) break;
+      const wrappedPairs = Array.from(nextLine.matchAll(/(?:^|[^\d])(\d{2,5})\s*(?:\/|[-–—])\s*(\d{3,5})(?!\d)/g));
+      if (wrappedPairs.length === 1) {
+        return etopsFormatWxMinima({ ceiling: wrappedPairs[0][1], visibility: wrappedPairs[0][2] });
       }
+      if (wrappedPairs.length > 1) break;
     }
   }
   return '';
