@@ -477,7 +477,126 @@ function selectBriefingPage(item) {
   } else {
     const placeholder = document.getElementById('briefing-placeholder');
     if (placeholder) placeholder.style.display = 'block';
+    if (String(section || '').startsWith('chart:')) {
+      renderChartsSection(flight, placeholderTitle || String(section).slice(6));
+    }
   }
+}
+
+function extractSimBriefCharts(data) {
+  const html = data && data.text && data.text.plan_html ? String(data.text.plan_html) : '';
+  if (!html) return {};
+
+  const groups = {};
+  const anchorPattern = /<a\\b[^>]*class=["'][^"']*\\bofpmaplink\\b[^"']*["'][^>]*>[\\s\\S]*?<\\/a>/gi;
+  let match;
+
+  while ((match = anchorPattern.exec(html))) {
+    const anchor = match[0];
+    const before = html.slice(0, match.index);
+    const rawLabel = (before.match(/([^<>]*)$/) || [])[1] || '';
+    const label = rawLabel.replace(/&nbsp;|&#160;/gi, ' ').replace(/&amp;/gi, '&')
+      .replace(/\\s+/g, ' ').trim();
+    if (!label || /NO DATA AVAILABLE/i.test(label)) continue;
+
+    const srcMatch = anchor.match(/<img\\b[^>]*\\bsrc=["']([^"']+)["']/i);
+    const hrefMatch = anchor.match(/\\bhref=["']([^"']+)["']/i);
+    const url = srcMatch ? srcMatch[1] : (hrefMatch ? hrefMatch[1] : '');
+    if (!url || !/^https:\\/\\//i.test(url)) continue;
+
+    let key = '';
+    if (/^(route|sigwx)\\b/i.test(label)) key = 'SIGWX with Route';
+    else if (/^uad\\b/i.test(label)) key = 'UAD';
+    else if (/vertical\\s*profile/i.test(label)) key = 'Vertical Profile';
+    else if (/vaa\\s*\\/\\s*tca/i.test(label)) key = 'VAA/TCA';
+    else if (/^cda\\b/i.test(label)) key = 'CDA';
+    else if (/satellite/i.test(label)) key = 'Satellite Maps';
+    else if (/radar/i.test(label)) key = 'Radar';
+    else if (/surface\\s*front/i.test(label)) key = 'Surface Fronts';
+    else if (/dispatcher\\s*maps/i.test(label)) key = 'Dispatcher Maps';
+    if (!key) continue;
+
+    if (!groups[key]) groups[key] = [];
+    groups[key].push({ label, url });
+  }
+
+  return groups;
+}
+
+function renderChartsSection(flight, sectionTitle) {
+  const container = document.getElementById('briefing-placeholder');
+  if (!container) return;
+
+  const charts = extractSimBriefCharts(flight && flight.raw ? flight.raw : {});
+  const images = charts[sectionTitle] || [];
+  if (!images.length) {
+    container.innerHTML = '<div class="charts-empty">No charts available in this OFP.</div>';
+    return;
+  }
+
+  container.innerHTML =
+    '<div class="widget charts-widget">' +
+      '<div class="widget-header charts-widget-header"><span>' + sectionTitle + '</span>' +
+        '<span class="charts-counter" data-chart-counter></span></div>' +
+      '<div class="charts-viewer" data-charts-viewer>' +
+        '<button type="button" class="charts-arrow charts-prev" aria-label="Previous chart">&#8249;</button>' +
+        '<div class="charts-image-frame"><img class="charts-image" data-chart-image alt="SimBrief chart"></div>' +
+        '<button type="button" class="charts-arrow charts-next" aria-label="Next chart">&#8250;</button>' +
+      '</div>' +
+      '<div class="pager-dots charts-dots" data-chart-dots></div>' +
+      '<div class="charts-caption" data-chart-caption></div>' +
+    '</div>';
+
+  const image = container.querySelector('[data-chart-image]');
+  const counter = container.querySelector('[data-chart-counter]');
+  const caption = container.querySelector('[data-chart-caption]');
+  const dots = container.querySelector('[data-chart-dots]');
+  const viewer = container.querySelector('[data-charts-viewer]');
+  const previous = container.querySelector('.charts-prev');
+  const next = container.querySelector('.charts-next');
+  let activeIndex = 0;
+  let pointerStartX = null;
+
+  const showChart = index => {
+    activeIndex = (index + images.length) % images.length;
+    const chart = images[activeIndex];
+    image.src = chart.url;
+    image.alt = chart.label || sectionTitle;
+    counter.textContent = images.length > 1 ? (activeIndex + 1) + ' / ' + images.length : '1 / 1';
+    caption.textContent = chart.label || sectionTitle;
+    dots.querySelectorAll('.pager-dot').forEach((dot, dotIndex) => {
+      dot.classList.toggle('active', dotIndex === activeIndex);
+      dot.setAttribute('aria-current', dotIndex === activeIndex ? 'true' : 'false');
+    });
+    previous.hidden = images.length < 2;
+    next.hidden = images.length < 2;
+    dots.hidden = images.length < 2;
+  };
+
+  images.forEach((chart, index) => {
+    const dot = document.createElement('button');
+    dot.type = 'button';
+    dot.className = 'pager-dot' + (index === 0 ? ' active' : '');
+    dot.setAttribute('aria-label', 'Chart ' + (index + 1));
+    dot.addEventListener('click', () => showChart(index));
+    dots.appendChild(dot);
+  });
+
+  previous.addEventListener('click', () => showChart(activeIndex - 1));
+  next.addEventListener('click', () => showChart(activeIndex + 1));
+  viewer.addEventListener('pointerdown', event => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    pointerStartX = event.clientX;
+  });
+  viewer.addEventListener('pointerup', event => {
+    if (pointerStartX === null) return;
+    const delta = event.clientX - pointerStartX;
+    pointerStartX = null;
+    if (Math.abs(delta) < 45 || images.length < 2) return;
+    showChart(activeIndex + (delta < 0 ? 1 : -1));
+  });
+  viewer.addEventListener('pointercancel', () => { pointerStartX = null; });
+  showChart(0);
 }
 
 function bindBriefingTabs() {
