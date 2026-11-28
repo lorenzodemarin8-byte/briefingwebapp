@@ -442,6 +442,10 @@ function selectBriefingPage(item) {
   } else if (section === 'Extended OPS - EDTO/ETOPS') {
     const el = document.getElementById('briefing-etops-container');
     if (el) el.style.display = 'flex';
+    const etops = getEtopsData(flight && flight.raw ? flight.raw : {});
+    const duration = getEtopsDurationMinutes(etops);
+    if (title) title.textContent = 'Extended OPS - EDTO/ETOPS' +
+      (duration ? ' (' + duration + ' min)' : '');
     renderEtopsSection(flight);
   } else if (section === 'ATC') {
     const el = document.getElementById('briefing-atc-container');
@@ -672,6 +676,23 @@ function getEtopsData(data) {
   return normalizeSimBriefList(data && data.etops).filter(Boolean)
     .find(item => etopsValue(item, 'rule') || item.entry || item.equal_time_point ||
       item.suitable_airport || item.adequate_airport) || null;
+}
+function getEtopsDurationMinutes(etops) {
+  if (!etops) return null;
+  const candidates = [
+    etopsValue(etops, 'rule'),
+    etopsValue(etops, 'duration'),
+    etopsValue(etops, 'max_time'),
+    etopsValue(etops, 'etops_time')
+  ];
+  for (const candidate of candidates) {
+    const match = String(candidate || '').match(/(?:ETOPS\s*)?(\d{2,3})\s*(?:MIN(?:UTES?)?)?/i);
+    if (match) {
+      const minutes = Number(match[1]);
+      if (minutes >= 60 && minutes <= 360) return minutes;
+    }
+  }
+  return null;
 }
 function getEtopsAirportIndex(etops) {
   const byIcao = {};
@@ -952,17 +973,22 @@ function getEtopsAirportWxData(data, airport, suitableAirport) {
   const end = etopsValue(details, 'suitability_end');
   const suitablePeriod = start && end ? formatObsDateTime(start) + ' – ' + formatObsDateTime(end) : '—';
 
-  // Required minima are dispatch requirements: structured XML first, OFP text only as fallback.
-  const requiredWxMinima = getEtopsStructuredRequiredWxMinima(details) ||
-    getEtopsStructuredRequiredWxMinima(airport) ||
-    etopsExtractRequiredWxFromPlanText(data, icao) || '—';
-
-  // SimBrief's fcst_cig/fcst_vis are the forecast values used for suitability (FCST WX),
-  // not the required dispatch minima. Do not derive these from the TAF or current METAR.
-  const consideredWxMinima = etopsFormatWxMinima({
+  const consideredPair = {
     ceiling: etopsValue(details, 'fcst_cig'),
     visibility: etopsValue(details, 'fcst_vis')
-  });
+  };
+  const consideredWxMinima = etopsFormatWxMinima(consideredPair);
+
+  // Never label SimBrief's considered forecast as dispatch-required minima.
+  let requiredWxMinima = getEtopsStructuredRequiredWxMinima(details) ||
+    getEtopsStructuredRequiredWxMinima(airport) ||
+    etopsExtractRequiredWxFromPlanText(data, icao) || '—';
+  const requiredPair = etopsParseWxMinima(requiredWxMinima);
+  if (requiredPair &&
+      String(requiredPair.ceiling || '') === String(consideredPair.ceiling || '') &&
+      String(requiredPair.visibility || '') === String(consideredPair.visibility || '')) {
+    requiredWxMinima = '—';
+  }
 
   return {
     icao,
@@ -980,6 +1006,9 @@ function buildEtopsDetailMarkup(position, airportsByIcao, data) {
     const icao = etopsValue(airport, 'icao_code').toUpperCase();
     const wx = getEtopsAirportWxData(data, airport, airportsByIcao[icao]);
     return '<div class="etops-airport-wx-item">' +
+      '<div class="etops-airport-title"><strong>Airport</strong><div><span><strong>' +
+      escapeNotamHtml(icao || '—') + '</strong><small>' + escapeNotamHtml(wx.name || '') +
+      '</small></span></div></div>' +
       '<div class="etops-detail-grid"><div><span>Suitable Period</span><span>' + escapeNotamHtml(wx.suitablePeriod) + '</span></div>' +
       '<div><span>Required WX Minima</span><span>' + escapeNotamHtml(wx.requiredWxMinima) + '</span></div>' +
       '<div><span>Considered WX Minima</span><span>' + escapeNotamHtml(wx.consideredWxMinima) + '</span></div></div>' +
@@ -1747,25 +1776,12 @@ function renderAirportSection(index) {
   const weatherType = apt.type === 'Departure' ? 'origin'
     : apt.type === 'Arrival' ? 'destination' : 'alternate';
   const metrics = getAirportWeatherMetrics(flight.raw || {}, weatherType, apt);
-  // ETOPS XML can provide SimBrief's considered forecast even when a METAR
-  // ceiling/visibility field is absent. Keep the source explicit in the value.
-  if (apt.etopsAirport) {
-    if (metrics.ceiling === '-' && apt.fcst_cig) metrics.ceiling = apt.fcst_cig + ' ft (FCST)';
-    if (metrics.visibility === '-' && apt.fcst_vis) metrics.visibility = apt.fcst_vis + ' m (FCST)';
-  }
   const airportWeatherContent = document.getElementById('brf-apt-airport-weather-content');
   const firWeatherContent = document.getElementById('brf-fir-weather-content');
   const vmcBadge = document.getElementById('brf-apt-vmc-badge');
-  const etopsBadge = document.getElementById('brf-apt-etops-badge');
   if (airportWeatherContent) airportWeatherContent.style.display = '';
   if (firWeatherContent) firWeatherContent.style.display = 'none';
   if (vmcBadge) vmcBadge.style.display = '';
-  if (etopsBadge) {
-    etopsBadge.style.display = apt.etopsAirport ? 'inline-flex' : 'none';
-    etopsBadge.textContent = apt.etopsStatus || '';
-    etopsBadge.className = 'wx-badge etops-status-badge' +
-      (apt.etopsStatus === 'SUITABLE' ? ' etops-status-suitable' : ' etops-status-adequate');
-  }
 
   setT('brf-apt-param-ceiling', metrics.ceiling);
   setT('brf-apt-param-vis', metrics.visibility);
