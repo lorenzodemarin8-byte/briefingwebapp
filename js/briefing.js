@@ -682,7 +682,7 @@ function renderEtopsSection(flight) {
     const detailRow = document.createElement('tr');
     detailRow.className = 'etops-detail-row'; detailRow.hidden = true;
     const detailCell = document.createElement('td'); detailCell.colSpan = 6;
-    detailCell.innerHTML = buildEtopsDetailMarkup(position, airportsByIcao);
+    detailCell.innerHTML = buildEtopsDetailMarkup(position, airportsByIcao, data);
     detailRow.appendChild(detailCell); tbody.appendChild(detailRow);
   });
   table.appendChild(tbody); container.appendChild(table);
@@ -704,21 +704,162 @@ function renderEtopsSection(flight) {
     });
   }
 }
-function buildEtopsDetailMarkup(position, airportsByIcao) {
+function etopsFirstValue(object, keys) {
+  for (const key of keys) {
+    const value = etopsValue(object, key);
+    if (value) return value;
+  }
+  return '';
+}
+
+function etopsParseWxMinima(value) {
+  if (value && typeof value === 'object') {
+    const ceiling = etopsFirstValue(value, ['ceiling', 'cig', 'min_cig', 'required_cig']);
+    const visibility = etopsFirstValue(value, ['visibility', 'vis', 'min_vis', 'required_vis']);
+    return ceiling || visibility ? { ceiling, visibility } : null;
+  }
+  const match = String(value || '').match(/(?:^|[^\\d])(\\d{2,5})\\s*(?:\\/|[-–—])\\s*(\\d{3,5})(?!\\d)/);
+  return match ? { ceiling: match[1], visibility: match[2] } : null;
+}
+
+function etopsFormatWxMinima(pair) {
+  if (!pair || (!pair.ceiling && !pair.visibility)) return '—';
+  return 'Ceiling ' + (pair.ceiling || '—') + ' ft / Visibility ' + (pair.visibility || '—') + ' m';
+}
+
+function getEtopsStructuredRequiredWxMinima(airport) {
+  if (!airport) return '';
+  const pairedKeys = [
+    'disp_wx_min', 'disp_wx_minima', 'dispatch_wx_min', 'dispatch_wx_minima',
+    'required_wx_min', 'required_wx_minima', 'wx_minima'
+  ];
+  for (const key of pairedKeys) {
+    const raw = etopsUnwrap(airport[key]);
+    if (raw === undefined || raw === null || raw === '') continue;
+    const parsed = etopsParseWxMinima(raw);
+    if (parsed) return etopsFormatWxMinima(parsed);
+    if (typeof raw !== 'object') return String(raw).trim();
+  }
+
+  const ceiling = etopsFirstValue(airport, [
+    'disp_cig', 'disp_ceiling', 'dispatch_cig', 'dispatch_ceiling',
+    'required_cig', 'required_ceiling', 'min_cig', 'min_ceiling'
+  ]);
+  const visibility = etopsFirstValue(airport, [
+    'disp_vis', 'disp_visibility', 'dispatch_vis', 'dispatch_visibility',
+    'required_vis', 'required_visibility', 'min_vis', 'min_visibility'
+  ]);
+  return ceiling || visibility ? etopsFormatWxMinima({ ceiling, visibility }) : '';
+}
+
+function etopsGetPlanHtml(data) {
+  let html = data && data.text && data.text.plan_html ? String(data.text.plan_html) : '';
+  if (!html) return '';
+  if (!/<(?:table|tr|td|th|pre|div)\\b/i.test(html) && /&lt;(?:table|tr|td|th|pre|div)\\b/i.test(html)) {
+    const decoder = document.createElement('textarea');
+    decoder.innerHTML = html;
+    html = decoder.value || decoder.textContent || html;
+  }
+  return html;
+}
+
+function etopsExtractRequiredWxFromPlanText(data, icao) {
+  const html = etopsGetPlanHtml(data);
+  const code = String(icao || '').trim().toUpperCase();
+  if (!html || !/^[A-Z0-9]{4}$/.test(code)) return '';
+
+  const holder = document.createElement('div');
+  holder.innerHTML = html;
+  const tables = holder.querySelectorAll('table');
+  for (const table of tables) {
+    const rows = Array.from(table.querySelectorAll('tr'));
+    for (let headerIndex = 0; headerIndex < rows.length; headerIndex++) {
+      const headerCells = Array.from(rows[headerIndex].cells || []);
+      const minimaColumn = headerCells.findIndex(cell => /DISP\\s*WX\\s*MIN/i.test(cell.textContent || ''));
+      if (minimaColumn < 0) continue;
+
+      for (let rowIndex = headerIndex + 1; rowIndex < rows.length; rowIndex++) {
+        const cells = Array.from(rows[rowIndex].cells || []);
+        const hasAirport = cells.some(cell =>
+          new RegExp('(?:^|\\\\b)' + code + '(?:$|\\\\b)', 'i').test((cell.textContent || '').trim()));
+        if (!hasAirport) continue;
+        const cellValue = cells[minimaColumn] ? cells[minimaColumn].textContent : '';
+        const parsed = etopsParseWxMinima(cellValue) || etopsParseWxMinima(rows[rowIndex].textContent);
+        if (parsed) return etopsFormatWxMinima(parsed);
+      }
+    }
+  }
+
+  // Text-only fallback: require the DISP WX MIN heading, then associate a nearby
+  // value with the exact ICAO. This avoids mistaking FCST WX or METAR values for minima.
+  let plain = html
+    .replace(/<\\s*br\\b[^>]*>/gi, '\\n')
+    .replace(/<\\/\\s*(?:tr|p|div|section|pre|h[1-6])\\s*>/gi, '\\n')
+    .replace(/<\\/\\s*(?:td|th)\\s*>/gi, '\\t')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;|&#160;/gi, ' ');
+  const decoder = document.createElement('textarea');
+  decoder.innerHTML = plain;
+  plain = (decoder.value || decoder.textContent || plain).replace(/\\r/g, '');
+  if (!/DISP\\s*WX\\s*MIN/i.test(plain)) return '';
+
+  const lines = plain.split('\\n').map(line => line.replace(/\\s+/g, ' ').trim()).filter(Boolean);
+  const airportPattern = new RegExp('(?:^|[^A-Z0-9])' + code + '(?:$|[^A-Z0-9])', 'i');
+  for (let index = 0; index < lines.length; index++) {
+    if (!airportPattern.test(lines[index])) continue;
+    const sameLine = etopsParseWxMinima(lines[index]);
+    if (sameLine) return etopsFormatWxMinima(sameLine);
+    for (let distance = 1; distance <= 2; distance++) {
+      for (const candidateIndex of [index - distance, index + distance]) {
+        if (candidateIndex < 0 || candidateIndex >= lines.length) continue;
+        const parsed = etopsParseWxMinima(lines[candidateIndex]);
+        if (parsed) return etopsFormatWxMinima(parsed);
+      }
+    }
+  }
+  return '';
+}
+
+function getEtopsAirportWxData(data, airport, suitableAirport) {
+  const icao = etopsValue(airport, 'icao_code').toUpperCase();
+  const details = suitableAirport || {};
+  const name = etopsValue(details, 'name') || etopsValue(airport, 'name');
+  const start = etopsValue(details, 'suitability_start');
+  const end = etopsValue(details, 'suitability_end');
+  const suitablePeriod = start && end ? formatObsDateTime(start) + ' – ' + formatObsDateTime(end) : '—';
+
+  // Required minima are dispatch requirements: structured XML first, OFP text only as fallback.
+  const requiredWxMinima = getEtopsStructuredRequiredWxMinima(details) ||
+    getEtopsStructuredRequiredWxMinima(airport) ||
+    etopsExtractRequiredWxFromPlanText(data, icao) || '—';
+
+  // SimBrief's fcst_cig/fcst_vis are the forecast values used for suitability (FCST WX),
+  // not the required dispatch minima. Do not derive these from the TAF or current METAR.
+  const consideredWxMinima = etopsFormatWxMinima({
+    ceiling: etopsValue(details, 'fcst_cig'),
+    visibility: etopsValue(details, 'fcst_vis')
+  });
+
+  return {
+    icao,
+    name,
+    suitablePeriod,
+    requiredWxMinima,
+    consideredWxMinima,
+    isSuitable: Boolean(suitableAirport)
+  };
+}
+
+function buildEtopsDetailMarkup(position, airportsByIcao, data) {
   const source = position.source, divAirports = position.airports;
   const airportCards = divAirports.map(airport => {
     const icao = etopsValue(airport, 'icao_code').toUpperCase();
-    const details = airportsByIcao[icao] || {};
-    const name = etopsValue(details, 'name') || etopsValue(airport, 'name');
-    const start = etopsValue(details, 'suitability_start'), end = etopsValue(details, 'suitability_end');
-    const period = start && end ? formatObsDateTime(start) + ' – ' + formatObsDateTime(end) : '—';
-    const required = etopsWxPair(etopsValue(details, 'fcst_cig'), etopsValue(details, 'fcst_vis'));
-    const considered = etopsWxPair(etopsValue(details, 'metar_ceiling'), etopsValue(details, 'metar_visibility'));
-    const airportClass = airportsByIcao[icao] ? 'etops-suitable-airport' : 'etops-adequate-airport';
-    return '<div class="etops-airport-wx-item"><div class="etops-airport-heading ' + airportClass + '"><span>' + escapeNotamHtml(icao) + '</span><span>' + escapeNotamHtml(name) + '</span></div>' +
-      '<div class="etops-detail-grid"><div><span>Suitable Period</span><span>' + escapeNotamHtml(period) + '</span></div>' +
-      '<div><span>Required WX Minima</span><span>' + escapeNotamHtml(required) + '</span></div>' +
-      '<div><span>Considered WX Minima</span><span>' + escapeNotamHtml(considered) + '</span></div></div>' +
+    const wx = getEtopsAirportWxData(data, airport, airportsByIcao[icao]);
+    const airportClass = wx.isSuitable ? 'etops-suitable-airport' : 'etops-adequate-airport';
+    return '<div class="etops-airport-wx-item"><div class="etops-airport-heading ' + airportClass + '"><span>' + escapeNotamHtml(wx.icao) + '</span><span>' + escapeNotamHtml(wx.name) + '</span></div>' +
+      '<div class="etops-detail-grid"><div><span>Suitable Period</span><span>' + escapeNotamHtml(wx.suitablePeriod) + '</span></div>' +
+      '<div><span>Required WX Minima</span><span>' + escapeNotamHtml(wx.requiredWxMinima) + '</span></div>' +
+      '<div><span>Considered WX Minima</span><span>' + escapeNotamHtml(wx.consideredWxMinima) + '</span></div></div>' +
       '<button type="button" class="etops-taf-button" data-etops-taf="' + escapeNotamHtml(icao) + '">View TAF for ' + escapeNotamHtml(icao) + '</button></div>';
   }).join('');
   const generalRows = [
@@ -728,7 +869,7 @@ function buildEtopsDetailMarkup(position, airportsByIcao) {
     ['Flight Time', etopsFormatTime(etopsValue(source, 'div_time'))],
     ['Wind Component', divAirports.length ? divAirports.map(a => etopsFormatWind(etopsValue(a, 'avg_wind_comp'))).join(' / ') : '—'],
     ['Altitude (FL)', etopsFormatFlightLevel(etopsValue(source, 'div_altitude'))],
-    ['MSA', etopsValue(source, 'msa') || '—']
+    ['MSA', '—']
   ];
   const generalMarkup = generalRows.map(item => '<div class="etops-detail-row-item"><span>' + escapeNotamHtml(item[0]) + '</span><span>' + escapeNotamHtml(item[1]) + '</span></div>').join('');
   const airportHeader = divAirports.length ? divAirports.map(airport => {
@@ -742,7 +883,7 @@ function buildEtopsDetailMarkup(position, airportsByIcao) {
     (airportCards || '<div class="etops-no-data">Airport WX data not available</div>') + '</div></div>';
 }
 function etopsWxPair(ceiling, visibility) {
-  return 'Ceiling ' + (ceiling ? ceiling + ' ft' : '—') + ' / Visibility ' + (visibility ? visibility + ' m' : '—');
+  return etopsFormatWxMinima({ ceiling: String(ceiling || '').trim(), visibility: String(visibility || '').trim() });
 }
 function etopsFormatWind(value) {
   const number = etopsNumber(value);
