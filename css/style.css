@@ -3547,3 +3547,51 @@ canvas#signature-pad, canvas#submit-signature-pad { width: 100%; height: 100%; d
   height: 36px;
   flex: 0 0 36px;
 }
+
+
+/* Extended OPS / EDTO-ETOPS */
+.etops-widget-body { padding: 0; overflow-x: auto; }
+.etops-table { width: 100%; min-width: 720px; border-collapse: separate; border-spacing: 0 4px; table-layout: auto; font-size: 11px; }
+.etops-table thead th { padding: 10px 8px; background: var(--panel); color: var(--text-2); font-size: 10px; font-weight: 500; text-align: center; white-space: nowrap; }
+.etops-table thead th:first-child { text-align: left; padding-left: 14px; }
+.etops-position-row { background: var(--panel); }
+.etops-position-row td { padding: 0 8px; height: 38px; text-align: center; white-space: nowrap; color: var(--text); font-variant-numeric: tabular-nums; }
+.etops-position-row td:first-child { padding: 0; text-align: left; }
+.etops-expand-btn { display:flex; align-items:center; justify-content:space-between; gap:12px; width:100%; height:38px; padding:0 12px; border:0; background:transparent; color:var(--text); text-align:left; font:inherit; cursor:pointer; }
+.etops-position-name { font-weight:500; }
+.etops-chevron { font-size:21px; line-height:1; transition:transform .15s ease; color:var(--text-2); }
+.etops-expand-btn[aria-expanded="true"] .etops-chevron { transform:rotate(90deg); }
+.etops-detail-row[hidden] { display:none; }
+.etops-detail-row td { padding:0; background:var(--page); }
+.etops-detail-content { padding:13px 14px 16px; background:var(--page); color:var(--text); }
+.etops-airport-title { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:13px; font-size:11px; }
+.etops-airport-title > strong { font-weight:700; }
+.etops-airport-title > div { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:14px; text-align:right; }
+.etops-airport-title > div > span { display:flex; flex-direction:column; gap:2px; }
+.etops-airport-title > div strong { font-weight:700; }
+.etops-airport-title small { color:var(--text-2); font-size:10px; font-weight:400; }
+.etops-section-heading { display:flex; align-items:center; gap:10px; margin:13px 0 8px; font-size:11px; }
+.etops-section-heading strong { font-weight:700; }
+.etops-section-heading span { height:1px; flex:1; background:var(--inner-divider); }
+.etops-general-fields { display:flex; flex-direction:column; gap:7px; }
+.etops-detail-row-item { display:flex; justify-content:space-between; gap:14px; font-size:11px; line-height:1.35; }
+.etops-detail-row-item > span:first-child { color:var(--text-2); }
+.etops-detail-row-item > span:last-child { text-align:right; font-variant-numeric:tabular-nums; }
+.etops-airport-wx-list { display:flex; flex-direction:column; gap:12px; }
+.etops-airport-wx-item { padding:0 0 11px; border-bottom:1px solid var(--inner-divider); }
+.etops-airport-wx-item:last-child { border-bottom:0; padding-bottom:0; }
+.etops-airport-heading { display:flex; justify-content:space-between; gap:12px; margin-bottom:8px; font-size:11px; }
+.etops-airport-heading span:first-child { font-weight:700; }
+.etops-airport-heading span:last-child { color:var(--text-2); text-align:right; }
+.etops-detail-grid { display:grid; grid-template-columns:1fr; gap:6px; }
+.etops-detail-grid > div { display:flex; justify-content:space-between; gap:12px; font-size:10.5px; }
+.etops-detail-grid > div span:last-child { text-align:right; }
+.etops-taf-button, .etops-view-wx-button { margin-top:9px; padding:6px 10px; border:1px solid var(--panel-border); border-radius:5px; background:var(--card); color:var(--text); font-size:10.5px; cursor:pointer; }
+.etops-no-data { color:var(--text-2); font-size:11px; }
+.etops-taf-modal { max-height:80vh; display:flex; flex-direction:column; }
+.etops-taf-modal-body { overflow-y:auto; max-height:calc(80vh - 52px); }
+.etops-taf-block { padding:0 0 14px; margin:0 0 14px; border-bottom:1px solid var(--inner-divider); }
+.etops-taf-block:last-child { margin-bottom:0; border-bottom:0; }
+.etops-taf-airport { margin-bottom:7px; font-size:12px; font-weight:700; }
+.etops-taf-block pre { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; color:var(--text); font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:11px; line-height:1.5; }
+@media (max-width:700px) { .etops-table { min-width:690px; } .etops-detail-content { padding:12px 10px 14px; } }
