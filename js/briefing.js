@@ -1944,26 +1944,6 @@ function renderDispatchSection(flight) {
       'Dispatch briefing information not available in this OFP.';
   }
 
-  const metaEl = document.getElementById('brf-dispatch-meta');
-  if (metaEl) {
-    const fields = [
-      ['OFP Release', dispatch.release],
-      ['Dispatcher', dispatch.dispatcher],
-      ['Generated', dispatch.generated]
-    ].filter(field => field[1]);
-    metaEl.innerHTML = fields.map(field =>
-      '<div class="dispatch-briefing-meta-item"><span>' +
-      escapeNotamHtml(field[0]) + '</span><strong>' +
-      escapeNotamHtml(field[1]) + '</strong></div>'
-    ).join('');
-    metaEl.hidden = fields.length === 0;
-  }
-
-  const systemRemarksEl = document.getElementById('brf-dispatch-system-remarks');
-  if (systemRemarksEl) {
-    systemRemarksEl.textContent = dispatch.systemRemarks;
-    systemRemarksEl.hidden = !dispatch.systemRemarks;
-  }
 }
 
 function extractCrewMessages(data) {
