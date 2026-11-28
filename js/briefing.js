@@ -58,6 +58,39 @@ function extractAirportsData(data) {
     addAirportRecord(alt, 'Enroute Alternate'));
   normalizeSimBriefList(data.enroute_station).forEach(station =>
     addAirportRecord(station, 'Enroute Station'));
+
+  // ETOPS suitable/adequate airports are additional briefing destinations.
+  // Keep them as distinct menu entries even when the ICAO is also an origin,
+  // destination or conventional alternate.
+  const etops = getEtopsData(data);
+  const etopsAirports = getEtopsAirportIndex(etops || {});
+  Object.keys(etopsAirports).sort().forEach(icao => {
+    const airport = etopsAirports[icao];
+    const suitable = Boolean(airport._etops_suitable);
+    const type = suitable ? 'ETOPS Suitable' : 'ETOPS Adequate';
+    currentAirportsData.push({
+      type,
+      etopsAirport: true,
+      etopsStatus: suitable ? 'SUITABLE' : 'ADEQUATE',
+      icao,
+      iata: etopsValue(airport, 'iata_code'),
+      icao_code: icao,
+      plan_rwy: etopsValue(airport, 'plan_rwy'),
+      name: etopsValue(airport, 'name'),
+      metar_ceiling: etopsValue(airport, 'metar_ceiling'),
+      metar_visibility: etopsValue(airport, 'metar_visibility'),
+      metar: etopsValue(airport, 'metar'),
+      metar_time: etopsValue(airport, 'metar_time'),
+      metar_category: etopsValue(airport, 'metar_category'),
+      taf: etopsValue(airport, 'taf'),
+      taf_time: etopsValue(airport, 'taf_time'),
+      fcst_cig: etopsValue(airport, 'fcst_cig'),
+      fcst_vis: etopsValue(airport, 'fcst_vis'),
+      suitability_start: etopsValue(airport, 'suitability_start'),
+      suitability_end: etopsValue(airport, 'suitability_end'),
+      notams: getAptNotams(icao)
+    });
+  });
 }
 
 function getBriefingVisitedPages() {
@@ -87,9 +120,11 @@ function briefingPageButton(label, pageKey, attributes, extraClass) {
 
 function briefingAirportButton(apt, index) {
   const code = [apt.icao || '????', apt.iata].filter(Boolean).join('/');
-  const pageKey = 'airport:' + (apt.icao || index);
+  const pageKey = 'airport:' + (apt.icao || index) + (apt.etopsAirport ? ':etops' : '');
   const visited = getBriefingVisitedPages().includes(pageKey);
-  return '<button type="button" class="briefing-page-item briefing-airport-item ' +
+  const statusClass = apt.etopsStatus === 'SUITABLE' ? ' briefing-etops-suitable'
+    : apt.etopsStatus === 'ADEQUATE' ? ' briefing-etops-adequate' : '';
+  return '<button type="button" class="briefing-page-item briefing-airport-item' + statusClass + ' ' +
     (visited ? 'visited' : 'unread') + '" data-page-key="' + escapeNotamHtml(pageKey) +
     '" data-apt-index="' + index + '">' +
     '<span class="briefing-airport-code">' + escapeNotamHtml(code) + '</span>' +
@@ -250,6 +285,10 @@ function renderBriefingMenu() {
     .filter(x => ['Departure', 'Arrival', 'Arrival Alternate'].includes(x.apt.type));
   const enrouteAirports = currentAirportsData.map((apt, index) => ({ apt, index }))
     .filter(x => ['Enroute Alternate', 'Enroute Station'].includes(x.apt.type));
+  const etopsSuitableAirports = currentAirportsData.map((apt, index) => ({ apt, index }))
+    .filter(x => x.apt.etopsAirport && x.apt.etopsStatus === 'SUITABLE');
+  const etopsAdequateAirports = currentAirportsData.map((apt, index) => ({ apt, index }))
+    .filter(x => x.apt.etopsAirport && x.apt.etopsStatus === 'ADEQUATE');
   const firs = getFlightFirEntries(data);
 
   const flightPlanDefs = [
@@ -272,6 +311,10 @@ function renderBriefingMenu() {
     '<div class="briefing-airport-empty">No main airports available</div>';
   const enrouteItems = enrouteAirports.map(x => briefingAirportButton(x.apt, x.index)).join('') ||
     '<div class="briefing-airport-empty">No enroute airports available</div>';
+  const etopsSuitableItems = etopsSuitableAirports.map(x => briefingAirportButton(x.apt, x.index)).join('') ||
+    '<div class="briefing-airport-empty">No ETOPS suitable airports available</div>';
+  const etopsAdequateItems = etopsAdequateAirports.map(x => briefingAirportButton(x.apt, x.index)).join('') ||
+    '<div class="briefing-airport-empty">No ETOPS adequate airports available</div>';
   const firItems = firs.map(fir => {
     const code = escapeNotamHtml(fir.code);
     const name = escapeNotamHtml(fir.name || 'Flight Information Region');
@@ -283,6 +326,8 @@ function renderBriefingMenu() {
 
   const wxNotams = briefingGroupMarkup('Main Airports', 'brf-main-airports', mainAirportItems, true) +
     briefingGroupMarkup('Enroute Airports', 'brf-enroute-airports', enrouteItems, true) +
+    briefingGroupMarkup('ETOPS Suitable Airports', 'brf-etops-suitable-airports', etopsSuitableItems, true) +
+    briefingGroupMarkup('ETOPS Adequate Airports', 'brf-etops-adequate-airports', etopsAdequateItems, true) +
     briefingGroupMarkup('FIRs', 'brf-firs', firItems, false);
 
   const chartLabels = ['UAD', 'SIGWX with Route', 'VAA/TCA', 'CDA', 'SIGWX',
@@ -629,8 +674,15 @@ function getEtopsAirportIndex(etops) {
   const byIcao = {};
   normalizeSimBriefList(etops && etops.suitable_airport).filter(Boolean).forEach(airport => {
     const icao = etopsValue(airport, 'icao_code').toUpperCase();
-    if (icao) byIcao[icao] = airport;
+    if (icao) byIcao[icao] = Object.assign({}, airport, { _etops_suitable: true });
   });
+  const addAdequate = airport => {
+    const icao = etopsValue(airport, 'icao_code').toUpperCase();
+    if (icao && !byIcao[icao]) byIcao[icao] = Object.assign({}, airport, { _etops_suitable: false });
+  };
+  normalizeSimBriefList(etops && etops.adequate_airport).filter(Boolean).forEach(addAdequate);
+  getEtopsPositions(etops || {}).forEach(position =>
+    position.airports.forEach(addAdequate));
   return byIcao;
 }
 function getEtopsPositions(etops) {
@@ -658,22 +710,30 @@ function renderEtopsSection(flight) {
   const table = document.createElement('table');
   table.className = 'etops-table';
   const thead = document.createElement('thead'), header = document.createElement('tr');
-  ['Critical Position', 'Time', 'Coordinates', 'Airport', 'FOB', 'Condition'].forEach(label => {
+  ['Critical Position', 'Time', 'Coordinates', 'Airport', 'FOB (kg)', 'Condition'].forEach(label => {
     const th = document.createElement('th'); th.textContent = label; header.appendChild(th);
   });
+  const conditionHeader = header.lastElementChild;
+  conditionHeader.innerHTML = 'Condition <details class="etops-condition-info"><summary aria-label="Explain ETOPS conditions" title="Explain ETOPS conditions">i</summary><div class="etops-condition-popover"><strong>ETOPS conditions</strong><span><b>DC</b> — Decompression</span><span><b>DX</b> — Decompression and one engine out</span><span><b>1X</b> — One engine out</span></div></details>';
   thead.appendChild(header); table.appendChild(thead);
   const tbody = document.createElement('tbody');
   positions.forEach((position, index) => {
     const source = position.source;
-    const airportCodes = position.airports.map(airport => etopsValue(airport, 'icao_code')).filter(Boolean);
-    const airportLabel = airportCodes.join(' / ') || etopsValue(source, 'icao_code') || '—';
+    const airportLabel = position.airports.map(airport => {
+      const icao = etopsValue(airport, 'icao_code').toUpperCase();
+      if (!icao) return '';
+      const suitable = Boolean(airportsByIcao[icao] && airportsByIcao[icao]._etops_suitable);
+      return '<span class="etops-airport-code ' + (suitable ? 'etops-suitable-airport' : 'etops-adequate-airport') + '">' +
+        escapeNotamHtml(icao) + '</span>';
+    }).filter(Boolean).join('<span class="etops-airport-separator"> / </span>') ||
+      escapeNotamHtml(etopsValue(source, 'icao_code') || '—');
     const row = document.createElement('tr');
     row.className = 'etops-position-row';
     const values = [
       '<td><button type="button" class="etops-expand-btn" data-etops-toggle="' + index + '" aria-expanded="false"><span class="etops-position-name">' + escapeNotamHtml(position.label) + '</span><span class="etops-chevron" aria-hidden="true">›</span></button></td>',
       '<td>' + escapeNotamHtml(etopsFormatTime(etopsValue(source, 'elapsed_time'))) + '</td>',
       '<td>' + escapeNotamHtml(etopsFormatCoordinate(etopsValue(source, 'pos_lat_fix') || etopsValue(source, 'pos_lat'), etopsValue(source, 'pos_long_fix') || etopsValue(source, 'pos_long'))) + '</td>',
-      '<td>' + escapeNotamHtml(airportLabel) + '</td>',
+      '<td class="etops-airport-cell">' + airportLabel + '</td>',
       '<td>' + escapeNotamHtml(etopsFormatFuel(etopsValue(source, 'est_fob'))) + '</td>',
       '<td>' + escapeNotamHtml(etopsValue(source, 'etops_condition') || '—') + '</td>'
     ];
@@ -729,9 +789,11 @@ function etopsFormatWxMinima(pair) {
 
 function getEtopsStructuredRequiredWxMinima(airport) {
   if (!airport) return '';
+  // Only accept explicitly dispatch-related XML fields. Generic "required" or
+  // "wx_minima" names can contain forecast/current minima and are not safe.
   const pairedKeys = [
     'disp_wx_min', 'disp_wx_minima', 'dispatch_wx_min', 'dispatch_wx_minima',
-    'required_wx_min', 'required_wx_minima', 'wx_minima'
+    'dispatch_weather_minima', 'required_dispatch_wx_min', 'required_dispatch_wx_minima'
   ];
   for (const key of pairedKeys) {
     const raw = etopsUnwrap(airport[key]);
@@ -743,11 +805,11 @@ function getEtopsStructuredRequiredWxMinima(airport) {
 
   const ceiling = etopsFirstValue(airport, [
     'disp_cig', 'disp_ceiling', 'dispatch_cig', 'dispatch_ceiling',
-    'required_cig', 'required_ceiling', 'min_cig', 'min_ceiling'
+    'dispatch_min_cig', 'dispatch_min_ceiling'
   ]);
   const visibility = etopsFirstValue(airport, [
     'disp_vis', 'disp_visibility', 'dispatch_vis', 'dispatch_visibility',
-    'required_vis', 'required_visibility', 'min_vis', 'min_visibility'
+    'dispatch_min_vis', 'dispatch_min_visibility'
   ]);
   return ceiling || visibility ? etopsFormatWxMinima({ ceiling, visibility }) : '';
 }
@@ -884,7 +946,7 @@ function getEtopsAirportWxData(data, airport, suitableAirport) {
     suitablePeriod,
     requiredWxMinima,
     consideredWxMinima,
-    isSuitable: Boolean(suitableAirport)
+    isSuitable: Boolean(suitableAirport && suitableAirport._etops_suitable)
   };
 }
 
@@ -893,8 +955,7 @@ function buildEtopsDetailMarkup(position, airportsByIcao, data) {
   const airportCards = divAirports.map(airport => {
     const icao = etopsValue(airport, 'icao_code').toUpperCase();
     const wx = getEtopsAirportWxData(data, airport, airportsByIcao[icao]);
-    const airportClass = wx.isSuitable ? 'etops-suitable-airport' : 'etops-adequate-airport';
-    return '<div class="etops-airport-wx-item"><div class="etops-airport-heading ' + airportClass + '"><span>' + escapeNotamHtml(wx.icao) + '</span><span>' + escapeNotamHtml(wx.name) + '</span></div>' +
+    return '<div class="etops-airport-wx-item">' +
       '<div class="etops-detail-grid"><div><span>Suitable Period</span><span>' + escapeNotamHtml(wx.suitablePeriod) + '</span></div>' +
       '<div><span>Required WX Minima</span><span>' + escapeNotamHtml(wx.requiredWxMinima) + '</span></div>' +
       '<div><span>Considered WX Minima</span><span>' + escapeNotamHtml(wx.consideredWxMinima) + '</span></div></div>' +
@@ -910,12 +971,7 @@ function buildEtopsDetailMarkup(position, airportsByIcao, data) {
     ['MSA', '—']
   ];
   const generalMarkup = generalRows.map(item => '<div class="etops-detail-row-item"><span>' + escapeNotamHtml(item[0]) + '</span><span>' + escapeNotamHtml(item[1]) + '</span></div>').join('');
-  const airportHeader = divAirports.length ? divAirports.map(airport => {
-    const icao = etopsValue(airport, 'icao_code').toUpperCase(), info = airportsByIcao[icao] || {};
-    const suitableClass = airportsByIcao[icao] ? 'etops-suitable-airport' : 'etops-adequate-airport';
-    return '<span class="' + suitableClass + '"><strong>' + escapeNotamHtml(icao) + '</strong><small>' + escapeNotamHtml(etopsValue(info, 'name')) + '</small></span>';
-  }).join('') : '<span><strong>' + escapeNotamHtml(etopsValue(source, 'icao_code') || '—') + '</strong></span>';
-  return '<div class="etops-detail-content"><div class="etops-airport-title"><strong>Airport</strong><div>' + airportHeader + '</div></div>' +
+  return '<div class="etops-detail-content">' +
     '<div class="etops-section-heading"><strong>General</strong><span></span></div><div class="etops-general-fields">' + generalMarkup + '</div>' +
     '<div class="etops-section-heading"><strong>Airport WX</strong><span></span></div><div class="etops-airport-wx-list">' +
     (airportCards || '<div class="etops-no-data">Airport WX data not available</div>') + '</div></div>';
@@ -959,17 +1015,23 @@ function closeEtopsTafModal() {
 function openEtopsAirportWx(icao) {
   const flight = getFlight(currentFlightId), etops = getEtopsData(flight && flight.raw ? flight.raw : {});
   const airport = getEtopsAirportIndex(etops || {})[icao] || {};
-  let index = currentAirportsData.findIndex(item => item.icao === icao);
-  if (index < 0 && airport) {
+  let index = currentAirportsData.findIndex(item => item.etopsAirport && item.icao === icao);
+  if (index < 0) {
+    const suitable = Boolean(airport._etops_suitable);
     currentAirportsData.push({
-      type: 'Enroute Alternate', icao, iata: etopsValue(airport, 'iata_code'), icao_code: icao,
+      type: suitable ? 'ETOPS Suitable' : 'ETOPS Adequate',
+      etopsAirport: true,
+      etopsStatus: suitable ? 'SUITABLE' : 'ADEQUATE',
+      icao, iata: etopsValue(airport, 'iata_code'), icao_code: icao,
       name: etopsValue(airport, 'name'), plan_rwy: etopsValue(airport, 'plan_rwy'),
       metar: etopsValue(airport, 'metar'), metar_time: etopsValue(airport, 'metar_time'),
       metar_category: etopsValue(airport, 'metar_category'), metar_ceiling: etopsValue(airport, 'metar_ceiling'),
       metar_visibility: etopsValue(airport, 'metar_visibility'), taf: etopsValue(airport, 'taf'),
-      taf_time: etopsValue(airport, 'taf_time'), notams: []
+      taf_time: etopsValue(airport, 'taf_time'), fcst_cig: etopsValue(airport, 'fcst_cig'),
+      fcst_vis: etopsValue(airport, 'fcst_vis'), notams: []
     });
     index = currentAirportsData.length - 1;
+    renderBriefingMenu();
   }
   if (index < 0) return;
   document.querySelectorAll('.briefing-page-item.active').forEach(item => item.classList.remove('active'));
