@@ -3776,3 +3776,14 @@ canvas#signature-pad, canvas#submit-signature-pad { width: 100%; height: 100%; d
   .charts-image-frame { min-height:140px; }
   .charts-image { max-height:calc(100vh - 230px); }
 }
+
+
+/* ETOPS marker alongside the flight acceptance status in the info bar. */
+.etops-topbar-badge {
+  margin-left: 6px;
+  color: var(--text-title);
+  border: 1px solid var(--text-2);
+  background: transparent;
+  letter-spacing: .06em;
+}
+.etops-topbar-badge[hidden] { display: none !important; }
