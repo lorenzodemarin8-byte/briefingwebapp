@@ -92,6 +92,7 @@ function renderFlightInfoBar(flight) {
   const fibOfp = document.getElementById('fib-ofp');
   const fibOfpdate = document.getElementById('fib-ofpdate');
   const badge = document.getElementById('fib-status');
+  const etopsBadge = document.getElementById('fib-etops');
 
   if (fibFlightnum) fibFlightnum.textContent = extractCallsign(data);
   if (fibReg) fibReg.textContent = aircraft.reg || '----';
@@ -106,6 +107,10 @@ function renderFlightInfoBar(flight) {
   if (badge) {
     badge.textContent = isAccepted ? 'CONFIRMED' : 'NOT ACCEPTED';
     badge.className = isAccepted ? 'status-badge accepted' : 'status-badge not-accepted';
+  }
+  if (etopsBadge) {
+    const hasEtops = typeof getEtopsData === 'function' && Boolean(getEtopsData(data));
+    etopsBadge.hidden = !hasEtops;
   }
 }
 
