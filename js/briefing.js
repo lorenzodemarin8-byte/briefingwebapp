@@ -686,7 +686,7 @@ function getEtopsDurationMinutes(etops) {
     etopsValue(etops, 'etops_time')
   ];
   for (const candidate of candidates) {
-    const match = String(candidate || '').match(/(?:ETOPS\s*)?(\d{2,3})\s*(?:MIN(?:UTES?)?)?/i);
+    const match = String(candidate || '').match(/(?:ETOPS[\s-]*)?(\d{2,3})\s*(?:MIN(?:UTES?)?)?/i);
     if (match) {
       const minutes = Number(match[1]);
       if (minutes >= 60 && minutes <= 360) return minutes;
