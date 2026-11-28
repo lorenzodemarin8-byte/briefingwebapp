@@ -738,7 +738,7 @@ function renderEtopsSection(flight) {
       '<td>' + escapeNotamHtml(etopsFormatCoordinate(etopsValue(source, 'pos_lat_fix') || etopsValue(source, 'pos_lat'), etopsValue(source, 'pos_long_fix') || etopsValue(source, 'pos_long'))) + '</td>',
       '<td class="etops-airport-cell">' + airportLabel + '</td>',
       '<td>' + escapeNotamHtml(etopsFormatFuel(etopsValue(source, 'est_fob'))) + '</td>',
-      '<td>' + escapeNotamHtml(etopsValue(source, 'etops_condition') || '—') + '</td>'
+      '<td>' + escapeNotamHtml((etopsValue(source, 'etops_condition') || '—').toUpperCase()) + '</td>'
     ];
     row.innerHTML = values.join('');
     tbody.appendChild(row);
@@ -1747,6 +1747,12 @@ function renderAirportSection(index) {
   const weatherType = apt.type === 'Departure' ? 'origin'
     : apt.type === 'Arrival' ? 'destination' : 'alternate';
   const metrics = getAirportWeatherMetrics(flight.raw || {}, weatherType, apt);
+  // ETOPS XML can provide SimBrief's considered forecast even when a METAR
+  // ceiling/visibility field is absent. Keep the source explicit in the value.
+  if (apt.etopsAirport) {
+    if (metrics.ceiling === '-' && apt.fcst_cig) metrics.ceiling = apt.fcst_cig + ' ft (FCST)';
+    if (metrics.visibility === '-' && apt.fcst_vis) metrics.visibility = apt.fcst_vis + ' m (FCST)';
+  }
   const airportWeatherContent = document.getElementById('brf-apt-airport-weather-content');
   const firWeatherContent = document.getElementById('brf-fir-weather-content');
   const vmcBadge = document.getElementById('brf-apt-vmc-badge');
