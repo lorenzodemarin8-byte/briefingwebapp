@@ -488,7 +488,7 @@ function extractSimBriefCharts(data) {
   if (!html) return {};
 
   const groups = {};
-  const anchorPattern = /<a\\b[^>]*class=["'][^"']*\\bofpmaplink\\b[^"']*["'][^>]*>[\\s\\S]*?<\\/a>/gi;
+  const anchorPattern = /<a\b[^>]*class=["'][^"']*\bofpmaplink\b[^"']*["'][^>]*>[\s\S]*?<\/a>/gi;
   let match;
 
   while ((match = anchorPattern.exec(html))) {
@@ -496,24 +496,24 @@ function extractSimBriefCharts(data) {
     const before = html.slice(0, match.index);
     const rawLabel = (before.match(/([^<>]*)$/) || [])[1] || '';
     const label = rawLabel.replace(/&nbsp;|&#160;/gi, ' ').replace(/&amp;/gi, '&')
-      .replace(/\\s+/g, ' ').trim();
+      .replace(/\s+/g, ' ').trim();
     if (!label || /NO DATA AVAILABLE/i.test(label)) continue;
 
-    const srcMatch = anchor.match(/<img\\b[^>]*\\bsrc=["']([^"']+)["']/i);
-    const hrefMatch = anchor.match(/\\bhref=["']([^"']+)["']/i);
+    const srcMatch = anchor.match(/<img\b[^>]*\bsrc=["']([^"']+)["']/i);
+    const hrefMatch = anchor.match(/\bhref=["']([^"']+)["']/i);
     const url = srcMatch ? srcMatch[1] : (hrefMatch ? hrefMatch[1] : '');
-    if (!url || !/^https:\\/\\//i.test(url)) continue;
+    if (!url || !/^https:\/\//i.test(url)) continue;
 
     let key = '';
-    if (/^(route|sigwx)\\b/i.test(label)) key = 'SIGWX with Route';
-    else if (/^uad\\b/i.test(label)) key = 'UAD';
-    else if (/vertical\\s*profile/i.test(label)) key = 'Vertical Profile';
-    else if (/vaa\\s*\\/\\s*tca/i.test(label)) key = 'VAA/TCA';
-    else if (/^cda\\b/i.test(label)) key = 'CDA';
+    if (/^(route|sigwx)\b/i.test(label)) key = 'SIGWX with Route';
+    else if (/^uad\b/i.test(label)) key = 'UAD';
+    else if (/vertical\s*profile/i.test(label)) key = 'Vertical Profile';
+    else if (/vaa\s*\/\s*tca/i.test(label)) key = 'VAA/TCA';
+    else if (/^cda\b/i.test(label)) key = 'CDA';
     else if (/satellite/i.test(label)) key = 'Satellite Maps';
     else if (/radar/i.test(label)) key = 'Radar';
-    else if (/surface\\s*front/i.test(label)) key = 'Surface Fronts';
-    else if (/dispatcher\\s*maps/i.test(label)) key = 'Dispatcher Maps';
+    else if (/surface\s*front/i.test(label)) key = 'Surface Fronts';
+    else if (/dispatcher\s*maps/i.test(label)) key = 'Dispatcher Maps';
     if (!key) continue;
 
     if (!groups[key]) groups[key] = [];
