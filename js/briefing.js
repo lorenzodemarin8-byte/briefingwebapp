@@ -984,9 +984,9 @@ function getEtopsAirportWxData(data, airport, suitableAirport) {
     getEtopsStructuredRequiredWxMinima(airport) ||
     etopsExtractRequiredWxFromPlanText(data, icao) || '—';
   const requiredPair = etopsParseWxMinima(requiredWxMinima);
-  if (requiredPair &&
+  if (requiredWxMinima === consideredWxMinima || (requiredPair &&
       String(requiredPair.ceiling || '') === String(consideredPair.ceiling || '') &&
-      String(requiredPair.visibility || '') === String(consideredPair.visibility || '')) {
+      String(requiredPair.visibility || '') === String(consideredPair.visibility || ''))) {
     requiredWxMinima = '—';
   }
 
