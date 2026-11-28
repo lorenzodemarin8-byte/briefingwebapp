@@ -3738,3 +3738,49 @@ canvas#signature-pad, canvas#submit-signature-pad { width: 100%; height: 100%; d
 .etops-airport-title > strong {
   font-weight: 700;
 }
+
+
+/* ETOPS typography: match the 13px body scale used across briefing pages. */
+.etops-table {
+  font-size: 13px;
+}
+.etops-table thead th {
+  font-size: 12px;
+}
+.etops-position-row td {
+  font-size: 13px;
+}
+.etops-position-name {
+  font-size: 13px;
+}
+.etops-condition-info summary {
+  font-size: 12px;
+}
+.etops-detail-content {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.etops-airport-title {
+  font-size: 13px;
+}
+.etops-airport-title small {
+  font-size: 12px;
+}
+.etops-section-heading {
+  font-size: 13px;
+}
+.etops-detail-row-item {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.etops-detail-grid > div {
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.etops-taf-button,
+.etops-view-wx-button {
+  font-size: 12px;
+}
+.etops-no-data {
+  font-size: 13px;
+}
