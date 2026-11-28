@@ -254,7 +254,7 @@ function renderBriefingMenu() {
 
   const flightPlanDefs = [
     ['General', 'section:general'], ['Fuel', 'section:fuel'],
-    ['MEL/CDL Information', 'section:mel'], ['ATC', 'section:atc'],
+    ['MEL/CDL Information', 'section:mel'], ['Extended OPS - EDTO/ETOPS', 'section:etops'], ['ATC', 'section:atc'],
     ['Dispatch Info', 'section:dispatch'], ['Crew Alert and Bulletin', 'section:crew'],
     ['Classic OFP', 'section:classic-ofp'], ['TLR', 'section:tlr']
   ];
@@ -332,7 +332,7 @@ function applyBriefingAirportMenuFilter() {
 
 function hideAllBriefingPages() {
   const ids = [
-    'briefing-general-container', 'briefing-fuel-container', 'briefing-atc-container',
+    'briefing-general-container', 'briefing-fuel-container', 'briefing-etops-container', 'briefing-atc-container',
     'briefing-dispatch-container', 'briefing-airport-container', 'briefing-mel-container',
     'briefing-crew-alert-container', 'briefing-journey-times-container',
     'briefing-journey-delays-container', 'classic-ofp-tools', 'classic-ofp-viewport',
@@ -392,6 +392,10 @@ function selectBriefingPage(item) {
   } else if (section === 'MEL/CDL Information') {
     const el = document.getElementById('briefing-mel-container');
     if (el) el.style.display = 'flex';
+  } else if (section === 'Extended OPS - EDTO/ETOPS') {
+    const el = document.getElementById('briefing-etops-container');
+    if (el) el.style.display = 'flex';
+    renderEtopsSection(flight);
   } else if (section === 'ATC') {
     const el = document.getElementById('briefing-atc-container');
     if (el) el.style.display = 'flex';
@@ -586,6 +590,214 @@ function renderGeneralAlternates(data) {
 
   table.appendChild(tbody);
   container.appendChild(table);
+}
+
+
+function etopsUnwrap(value) {
+  return Array.isArray(value) ? (value.length === 1 ? value[0] : value) : value;
+}
+function etopsValue(object, key) {
+  if (!object) return '';
+  const value = etopsUnwrap(object[key]);
+  return value === undefined || value === null || typeof value === 'object' ? '' : String(value).trim();
+}
+function etopsNumber(value) {
+  const number = Number(value);
+  return value !== '' && Number.isFinite(number) ? number : null;
+}
+function etopsFormatTime(seconds) {
+  const value = etopsNumber(seconds);
+  if (value === null || value < 0) return '—';
+  const minutes = Math.round(value / 60);
+  return String(Math.floor(minutes / 60)).padStart(2, '0') + ':' + String(minutes % 60).padStart(2, '0');
+}
+function etopsFormatFuel(value) {
+  const number = etopsNumber(value);
+  return number === null ? '—' : Math.round(number).toLocaleString('en-US');
+}
+function etopsFormatCoordinate(lat, lon) {
+  const latitude = etopsNumber(lat), longitude = etopsNumber(lon);
+  if (latitude === null || longitude === null) return '—';
+  return Math.abs(latitude).toFixed(3) + (latitude < 0 ? 'S' : 'N') + ' / ' +
+    Math.abs(longitude).toFixed(3) + (longitude < 0 ? 'W' : 'E');
+}
+function getEtopsData(data) {
+  return normalizeSimBriefList(data && data.etops).filter(Boolean)
+    .find(item => etopsValue(item, 'rule') || item.entry || item.equal_time_point) || null;
+}
+function getEtopsAirportIndex(etops) {
+  const byIcao = {};
+  normalizeSimBriefList(etops && etops.suitable_airport).filter(Boolean).forEach(airport => {
+    const icao = etopsValue(airport, 'icao_code').toUpperCase();
+    if (icao) byIcao[icao] = airport;
+  });
+  return byIcao;
+}
+function getEtopsPositions(etops) {
+  const positions = [];
+  normalizeSimBriefList(etops.entry).filter(Boolean).forEach(item =>
+    positions.push({ type: 'ENTRY', label: 'ENTRY', source: item, airports: normalizeSimBriefList(item.div_airport).filter(Boolean) }));
+  normalizeSimBriefList(etops.equal_time_point).filter(Boolean).forEach((item, index) =>
+    positions.push({ type: 'ETP', label: 'ETP ' + (index + 1), source: item, airports: normalizeSimBriefList(item.div_airport).filter(Boolean) }));
+  normalizeSimBriefList(etops.exit).filter(Boolean).forEach(item =>
+    positions.push({ type: 'EXIT', label: 'EXIT', source: item, airports: normalizeSimBriefList(item.div_airport).filter(Boolean) }));
+  return positions;
+}
+function renderEtopsSection(flight) {
+  const container = document.getElementById('etops-content');
+  if (!container) return;
+  container.innerHTML = '';
+  const data = flight && flight.raw ? flight.raw : {};
+  const etops = getEtopsData(data);
+  if (!etops || !getEtopsPositions(etops).length) {
+    container.innerHTML = '<div class="gen-alternates-empty">No Extended OPS / EDTO data available in this OFP</div>';
+    return;
+  }
+  const airportsByIcao = getEtopsAirportIndex(etops);
+  const positions = getEtopsPositions(etops);
+  const table = document.createElement('table');
+  table.className = 'etops-table';
+  const thead = document.createElement('thead'), header = document.createElement('tr');
+  ['Critical Position', 'Time', 'Coordinates', 'Airport', 'FOB', 'Condition'].forEach(label => {
+    const th = document.createElement('th'); th.textContent = label; header.appendChild(th);
+  });
+  thead.appendChild(header); table.appendChild(thead);
+  const tbody = document.createElement('tbody');
+  positions.forEach((position, index) => {
+    const source = position.source;
+    const airportCodes = position.airports.map(airport => etopsValue(airport, 'icao_code')).filter(Boolean);
+    const airportLabel = airportCodes.join(' / ') || etopsValue(source, 'icao_code') || '—';
+    const row = document.createElement('tr');
+    row.className = 'etops-position-row';
+    const values = [
+      '<td><button type="button" class="etops-expand-btn" data-etops-toggle="' + index + '" aria-expanded="false"><span class="etops-position-name">' + escapeNotamHtml(position.label) + '</span><span class="etops-chevron" aria-hidden="true">›</span></button></td>',
+      '<td>' + escapeNotamHtml(etopsFormatTime(etopsValue(source, 'elapsed_time'))) + '</td>',
+      '<td>' + escapeNotamHtml(etopsFormatCoordinate(etopsValue(source, 'pos_lat_fix') || etopsValue(source, 'pos_lat'), etopsValue(source, 'pos_long_fix') || etopsValue(source, 'pos_long'))) + '</td>',
+      '<td>' + escapeNotamHtml(airportLabel) + '</td>',
+      '<td>' + escapeNotamHtml(etopsFormatFuel(etopsValue(source, 'est_fob'))) + '</td>',
+      '<td>' + escapeNotamHtml(etopsValue(source, 'etops_condition') || '—') + '</td>'
+    ];
+    row.innerHTML = values.join('');
+    tbody.appendChild(row);
+    const detailRow = document.createElement('tr');
+    detailRow.className = 'etops-detail-row'; detailRow.hidden = true;
+    const detailCell = document.createElement('td'); detailCell.colSpan = 6;
+    detailCell.innerHTML = buildEtopsDetailMarkup(position, airportsByIcao);
+    detailRow.appendChild(detailCell); tbody.appendChild(detailRow);
+  });
+  table.appendChild(tbody); container.appendChild(table);
+  if (container.dataset.etopsBound !== 'true') {
+    container.dataset.etopsBound = 'true';
+    container.addEventListener('click', event => {
+      const toggle = event.target.closest('[data-etops-toggle]');
+      if (toggle) {
+        const detail = toggle.closest('tr').nextElementSibling;
+        if (!detail) return;
+        const expanded = toggle.getAttribute('aria-expanded') === 'true';
+        toggle.setAttribute('aria-expanded', String(!expanded));
+        detail.hidden = expanded;
+        toggle.closest('tr').classList.toggle('is-expanded', !expanded);
+        return;
+      }
+      const tafButton = event.target.closest('[data-etops-taf]');
+      if (tafButton) openEtopsTafModal(tafButton.dataset.etopsTaf.split(',').filter(Boolean));
+    });
+  }
+}
+function buildEtopsDetailMarkup(position, airportsByIcao) {
+  const source = position.source, divAirports = position.airports;
+  const airportCards = divAirports.map(airport => {
+    const icao = etopsValue(airport, 'icao_code').toUpperCase();
+    const details = airportsByIcao[icao] || {};
+    const name = etopsValue(details, 'name') || etopsValue(airport, 'name');
+    const start = etopsValue(details, 'suitability_start'), end = etopsValue(details, 'suitability_end');
+    const period = start && end ? formatObsDateTime(start) + ' – ' + formatObsDateTime(end) : '—';
+    const required = etopsWxPair(etopsValue(details, 'fcst_cig'), etopsValue(details, 'fcst_vis'));
+    const considered = etopsWxPair(etopsValue(details, 'metar_ceiling'), etopsValue(details, 'metar_visibility'));
+    return '<div class="etops-airport-wx-item"><div class="etops-airport-heading"><span>' + escapeNotamHtml(icao) + '</span><span>' + escapeNotamHtml(name) + '</span></div>' +
+      '<div class="etops-detail-grid"><div><span>Suitable Period</span><span>' + escapeNotamHtml(period) + '</span></div>' +
+      '<div><span>Required WX Minima</span><span>' + escapeNotamHtml(required) + '</span></div>' +
+      '<div><span>Considered WX Minima</span><span>' + escapeNotamHtml(considered) + '</span></div></div>' +
+      '<button type="button" class="etops-taf-button" data-etops-taf="' + escapeNotamHtml(icao) + '">View TAF for ' + escapeNotamHtml(icao) + '</button></div>';
+  }).join('');
+  const generalRows = [
+    ['Critical Fuel', etopsFormatFuel(etopsValue(source, 'critical_fuel'))],
+    ['Icing Fuel', etopsFormatFuel(etopsValue(source, 'div_ice'))],
+    ['Ground Distance', divAirports.length ? divAirports.map(a => etopsValue(a, 'distance') || '—').join(' / ') + ' NM' : '—'],
+    ['Flight Time', etopsFormatTime(etopsValue(source, 'div_time'))],
+    ['Wind Component', divAirports.length ? divAirports.map(a => etopsFormatWind(etopsValue(a, 'avg_wind_comp'))).join(' / ') : '—'],
+    ['Altitude (FL)', etopsFormatFlightLevel(etopsValue(source, 'div_altitude'))],
+    ['MSA', etopsValue(source, 'msa') || '—']
+  ];
+  const generalMarkup = generalRows.map(item => '<div class="etops-detail-row-item"><span>' + escapeNotamHtml(item[0]) + '</span><span>' + escapeNotamHtml(item[1]) + '</span></div>').join('');
+  const airportHeader = divAirports.length ? divAirports.map(airport => {
+    const icao = etopsValue(airport, 'icao_code').toUpperCase(), info = airportsByIcao[icao] || {};
+    return '<span><strong>' + escapeNotamHtml(icao) + '</strong><small>' + escapeNotamHtml(etopsValue(info, 'name')) + '</small></span>';
+  }).join('') : '<span><strong>' + escapeNotamHtml(etopsValue(source, 'icao_code') || '—') + '</strong></span>';
+  return '<div class="etops-detail-content"><div class="etops-airport-title"><strong>Airport</strong><div>' + airportHeader + '</div></div>' +
+    '<div class="etops-section-heading"><strong>General</strong><span></span></div><div class="etops-general-fields">' + generalMarkup + '</div>' +
+    '<div class="etops-section-heading"><strong>Airport WX</strong><span></span></div><div class="etops-airport-wx-list">' +
+    (airportCards || '<div class="etops-no-data">Airport WX data not available</div>') + '</div></div>';
+}
+function etopsWxPair(ceiling, visibility) {
+  return 'Ceiling ' + (ceiling ? ceiling + ' ft' : '—') + ' / Visibility ' + (visibility ? visibility + ' m' : '—');
+}
+function etopsFormatWind(value) {
+  const number = etopsNumber(value);
+  return number === null ? '—' : (number < 0 ? 'M' : 'P') + String(Math.abs(Math.round(number))).padStart(3, '0');
+}
+function etopsFormatFlightLevel(value) {
+  const number = etopsNumber(value);
+  return number === null ? '—' : String(Math.round(number / 100));
+}
+function openEtopsTafModal(icaos) {
+  const flight = getFlight(currentFlightId), etops = getEtopsData(flight && flight.raw ? flight.raw : {});
+  const airports = getEtopsAirportIndex(etops || {});
+  const overlay = document.getElementById('etops-taf-modal-overlay'), modal = document.getElementById('etops-taf-modal');
+  const body = document.getElementById('etops-taf-modal-body');
+  if (!overlay || !modal || !body) return;
+  body.innerHTML = icaos.map(icao => {
+    const airport = airports[icao] || {}, name = etopsValue(airport, 'name');
+    const taf = etopsValue(airport, 'taf') || 'TAF not available';
+    return '<section class="etops-taf-block"><div class="etops-taf-airport">' + escapeNotamHtml(icao) +
+      (name ? ' - ' + escapeNotamHtml(name) : '') + '</div><pre>' + escapeNotamHtml(taf) + '</pre>' +
+      '<button type="button" class="etops-view-wx-button" data-etops-view-wx="' + escapeNotamHtml(icao) + '">View WX</button></section>';
+  }).join('');
+  overlay.classList.add('open'); modal.classList.add('open');
+  body.onclick = event => {
+    const button = event.target.closest('[data-etops-view-wx]');
+    if (!button) return;
+    closeEtopsTafModal(); openEtopsAirportWx(button.dataset.etopsViewWx);
+  };
+}
+function closeEtopsTafModal() {
+  const overlay = document.getElementById('etops-taf-modal-overlay'), modal = document.getElementById('etops-taf-modal');
+  if (overlay) overlay.classList.remove('open');
+  if (modal) modal.classList.remove('open');
+}
+function openEtopsAirportWx(icao) {
+  const flight = getFlight(currentFlightId), etops = getEtopsData(flight && flight.raw ? flight.raw : {});
+  const airport = getEtopsAirportIndex(etops || {})[icao] || {};
+  let index = currentAirportsData.findIndex(item => item.icao === icao);
+  if (index < 0 && airport) {
+    currentAirportsData.push({
+      type: 'Enroute Alternate', icao, iata: etopsValue(airport, 'iata_code'), icao_code: icao,
+      name: etopsValue(airport, 'name'), plan_rwy: etopsValue(airport, 'plan_rwy'),
+      metar: etopsValue(airport, 'metar'), metar_time: etopsValue(airport, 'metar_time'),
+      metar_category: etopsValue(airport, 'metar_category'), metar_ceiling: etopsValue(airport, 'metar_ceiling'),
+      metar_visibility: etopsValue(airport, 'metar_visibility'), taf: etopsValue(airport, 'taf'),
+      taf_time: etopsValue(airport, 'taf_time'), notams: []
+    });
+    index = currentAirportsData.length - 1;
+  }
+  if (index < 0) return;
+  document.querySelectorAll('.briefing-page-item.active').forEach(item => item.classList.remove('active'));
+  hideAllBriefingPages();
+  const apt = currentAirportsData[index], title = document.getElementById('topbar-title');
+  if (title) title.textContent = icao + (apt.name ? ' - ' + apt.name : '');
+  const section = document.getElementById('briefing-airport-container');
+  if (section) section.style.display = 'flex';
+  renderAirportSection(index);
 }
 
 function renderGeneralSection(flight) {
