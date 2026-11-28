@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=89">
+  <link rel="stylesheet" href="css/style.css?v=90">
 </head>
 <body>
   <!-- TOP BAR & INFO VOLO -->
@@ -497,9 +497,21 @@
         <div id="briefing-dispatch-container" class="briefing-general-container" style="display:none;">
           <div class="widget briefing-dispatch-widget">
             <div class="widget-header gen-widget-header" style="justify-content: flex-start; padding: 12px 22px;">
-              <span class="gen-header-text" style="text-transform: none;">Dispatch Info</span>
+              <span class="gen-header-text" style="text-transform: none;">Dispatch Remarks</span>
             </div>
-            <div class="widget-body" style="padding: 22px;"><p id="brf-dispatch-text" class="dispatch-text"></p></div>
+            <div class="widget-body" style="padding: 22px;">
+              <p id="brf-dispatch-text" class="dispatch-text"></p>
+            </div>
+          </div>
+          <div class="widget briefing-dispatch-widget dispatch-briefing-widget">
+            <div class="widget-header gen-widget-header" style="justify-content: flex-start; padding: 12px 22px;">
+              <span class="gen-header-text" style="text-transform: none;">Dispatch Briefing Information</span>
+            </div>
+            <div class="widget-body dispatch-briefing-body">
+              <div id="brf-dispatch-meta" class="dispatch-briefing-meta" hidden></div>
+              <div id="brf-dispatch-system-remarks" class="dispatch-briefing-system-remarks" hidden></div>
+              <pre id="brf-dispatch-briefing-text" class="dispatch-briefing-text"></pre>
+            </div>
           </div>
         </div>
         <!-- AIRPORT (WX/NOTAM) CONTAINER -->
@@ -900,7 +912,7 @@
   <script src="js/fuel-engine.js?v=81"></script>
   <script src="js/myflights.js?v=81"></script>
   <script src="js/dashboard.js?v=83"></script>
-  <script src="js/briefing.js?v=88"></script>
+  <script src="js/briefing.js?v=89"></script>
   <script src="js/journeylog.js?v=81"></script>
   <script src="js/navlog.js?v=81"></script>
   <script src="js/app.js?v=81"></script>
