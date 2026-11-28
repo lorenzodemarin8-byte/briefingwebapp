@@ -384,11 +384,26 @@ function renderDashboard(flight) {
     }
 
     // ---- DISPATCH & CREW (PAGINA 2 - DESTRA) ----
-    renderDashDispatchAndCrew(data);
+    // Keep this widget isolated: a malformed dispatch field must not block route rendering.
+    try {
+      renderDashDispatchAndCrew(data);
+    } catch (err) {
+      console.error('Errore nel rendering di Dispatch & Crew:', err);
+      const crewBody = document.getElementById('dash-crew-body');
+      if (crewBody) crewBody.innerHTML = '<p class="hint" style="text-align:center; margin:auto;">Dati equipaggio non disponibili.</p>';
+    }
 
     // ---- ROUTE (PAGINA 1 - CENTRO) ----
-    renderRouteMap(data);
-    renderRouteSummary(data, origin, destination, general);
+    try {
+      renderRouteMap(data);
+    } catch (err) {
+      console.error('Errore nel rendering della mappa rotta:', err);
+    }
+    try {
+      renderRouteSummary(data, origin, destination, general);
+    } catch (err) {
+      console.error('Errore nel rendering del riepilogo rotta:', err);
+    }
 
     if (typeof renderClassicOfpText === 'function') {
       renderClassicOfpText(data);
@@ -869,7 +884,8 @@ function renderDashDispatchAndCrew(data) {
   if (dxNameEl) dxNameEl.textContent = cleanStr(crew.dx, 'OPS / DISPATCH');
   if (dxPhoneEl) dxPhoneEl.textContent = cleanStr(crew.dx_phone || general.dx_phone, '+39 02 0000 0000');
   if (dxRmkEl) {
-    dxRmkEl.textContent = (general.dx_rmk && general.dx_rmk.trim() !== '') ? general.dx_rmk.trim() : 'NIL';
+    const dispatchRemarks = typeof general.dx_rmk === 'string' ? general.dx_rmk.trim() : '';
+    dxRmkEl.textContent = dispatchRemarks || 'NIL';
   }
 
   const crewBody = document.getElementById('dash-crew-body');
